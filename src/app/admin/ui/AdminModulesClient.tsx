@@ -18,10 +18,11 @@ type Props = {
 };
 
 const LICENSE_ORDER: { id: string; label: string; desc?: string }[] = [
-  { id: "m1m2", label: "M1/M2", desc: "Airplane & Helicopter (core modules)" },
-  { id: "avionics", label: "Avionics", desc: "Systems + Standard Practices + Logbook" },
-  { id: "structures", label: "Structures", desc: "Study + Logbook" },
-  { id: "balloons", label: "Balloons", desc: "Study + Logbook" },
+  { id: "regs", label: "REGS", desc: "Regulations (CARs, Standards, Certification, PRM, RCA)" },
+  { id: "m", label: "M", desc: "Airplane & Helicopter (Standard Practices, Airframe, Powerplant, Logbook)" },
+  { id: "e", label: "E", desc: "Avionics (Standard Practices, Rating, Logbook)" },
+  { id: "s", label: "S", desc: "Structures (Standard Practices, Rating, Logbook)" },
+  { id: "balloons", label: "Balloons", desc: "BREGS + Logbook" },
 ];
 
 const STATUS_OPTIONS: { value: ModuleStatus; label: string }[] = [

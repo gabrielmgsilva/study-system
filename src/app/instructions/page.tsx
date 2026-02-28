@@ -1,16 +1,18 @@
+import React from 'react';
 import Link from 'next/link';
 import {
   Info,
   BookOpen,
   ClipboardList,
   Coins,
-  AlertTriangle,
-  Navigation,
   HelpCircle,
+  Navigation,
   ArrowLeft,
   CheckCircle2,
   Mail,
 } from 'lucide-react';
+
+import { ROUTES } from '@/lib/routes';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -41,7 +43,7 @@ export default function InstructionsPage() {
             variant="outline"
             className="border-white/10 bg-white/5 hover:bg-white/10"
           >
-            <Link href="/">
+            <Link href={ROUTES.landing}>
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back
             </Link>
@@ -226,9 +228,7 @@ export default function InstructionsPage() {
                 <Bullet>
                   It does not automatically certify or approve your experience.
                 </Bullet>
-                <Bullet>
-                  It does not guarantee licence issuance.
-                </Bullet>
+                <Bullet>It does not guarantee licence issuance.</Bullet>
               </ul>
             </div>
 
@@ -383,10 +383,10 @@ export default function InstructionsPage() {
             variant="outline"
             className="border-white/10 bg-white/5 hover:bg-white/10"
           >
-            <Link href="/help">Support / Help</Link>
+            <Link href={ROUTES.help}>Support / Help</Link>
           </Button>
           <Button asChild>
-            <Link href="/study">Go to Study</Link>
+            <Link href={ROUTES.appHub}>Go to Study</Link>
           </Button>
         </div>
       </div>

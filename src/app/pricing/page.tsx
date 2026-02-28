@@ -1,207 +1,193 @@
-'use client';
-
 import Link from 'next/link';
 import {
-  ArrowLeft,
-  Coins,
-  Check,
-  Package,
-  ClipboardList,
+  ArrowRight,
   ShieldCheck,
+  Plane,
+  Radio,
+  Wrench,
+  Wind,
+  Check,
 } from 'lucide-react';
 
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from '@/components/ui/card';
+import { ROUTES } from '@/lib/routes';
+
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { GlassCard, GlassPanel } from '@/components/ui/glass';
 
 function Feature({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex gap-2 text-sm text-muted-foreground">
-      <Check className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+    <div className="flex gap-2 text-sm text-white/85">
+      <Check className="h-4 w-4 text-white/85 shrink-0 mt-0.5" />
       <span>{children}</span>
     </div>
   );
 }
 
-function Row({
-  left,
-  right,
+function Plan({
+  title,
+  price,
+  subtitle,
+  features,
+  highlight,
 }: {
-  left: string;
-  right: string;
+  title: string;
+  price: string;
+  subtitle: string;
+  features: string[];
+  highlight?: boolean;
 }) {
   return (
-    <div className="flex justify-between border-b py-2 text-sm">
-      <span className="text-muted-foreground">{left}</span>
-      <span className="font-medium">{right}</span>
-    </div>
+    <GlassCard className={highlight ? 'ring-1 ring-white/25' : ''}>
+      <div className="p-6 space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-white font-semibold text-lg">{title}</div>
+            <div className="text-white/70 text-sm">{subtitle}</div>
+          </div>
+          <Badge className="border-white/18 bg-white/10 text-white" variant="outline">
+            {price}
+          </Badge>
+        </div>
+        <div className="space-y-2">
+          {features.map((f) => (
+            <Feature key={f}>{f}</Feature>
+          ))}
+        </div>
+      </div>
+    </GlassCard>
   );
 }
 
 export default function PricingPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4 py-8">
-      <div className="max-w-6xl mx-auto space-y-8">
-        {/* Header */}
-        <div className="flex justify-between items-start gap-4">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs text-muted-foreground bg-background">
-              <ShieldCheck className="h-4 w-4" />
-              Public page • No credits consumed
+    <div className="min-h-screen">
+      <div className="mx-auto max-w-6xl px-4 py-10 space-y-6">
+        <GlassPanel className="p-8">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+            <div className="space-y-3">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-medium text-white">
+                <ShieldCheck className="h-4 w-4" />
+                Licence-first pricing (Transport Canada mindset)
+              </div>
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-white">
+                Pay per licence, not for stuff you don&apos;t use.
+              </h1>
+              <p className="text-white/75 max-w-2xl">
+                AME ONE sells <span className="text-white">licences</span> (M, E, S, Balloons) — each one is its own product.
+                REGS is global: unlock once and share CARs + Standards across all licences.
+              </p>
             </div>
-            <h1 className="text-3xl font-bold mt-3">Pricing</h1>
-            <p className="text-muted-foreground mt-1">
-              <strong>Pay once. Study forever. Only what you need.</strong>
-            </p>
-          </div>
 
-          <Button asChild variant="outline">
-            <Link href="/home">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
-            </Link>
-          </Button>
+            <div className="flex gap-2">
+              <Button asChild className="rounded-2xl">
+                <Link href={ROUTES.register}>
+                  Create account <ArrowRight className="h-4 w-4 ml-2" />
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="rounded-2xl border-white/15 bg-white/10 text-white hover:bg-white/15">
+                <Link href={ROUTES.login}>Sign in</Link>
+              </Button>
+            </div>
+          </div>
+        </GlassPanel>
+
+        {/* Licence tiles */}
+        <div className="grid gap-3 md:grid-cols-5">
+          <GlassCard className="p-5">
+            <div className="flex items-center gap-2 text-white">
+              <ShieldCheck className="h-4 w-4" />
+              <span className="font-semibold">REGS</span>
+              <Badge className="ml-auto border-white/18 bg-white/10 text-white" variant="outline">
+                Global
+              </Badge>
+            </div>
+            <p className="text-sm text-white/70 mt-2">CARs + Standards. Unlock once.</p>
+          </GlassCard>
+          <GlassCard className="p-5">
+            <div className="flex items-center gap-2 text-white"><Plane className="h-4 w-4" /><span className="font-semibold">M</span></div>
+            <p className="text-sm text-white/70 mt-2">Std Practices • Airframe • Powerplant</p>
+          </GlassCard>
+          <GlassCard className="p-5">
+            <div className="flex items-center gap-2 text-white"><Radio className="h-4 w-4" /><span className="font-semibold">E</span></div>
+            <p className="text-sm text-white/70 mt-2">Std Practices • Avionics</p>
+          </GlassCard>
+          <GlassCard className="p-5">
+            <div className="flex items-center gap-2 text-white"><Wrench className="h-4 w-4" /><span className="font-semibold">S</span></div>
+            <p className="text-sm text-white/70 mt-2">Std Practices • Structures</p>
+          </GlassCard>
+          <GlassCard className="p-5">
+            <div className="flex items-center gap-2 text-white"><Wind className="h-4 w-4" /><span className="font-semibold">Balloons</span></div>
+            <p className="text-sm text-white/70 mt-2">BREGS • ops/maintenance</p>
+          </GlassCard>
         </div>
 
-        {/* Credit Packs */}
-        <Card className="rounded-2xl">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Coins className="h-5 w-5" />
-              Credit Packs
-            </CardTitle>
-            <CardDescription>Credits never expire</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Row left="Starter — 30 credits" right="$10" />
-            <Row left="Student — 60 credits" right="$20" />
-            <Row left="Professional — 120 credits" right="$40" />
-            <Row left="Complete — 200 credits" right="$66" />
-          </CardContent>
-        </Card>
+        {/* Plans */}
+        <div className="grid gap-4 lg:grid-cols-3">
+          <Plan
+            title="BASIC"
+            price="~USD 10 / licence"
+            subtitle="Explore & Start"
+            features={[
+              'Flashcards: daily limit (ex: 20/day)',
+              'Practice: cooldown (ex: 2 sessions/day)',
+              'Test: weekly limit (ex: 1/week)',
+              'No Logbook',
+            ]}
+          />
+          <Plan
+            title="STANDARD"
+            price="~USD 20 / licence"
+            subtitle="Serious Study (most popular)"
+            highlight
+            features={[
+              'Flashcards: unlimited',
+              'Practice: unlimited',
+              'Test: weekly limit (ex: 3/week)',
+              'No Logbook',
+            ]}
+          />
+          <Plan
+            title="PREMIUM"
+            price="~USD 30 / licence"
+            subtitle="Exam & Career"
+            features={[
+              'Everything unlimited',
+              'Test: unlimited',
+              'Logbook included (professional tool)',
+              'Priority access to new modules for that licence',
+            ]}
+          />
+        </div>
 
-        {/* Individual Modules */}
-        <Card className="rounded-2xl">
-          <CardHeader>
-            <CardTitle>Individual Modules (À la carte)</CardTitle>
-            <CardDescription>$10 each — Ideal for retakes</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Row left="Regulations (CARs)" right="30 credits — $10" />
-            <Row left="Standard Practices" right="30 credits — $10" />
-            <Row left="Airframe" right="30 credits — $10" />
-            <Row left="Powerplant" right="30 credits — $10" />
-            <Row left="Avionics – Systems" right="30 credits — $10" />
-            <Row left="Structures – Study" right="30 credits — $10" />
-            <Row left="Balloons – Study" right="30 credits — $10" />
-
-            <div className="pt-3 space-y-1">
-              <Feature>Targeted preparation</Feature>
-              <Feature>No subscription</Feature>
+        <GlassPanel className="p-6">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <div className="text-white font-semibold">Why this is fair (and sells better)</div>
+              <p className="text-sm text-white/75">
+                Competitors charging one flat price make people pay for modules they don&apos;t need. Here you buy only the licence
+                you&apos;re targeting — exactly how Transport Canada structures the exams.
+              </p>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* License Based */}
-        <Card className="rounded-2xl border-primary/40 bg-primary/5">
-          <CardHeader>
-            <CardTitle>License-Based Access (Most Popular)</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <h3 className="font-semibold">✈️ M1 or M2 License</h3>
-              <Feature>Regs, STDP, Airframe, Powerplant</Feature>
-              <Feature>Study / Practice / Test</Feature>
-              <p className="font-medium mt-1">120 credits — $40</p>
+            <div className="space-y-2">
+              <div className="text-white font-semibold">REGS is separate on purpose</div>
+              <p className="text-sm text-white/75">
+                REGS (CARs + Standards) is shared knowledge across ratings. Unlock once and it follows you no matter which licence
+                you focus on.
+              </p>
             </div>
+          </div>
+        </GlassPanel>
 
-            <div>
-              <h3 className="font-semibold">📡 E – Avionics</h3>
-              <Feature>Standard Practices + Systems</Feature>
-              <Feature>Study / Practice / Test</Feature>
-              <p className="font-medium mt-1">60 credits — $20</p>
-            </div>
-
-            <div>
-              <h3 className="font-semibold">🧱 S – Structures</h3>
-              <Feature>Study / Practice / Test</Feature>
-              <p className="font-medium mt-1">30 credits — $10</p>
-            </div>
-
-            <div>
-              <h3 className="font-semibold">🎈 Balloons</h3>
-              <Feature>Study / Practice / Test</Feature>
-              <p className="font-medium mt-1">30 credits — $10</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Logbook */}
-        <Card className="rounded-2xl">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ClipboardList className="h-5 w-5" />
-              Logbook — Optional Add-on
-            </CardTitle>
-            <CardDescription>Not required for study</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Feature>TC-style logbook</Feature>
-            <Feature>Multi-license (M1/M2/E/S/B)</Feature>
-            <Feature>Unlimited export & print</Feature>
-            <p className="font-medium pt-2">30 credits — $10 (one-time)</p>
-          </CardContent>
-        </Card>
-
-        {/* Bundles */}
-        <Card className="rounded-2xl border-primary/40 bg-primary/5">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5" />
-              Bundles (Best Value)
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Row left="Basic Bundle (any 2 modules)" right="50 credits — $16.50" />
-            <Row left="M1/M2 (study only)" right="120 credits — $40" />
-            <Row left="M1/M2 + E" right="160 credits — $53" />
-            <Row left="M1/M2 + S" right="140 credits — $46" />
-            <Row
-              left="Complete (All + Logbook)"
-              right="200 credits — $66"
-            />
-          </CardContent>
-        </Card>
-
-        {/* Free */}
-        <Card className="rounded-2xl">
-          <CardHeader>
-            <CardTitle>What’s Free (Always)</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1">
-            <Feature>Instructions / FAQ</Feature>
-            <Feature>How to Become an AME (Canada)</Feature>
-            <Feature>Support & Feedback</Feature>
-            <Feature>Question by ID</Feature>
-            <Feature>Logbook preview</Feature>
-          </CardContent>
-        </Card>
-
-        {/* Comparison */}
-        <Card className="rounded-2xl">
-          <CardHeader>
-            <CardTitle>Reality Check</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Row left="Subscription app (12 months)" right="~$360" />
-            <Row left="AME ONE (Complete)" right="$66 one-time" />
-          </CardContent>
-        </Card>
+        <div className="flex items-center justify-between text-sm text-white/70">
+          <Link className="hover:text-white" href={ROUTES.landing}>
+            ← Back to home
+          </Link>
+          <div className="flex items-center gap-4">
+            <Link className="hover:text-white" href={ROUTES.terms}>Terms</Link>
+            <Link className="hover:text-white" href={ROUTES.privacy}>Privacy</Link>
+          </div>
+        </div>
       </div>
     </div>
   );

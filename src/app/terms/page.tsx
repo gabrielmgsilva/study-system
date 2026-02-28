@@ -34,11 +34,11 @@ export default function TermsPage() {
 
           <div className="flex items-center gap-2 shrink-0">
             <Button asChild variant="outline" className={glassBtn}>
-              <Link href="/privacy">Privacy Policy</Link>
+              <Link href={ROUTES.privacy}>Privacy Policy</Link>
             </Button>
 
             <Button asChild variant="outline" className={glassBtn}>
-              <Link href="/" className="flex items-center gap-2">
+              <Link href={ROUTES.landing} className="flex items-center gap-2">
                 <ArrowLeft className="h-4 w-4" />
                 Back to Home
               </Link>
@@ -154,7 +154,7 @@ export default function TermsPage() {
                 </p>
 
                 <Button asChild variant="outline" className={glassBtn}>
-                  <Link href="/privacy">View Privacy Policy</Link>
+                  <Link href={ROUTES.privacy}>View Privacy Policy</Link>
                 </Button>
               </div>
             </section>

@@ -34,11 +34,11 @@ export default function PrivacyPage() {
 
           <div className="flex items-center gap-2 shrink-0">
             <Button asChild variant="outline" className={glassBtn}>
-              <Link href="/terms">Terms of Use</Link>
+              <Link href={ROUTES.terms}>Terms of Use</Link>
             </Button>
 
             <Button asChild variant="outline" className={glassBtn}>
-              <Link href="/" className="flex items-center gap-2">
+              <Link href={ROUTES.landing} className="flex items-center gap-2">
                 <ArrowLeft className="h-4 w-4" />
                 Back to Home
               </Link>
@@ -139,7 +139,7 @@ export default function PrivacyPage() {
                 </p>
 
                 <Button asChild variant="outline" className={glassBtn}>
-                  <Link href="/terms">View Terms of Use</Link>
+                  <Link href={ROUTES.terms}>View Terms of Use</Link>
                 </Button>
               </div>
             </section>

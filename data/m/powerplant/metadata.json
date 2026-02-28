@@ -1,0 +1,205 @@
+{
+  "module": "powerplant",
+  "moduleTitle": "Powerplant – M",
+  "moduleDescription": "Topics for the Transport Canada PP (Power Plant) exam within the M rating (based on the TC guide).",
+  "submodules": [
+    {
+      "id": "powerplant_m",
+      "name": "Powerplant – M",
+      "folder": "",
+      "sets": [
+        {
+          "id": "pp31",
+          "name": "31 – Reciprocating Engines",
+          "shortTitle": "31",
+          "subtitle": "Reciprocating engines: theory, inspection and operating principles.",
+          "file": "31.json",
+          "weight": 1,
+          "outline": [
+            "Recip engines — theory/application, inspection and operating principles (31.1)",
+            "Engine mounts — theory, construction and inspection (31.2)",
+            "Corrosion prevention — types, prevention and inspection (31.3)",
+            "Gear boxes, instruments and trend monitoring (31.4–31.6)"
+          ],
+          "references": [
+            { "label": "TC", "ref": "M PP 31.0" }
+          ]
+        },
+        {
+          "id": "pp32",
+          "name": "32 – Reciprocating Engine Fuel and Control",
+          "shortTitle": "32",
+          "subtitle": "Carburetion, fuel injection, turbocharger systems and indications.",
+          "file": "32.json",
+          "weight": 1,
+          "outline": [
+            "Carburetion — theory and operation (32.1)",
+            "Fuel injection systems — theory and operation (32.2)",
+            "Turbo charger systems — theory and application (32.3)",
+            "System indication — theory and application (32.4)"
+          ],
+          "references": [
+            { "label": "TC", "ref": "M PP 32.0" }
+          ]
+        },
+        {
+          "id": "pp33",
+          "name": "33 – Reciprocating Engine Ignition and Starting Systems",
+          "shortTitle": "33",
+          "subtitle": "Ignition and starting systems: types, inspection and operation.",
+          "file": "33.json",
+          "weight": 1,
+          "outline": [
+            "Ignition systems — types, theory, inspection and operation (33.1)",
+            "Starting systems — types, theory, inspection and operation (33.2)"
+          ],
+          "references": [
+            { "label": "TC", "ref": "M PP 33.0" }
+          ]
+        },
+        {
+          "id": "pp34",
+          "name": "34 – Reciprocating Engine Lubrication and Cooling Systems",
+          "shortTitle": "34",
+          "subtitle": "Lubrication, cooling and SOAP program basics.",
+          "file": "34.json",
+          "weight": 1,
+          "outline": [
+            "Engine lubrication — components, theory, inspection and operation (34.1)",
+            "Engine cooling — components, theory, inspection and operation (34.2)",
+            "SOAP — Spectrometric Oil Analysis Program: theory and application (34.3)"
+          ],
+          "references": [
+            { "label": "TC", "ref": "M PP 34.0" }
+          ]
+        },
+        {
+          "id": "pp35",
+          "name": "35 – Engine Fire Protection Systems",
+          "shortTitle": "35",
+          "subtitle": "Engine fire detection and extinguishing systems.",
+          "file": "35.json",
+          "weight": 1,
+          "outline": [
+            "Engine fire detection — components, theory, inspection and operation (35.1)",
+            "Engine fire extinguishing — components, theory, inspection and operation (35.2)"
+          ],
+          "references": [
+            { "label": "TC", "ref": "M PP 35.0" }
+          ]
+        },
+        {
+          "id": "pp36",
+          "name": "36 – Turbine Engines",
+          "shortTitle": "36",
+          "subtitle": "Turbine engines: theory, instruments, drives, mounts and trend monitoring.",
+          "file": "36.json",
+          "weight": 1,
+          "outline": [
+            "Turbine engines — theory/application, inspection and operating principles (36.1)",
+            "Engine instruments — theory, inspection and operating principles (36.2)",
+            "Accessory drives/gear reduction + engine mounts (36.3–36.4)",
+            "Trend monitoring — theory and application (36.5)"
+          ],
+          "references": [
+            { "label": "TC", "ref": "M PP 36.0" }
+          ]
+        },
+        {
+          "id": "pp37",
+          "name": "37 – Turbine Engine Lubrication and Cooling Systems",
+          "shortTitle": "37",
+          "subtitle": "Turbine lubrication and cooling systems: inspection and operation.",
+          "file": "37.json",
+          "weight": 1,
+          "outline": [
+            "Engine lubrication — components, theory, inspection and operation (37.1)",
+            "Engine cooling — components, theory, inspection and operation (37.2)"
+          ],
+          "references": [
+            { "label": "TC", "ref": "M PP 37.0" }
+          ]
+        },
+        {
+          "id": "pp38",
+          "name": "38 – Turbine Engine Fuel and Control",
+          "shortTitle": "38",
+          "subtitle": "Fuel/control components plus system indication.",
+          "file": "38.json",
+          "weight": 1,
+          "outline": [
+            "Electronic & hydro-mechanical control + governors (38.1–38.2)",
+            "Manifolds/nozzles, heaters, oil coolers, filters (38.3–38.6)",
+            "System indication — theory and application (38.7)"
+          ],
+          "references": [
+            { "label": "TC", "ref": "M PP 38.0" }
+          ]
+        },
+        {
+          "id": "pp39",
+          "name": "39 – Turbine Engine Induction and Exhaust Systems",
+          "shortTitle": "39",
+          "subtitle": "Inlets, exhaust, thrust reversers and anti-ice systems.",
+          "file": "39.json",
+          "weight": 1,
+          "outline": [
+            "Inlets and inlet screens — construction (39.1)",
+            "Exhaust — theory, inspection and operating principles (39.2)",
+            "Thrust reversers — construction and operating principles (39.3)",
+            "Anti-ice systems — theory, inspection and operating principles (39.4)"
+          ],
+          "references": [
+            { "label": "TC", "ref": "M PP 39.0" }
+          ]
+        },
+        {
+          "id": "pp40",
+          "name": "40 – Power Plant Recording and Indicating Systems",
+          "shortTitle": "40",
+          "subtitle": "Indicating/recording, BITE and fault detection basics.",
+          "file": "40.json",
+          "weight": 1,
+          "outline": [
+            "Speed/temperature/pressure indication — theory and application (40.1)",
+            "Fuel and oil — theory and application (40.2)",
+            "Ratio/torque/vibration — theory and application (40.3)",
+            "BITE + fault detection — theory and application (40.4–40.5)"
+          ],
+          "references": [
+            { "label": "TC", "ref": "M PP 40.0" }
+          ]
+        },
+        {
+          "id": "pp41",
+          "name": "41 – Water Injection",
+          "shortTitle": "41",
+          "subtitle": "Water/methanol injection systems: theory and application.",
+          "file": "41.json",
+          "weight": 1,
+          "outline": [
+            "Water methanol injection systems — theory and application (41.1)"
+          ],
+          "references": [
+            { "label": "TC", "ref": "M PP 41.0" }
+          ]
+        },
+        {
+          "id": "pp42",
+          "name": "42 – Propellers and Systems",
+          "shortTitle": "42",
+          "subtitle": "Propellers and propeller systems: theory, inspection and application.",
+          "file": "42.json",
+          "weight": 1,
+          "outline": [
+            "Propellers — fixed/controllable pitch types, theory and application (42.1)",
+            "Propeller systems — components/terminology, theory, inspection and application (42.2)"
+          ],
+          "references": [
+            { "label": "TC", "ref": "M PP 42.0" }
+          ]
+        }
+      ]
+    }
+  ]
+}

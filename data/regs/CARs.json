@@ -1,0 +1,392 @@
+[
+  {
+    "ratingCode": "GLOBAL",
+    "examCode": "REGS",
+    "tcSectionCode": "1.0",
+    "tcSectionTitle": "General Provisions – Interpretation",
+    "tcTopicCode": "1.1",
+    "tcTopicTitle": "Interpretation and Definitions",
+    "topicPath": [
+      { "code": "1.0", "title": "General Provisions – Interpretation" },
+      { "code": "1.1", "title": "Interpretation and Definitions" }
+    ],
+    "questionType": "single_choice",
+    "references": [
+      {
+        "doc": "CARs",
+        "area": "Regulations",
+        "topic": "1.0",
+        "locator": "CARs – General Provisions – Interpretation",
+        "note": "CARs For The AME / Page 13, CAR Part I | Excerpt: ...but does not include (a) elementary work,"
+      }
+    ],
+    "difficulty": 2,
+    "tags": [],
+    "status": "draft",
+    "version": 1,
+    "id": "REGS-110-001",
+    "stem": "Qual das seguintes opções é especificamente excluída da definição de \"manutenção\" nos CARs?",
+    "options": [
+      { "id": "A", "text": "Overhaul de produto aeronáutico." },
+      { "id": "B", "text": "Reparo de produto aeronáutico." },
+      { "id": "C", "text": "Execução de trabalho elementar." },
+      { "id": "D", "text": "Inspeção para determinar condição." }
+    ],
+    "correctOptionId": "C",
+    "explanation": {
+      "correct": "Manutenção não inclui trabalho elementar (Elementary Work) conforme CAR 101.01.",
+      "whyOthersAreWrong": { "A": "", "C": "", "D": "" }
+    }
+  },
+  {
+    "ratingCode": "GLOBAL",
+    "examCode": "REGS",
+    "tcSectionCode": "1.0",
+    "tcSectionTitle": "General Provisions – Interpretation",
+    "tcTopicCode": "1.1",
+    "tcTopicTitle": "Interpretation and Definitions",
+    "topicPath": [
+      { "code": "1.0", "title": "General Provisions – Interpretation" },
+      { "code": "1.1", "title": "Interpretation and Definitions" }
+    ],
+    "questionType": "single_choice",
+    "references": [
+      {
+        "doc": "CARs",
+        "area": "Regulations",
+        "topic": "1.0",
+        "locator": "CARs – General Provisions – Interpretation",
+        "note": "CARs For The AME Page 15, Definitions | Excerpt: large aircraft - means... weight of more than 5 700 kg (12,566 pounds);"
+      }
+    ],
+    "difficulty": 2,
+    "tags": [],
+    "status": "draft",
+    "version": 1,
+    "id": "REGS-110-002",
+    "stem": "Um \"large aircraft\" é definido como um avião ou helicóptero com peso máximo de decolagem superior a:",
+    "options": [
+      { "id": "A", "text": "12,500 kg (27,558 lbs)." },
+      { "id": "B", "text": "5,700 kg (12,566 lbs)." },
+      { "id": "C", "text": "8,618 kg (19,000 lbs)." },
+      { "id": "D", "text": "2,722 kg (6,000 lbs)." }
+    ],
+    "correctOptionId": "B",
+    "explanation": {
+      "correct": "A definição regulatória de aeronave grande no Canadá utiliza o threshold de 5.700 kg.",
+      "whyOthersAreWrong": { "A": "", "C": "", "D": "" }
+    }
+  },
+  {
+    "ratingCode": "GLOBAL",
+    "examCode": "REGS",
+    "tcSectionCode": "1.0",
+    "tcSectionTitle": "General Provisions – Interpretation",
+    "tcTopicCode": "1.1",
+    "tcTopicTitle": "Interpretation and Definitions",
+    "topicPath": [
+      { "code": "1.0", "title": "General Provisions – Interpretation" },
+      { "code": "1.1", "title": "Interpretation and Definitions" }
+    ],
+    "questionType": "single_choice",
+    "references": [
+      {
+        "doc": "CARs",
+        "area": "Regulations",
+        "topic": "1.0",
+        "locator": "CARs – General Provisions – Interpretation",
+        "note": "CARs For The AME  / Page 15, Definitions | Excerpt: major modification - means a change... that has other than a negligible effect on the weight..."
+      }
+    ],
+    "difficulty": 2,
+    "tags": [],
+    "status": "draft",
+    "version": 1,
+    "id": "REGS-110-003",
+    "stem": "Uma modificação que tenha efeito \"não negligenciável\" no peso e balanceamento é definida como:",
+    "options": [
+      { "id": "A", "text": "Design Change." },
+      { "id": "B", "text": "Specialized Maintenance." },
+      { "id": "C", "text": "Major Repair." },
+      { "id": "D", "text": "Major Modification." }
+    ],
+    "correctOptionId": "D",
+    "explanation": {
+      "correct": "Alterações no design de tipo que afetam peso e balanceamento são Modificações Maiores.",
+      "whyOthersAreWrong": { "A": "", "C": "", "D": "" }
+    }
+  },
+  {
+    "ratingCode": "GLOBAL",
+    "examCode": "REGS",
+    "tcSectionCode": "1.0",
+    "tcSectionTitle": "General Provisions – Interpretation",
+    "tcTopicCode": "1.1",
+    "tcTopicTitle": "Interpretation and Definitions",
+    "topicPath": [
+      { "code": "1.0", "title": "General Provisions – Interpretation" },
+      { "code": "1.1", "title": "Interpretation and Definitions" }
+    ],
+    "questionType": "single_choice",
+    "references": [
+      {
+        "doc": "CARs",
+        "area": "Regulations",
+        "topic": "1.0",
+        "locator": "CARs – General Provisions – Interpretation",
+        "note": "CARs For The AME  / Page 14, Definitions | Excerpt: aeronautical product - means any aircraft, aircraft engine, aircraft propeller or aircraft component..."
+      }
+    ],
+    "difficulty": 2,
+    "tags": [],
+    "status": "draft",
+    "version": 1,
+    "id": "REGS-110-004",
+    "stem": "O que atende à definição de \"aeronautical product\" sob os CARs?",
+    "options": [
+      { "id": "A", "text": "Qualquer motor ou hélice de aeronave." },
+      { "id": "B", "text": "Apenas aeronaves completas." },
+      { "id": "C", "text": "Apenas partes com Type Certificate." },
+      { "id": "D", "text": "Equipamentos de apoio de solo (GSE)." }
+    ],
+    "correctOptionId": "A",
+    "explanation": {
+      "correct": "Inclui a aeronave, motores, hélices e qualquer componente ou parte destes.",
+      "whyOthersAreWrong": { "A": "", "C": "", "D": "" }
+    }
+  },
+  {
+    "ratingCode": "GLOBAL",
+    "examCode": "REGS",
+    "tcSectionCode": "1.0",
+    "tcSectionTitle": "General Provisions – Interpretation",
+    "tcTopicCode": "1.1",
+    "tcTopicTitle": "Interpretation and Definitions",
+    "topicPath": [
+      { "code": "1.0", "title": "General Provisions – Interpretation" },
+      { "code": "1.1", "title": "Interpretation and Definitions" }
+    ],
+    "questionType": "single_choice",
+    "references": [
+      {
+        "doc": "CARs",
+        "area": "Regulations",
+        "topic": "1.0",
+        "locator": "CARs – General Provisions – Interpretation",
+        "note": "CARs For The AME  / Page 14, Definitions | Excerpt: airworthy - ...means in a fit and safe state for flight and in conformity with its type design;"
+      }
+    ],
+    "difficulty": 2,
+    "tags": [],
+    "status": "draft",
+    "version": 1,
+    "id": "REGS-110-005",
+    "stem": "Qual é a definição específica de \"airworthy\" (aeronavegável)?",
+    "options": [
+      { "id": "A", "text": "Mantida por um AME licenciado." },
+      { "id": "B", "text": "Em estado seguro para voo." },
+      { "id": "C", "text": "Em estado seguro para voo e em conformidade com o design de tipo." },
+      { "id": "D", "text": "Com Certificado de Aeronavegabilidade válido." }
+    ],
+    "correctOptionId": "C",
+    "explanation": {
+      "correct": "Aeronavegabilidade exige segurança física E conformidade com o projeto aprovado.",
+      "whyOthersAreWrong": { "A": "", "C": "", "D": "" }
+    }
+  },
+  {
+    "ratingCode": "GLOBAL",
+    "examCode": "REGS",
+    "tcSectionCode": "1.0",
+    "tcSectionTitle": "General Provisions – Interpretation",
+    "tcTopicCode": "1.1",
+    "tcTopicTitle": "Interpretation and Definitions",
+    "topicPath": [
+      { "code": "1.0", "title": "General Provisions – Interpretation" },
+      { "code": "1.1", "title": "Interpretation and Definitions" }
+    ],
+    "questionType": "single_choice",
+    "references": [
+      {
+        "doc": "CARs",
+        "area": "Regulations",
+        "topic": "1.0",
+        "locator": "CARs – General Provisions – Interpretation",
+        "note": "CARs For The AME / Page 15, Definitions | Excerpt: standard part - means a part manufactured in accordance with a specification that is established..."
+      }
+    ],
+    "difficulty": 2,
+    "tags": [],
+    "status": "draft",
+    "version": 1,
+    "id": "REGS-110-006",
+    "stem": "Uma peça fabricada conforme especificação de uma organização de padrões de consenso é uma:",
+    "options": [
+      { "id": "A", "text": "Commercial part." },
+      { "id": "B", "text": "Approved part." },
+      { "id": "C", "text": "Standard part." },
+      { "id": "D", "text": "Specified part." }
+    ],
+    "correctOptionId": "C",
+    "explanation": {
+      "correct": "Peças padrão (Standard) seguem normas publicadas (ex: AN, MS, NAS).",
+      "whyOthersAreWrong": { "A": "", "C": "", "D": "" }
+    }
+  },
+  {
+    "ratingCode": "GLOBAL",
+    "examCode": "REGS",
+    "tcSectionCode": "1.0",
+    "tcSectionTitle": "General Provisions – Interpretation",
+    "tcTopicCode": "1.1",
+    "tcTopicTitle": "Interpretation and Definitions",
+    "topicPath": [
+      { "code": "1.0", "title": "General Provisions – Interpretation" },
+      { "code": "1.1", "title": "Interpretation and Definitions" }
+    ],
+    "questionType": "single_choice",
+    "references": [
+      {
+        "doc": "CARs",
+        "area": "Regulations",
+        "topic": "1.0",
+        "locator": "CARs – General Provisions – Interpretation",
+        "note": "CARs For The AME / Page 15, Definitions | Excerpt: major repair - means a repair... would potentially have a non-negligible effect on the structural strength..."
+      }
+    ],
+    "difficulty": 2,
+    "tags": [],
+    "status": "draft",
+    "version": 1,
+    "id": "REGS-110-007",
+    "stem": "Um reparo que, se mal feito, afetaria a resistência estrutural do produto é um:",
+    "options": [
+      { "id": "A", "text": "Major Modification." },
+      { "id": "B", "text": "Specialized Maintenance." },
+      { "id": "C", "text": "Major Repair." },
+      { "id": "D", "text": "Primary Structure Repair." }
+    ],
+    "correctOptionId": "C",
+    "explanation": {
+      "correct": "Reparos que impactam integridade estrutural ou desempenho são classificados como Reparos Maiores.",
+      "whyOthersAreWrong": { "A": "", "C": "", "D": "" }
+    }
+  },
+  {
+    "ratingCode": "GLOBAL",
+    "examCode": "REGS",
+    "tcSectionCode": "1.0",
+    "tcSectionTitle": "General Provisions – Interpretation",
+    "tcTopicCode": "1.1",
+    "tcTopicTitle": "Interpretation and Definitions",
+    "topicPath": [
+      { "code": "1.0", "title": "General Provisions – Interpretation" },
+      { "code": "1.1", "title": "Interpretation and Definitions" }
+    ],
+    "questionType": "single_choice",
+    "references": [
+      {
+        "doc": "CARs",
+        "area": "Regulations",
+        "topic": "1.0",
+        "locator": "CARs – General Provisions – Interpretation",
+        "note": "CARs For The AME / Page 14, Definitions | Excerpt: commercial part - means a part (a) that is not designed or produced exclusively for use as an aeronautical product..."
+      }
+    ],
+    "difficulty": 2,
+    "tags": [],
+    "status": "draft",
+    "version": 1,
+    "id": "REGS-110-008",
+    "stem": "Peça não aeronáutica, mas listada no IPC e aprovada pelo detentor do Type Certificate:",
+    "options": [
+      { "id": "A", "text": "Standard part." },
+      { "id": "B", "text": "Commercial part." },
+      { "id": "C", "text": "Equivalent part." },
+      { "id": "D", "text": "Owner-maintenance part." }
+    ],
+    "correctOptionId": "B",
+    "explanation": {
+      "correct": "Peças comerciais são aquelas de prateleira industrial aceitas pelo fabricante para uso na aeronave.",
+      "whyOthersAreWrong": { "A": "", "C": "", "D": "" }
+    }
+  },
+  {
+    "ratingCode": "GLOBAL",
+    "examCode": "REGS",
+    "tcSectionCode": "1.0",
+    "tcSectionTitle": "General Provisions – Interpretation",
+    "tcTopicCode": "1.1",
+    "tcTopicTitle": "Interpretation and Definitions",
+    "topicPath": [
+      { "code": "1.0", "title": "General Provisions – Interpretation" },
+      { "code": "1.1", "title": "Interpretation and Definitions" }
+    ],
+    "questionType": "single_choice",
+    "references": [
+      {
+        "doc": "CARs",
+        "area": "Regulations",
+        "topic": "1.0",
+        "locator": "CARs – General Provisions – Interpretation",
+        "note": "The Canadian Aviation Regulatory Framework... / Legislative Foundations | Excerpt: ...serves as the source of authority for the Minister of Transport."
+      }
+    ],
+    "difficulty": 2,
+    "tags": [],
+    "status": "draft",
+    "version": 1,
+    "id": "REGS-110-009",
+    "stem": "No contexto de interpretação dos CARs, o termo \"Minister\" refere-se a:",
+    "options": [
+      { "id": "A", "text": "Primeiro-Ministro." },
+      { "id": "B", "text": "Ministro da Defesa Nacional." },
+      { "id": "C", "text": "Ministro dos Transportes." },
+      { "id": "D", "text": "Diretor de Aviação Civil." }
+    ],
+    "correctOptionId": "C",
+    "explanation": {
+      "correct": "A autoridade delegada pela Aeronautics Act é o Ministro dos Transportes.",
+      "whyOthersAreWrong": { "A": "", "C": "", "D": "" }
+    }
+  },
+  {
+    "ratingCode": "GLOBAL",
+    "examCode": "REGS",
+    "tcSectionCode": "1.0",
+    "tcSectionTitle": "General Provisions – Interpretation",
+    "tcTopicCode": "1.1",
+    "tcTopicTitle": "Interpretation and Definitions",
+    "topicPath": [
+      { "code": "1.0", "title": "General Provisions – Interpretation" },
+      { "code": "1.1", "title": "Interpretation and Definitions" }
+    ],
+    "questionType": "single_choice",
+    "references": [
+      {
+        "doc": "CARs",
+        "area": "Regulations",
+        "topic": "1.0",
+        "locator": "CARs – General Provisions – Interpretation",
+        "note": "CARs For The AME / Page 15, Definitions | Excerpt: small aircraft - means an aeroplane or helicopter having a maximum permissible take-off weight of 5 700 kg..."
+      }
+    ],
+    "difficulty": 2,
+    "tags": [],
+    "status": "draft",
+    "version": 1,
+    "id": "REGS-110-010",
+    "stem": "Segundo o CAR 101.01, uma \"small aircraft\" é definida como:",
+    "options": [
+      { "id": "A", "text": "Aeronave com 2,722 kg ou menos." },
+      { "id": "B", "text": "Qualquer uma que não seja \"large\"." },
+      { "id": "C", "text": "Avião ou helicóptero com 5,700 kg ou menos." },
+      { "id": "D", "text": "Aeronave de uso privado." }
+    ],
+    "correctOptionId": "C",
+    "explanation": {
+      "correct": "O limite exato para aeronaves pequenas é 5.700 kg (12.566 lbs) ou menos.",
+      "whyOthersAreWrong": { "A": "", "C": "", "D": "" }
+    }
+  }
+]

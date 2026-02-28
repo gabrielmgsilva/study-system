@@ -1,0 +1,286 @@
+{
+  "module": "airframe",
+  "moduleTitle": "Airframe – M",
+  "moduleDescription": "Structures, aerodynamics, systems and repairs for AME M.",
+  "submodules": [
+    {
+      "id": "airframe_m",
+      "name": "Airframe – M",
+      "folder": "",
+      "sets": [
+        {
+          "id": "af11",
+          "name": "11 – Basic Aerodynamics",
+          "shortTitle": "11",
+          "subtitle": "Theory of flight basics: fixed-wing, atmosphere and aerodynamic lift.",
+          "file": "11.json",
+          "weight": 1,
+          "topics": [
+            "Fixed-wing aircraft — theory of flight",
+            "The atmosphere — theory and application",
+            "Aerodynamic lift — theory and application"
+          ]
+        },
+        {
+          "id": "af12",
+          "name": "12 – Aircraft Structures",
+          "shortTitle": "12",
+          "subtitle": "Aircraft structures: fuselage, lift-producing structures, windows & doors.",
+          "file": "12.json",
+          "weight": 1,
+          "topics": [
+            "Fuselages and aircraft structures — types, inspection and repair",
+            "Structures that produce and control lift — theory, inspection, repair, servicing and installation",
+            "Windows and doors — inspection, repair, servicing and installation"
+          ]
+        },
+        {
+          "id": "af13",
+          "name": "13 – Fixed Wing Controls & Rigging",
+          "shortTitle": "13",
+          "subtitle": "Flight controls: theory, symmetry checks and control surface rigging.",
+          "file": "13.json",
+          "weight": 1,
+          "topics": [
+            "Mechanical/servo powered flight controls — theory and application",
+            "Symmetry check and adjustments — theory and application",
+            "Control surface rigging — theory and application"
+          ]
+        },
+        {
+          "id": "af14",
+          "name": "14 – Fundamentals of Rotary-Wing Aircraft",
+          "shortTitle": "14",
+          "subtitle": "Rotorcraft fundamentals: rotors, vibration, powertrain and autorotation.",
+          "file": "14.json",
+          "weight": 1,
+          "topics": [
+            "Rotary-wing aircraft — theory of flight",
+            "Types of rotor systems — characteristics, components, inspection and construction",
+            "Rigging of controls — theory and application",
+            "Vibration analysis — theory and application",
+            "Power train — transmissions and clutches — theory and operation",
+            "Auto rotation — theory and application"
+          ]
+        },
+        {
+          "id": "af15",
+          "name": "15 – Rotary Wing Controls & Rigging",
+          "shortTitle": "15",
+          "subtitle": "Rotorcraft controls: rigging, tracking/balancing, gearboxes & driveshafts.",
+          "file": "15.json",
+          "weight": 1,
+          "topics": [
+            "Flight control system rigging — theory and application",
+            "Rotor tracking/balancing — theory and application",
+            "Gearboxes and drive shaft system — theory and application"
+          ]
+        },
+        {
+          "id": "af16",
+          "name": "16 – Metal Structural",
+          "shortTitle": "16",
+          "subtitle": "Sheet metal structures, structural stress and heat treatment basics.",
+          "file": "16.json",
+          "weight": 1,
+          "topics": [
+            "Sheet metal structures — theory and application",
+            "Types of structural stress — theory and application",
+            "Heat treatment, annealing and temper designation — theory and application"
+          ]
+        },
+        {
+          "id": "af17",
+          "name": "17 – Wood and Composite Structure",
+          "shortTitle": "17",
+          "subtitle": "Wood/composites: characteristics, repairs, honeycomb identification and repair.",
+          "file": "17.json",
+          "weight": 1,
+          "topics": [
+            "Wood components and characteristics — theory and application",
+            "Finishing wood surfaces — theory and application",
+            "Plywood skin repairs — theory and application",
+            "Composite material — theory and application",
+            "Honeycomb structures — identification and repairs"
+          ]
+        },
+        {
+          "id": "af18",
+          "name": "18 – Fabric Covering",
+          "shortTitle": "18",
+          "subtitle": "Fabric covering: terminology/specs, inspection/repairs and finishing materials.",
+          "file": "18.json",
+          "weight": 1,
+          "topics": [
+            "Aircraft fabric — terminology, specification and application",
+            "Repairs and inspection of fabric coverings — theory and application",
+            "Dope and finishing materials — theory and application"
+          ]
+        },
+        {
+          "id": "af19",
+          "name": "19 – Welding and Tubular Structure",
+          "shortTitle": "19",
+          "subtitle": "Weld inspection and tubular structure repairs.",
+          "file": "19.json",
+          "weight": 1,
+          "topics": [
+            "Inspection of welds — theory and application",
+            "Tubular repairs — theory and application"
+          ]
+        },
+        {
+          "id": "af20",
+          "name": "20 – Painting and Finishing",
+          "shortTitle": "20",
+          "subtitle": "Painting/finishing for metal and fabric aircraft and parts.",
+          "file": "20.json",
+          "weight": 1,
+          "topics": [
+            "Metal aircraft and parts — theory and application",
+            "Fabric aircraft and parts — theory and application"
+          ]
+        },
+        {
+          "id": "af21",
+          "name": "21 – Ice and Rain Protection",
+          "shortTitle": "21",
+          "subtitle": "Ice detection, anti-ice/de-ice and rain removal systems.",
+          "file": "21.json",
+          "weight": 1,
+          "topics": [
+            "Ice detection systems — components, adjustments and operating principles",
+            "Anti ice systems — components, adjustments and operating principles",
+            "De-ice systems — components, adjustments and operating principles",
+            "Windshield wiper systems — components, adjustments and operating principles",
+            "Rain repellent systems — components, adjustments and operating principles"
+          ]
+        },
+        {
+          "id": "af22",
+          "name": "22 – Hydraulic and Pneumatic Systems",
+          "shortTitle": "22",
+          "subtitle": "Hydraulic/pneumatic: safety, accumulators and system operation.",
+          "file": "22.json",
+          "weight": 1,
+          "topics": [
+            "Safety precautions — theory and application",
+            "High pressure bottles/accumulators — theory and application",
+            "Hydraulic systems — components, adjustments and operating principles",
+            "Pneumatic systems — components, adjustments and operating principles"
+          ]
+        },
+        {
+          "id": "af23",
+          "name": "23 – Landing Gear Systems",
+          "shortTitle": "23",
+          "subtitle": "Landing gear: steering, wheels/tires/brakes and alternate gear types.",
+          "file": "23.json",
+          "weight": 1,
+          "topics": [
+            "Landing gear systems — components, adjustment, theory and application",
+            "Nose wheel steering systems — components, adjustments and application",
+            "Skids, floats and skis — components, adjustments and operating principles",
+            "Wheels, tires and brakes — theory, components, adjustments and operating principles"
+          ]
+        },
+        {
+          "id": "af24",
+          "name": "24 – Cabin & Atmospheric Control Systems",
+          "shortTitle": "24",
+          "subtitle": "Pressurization, air conditioning, heating and oxygen systems.",
+          "file": "24.json",
+          "weight": 1,
+          "topics": [
+            "Pressurization systems — theory, inspection and operating principles",
+            "Air conditioning systems — theory, components, inspection and operating principles",
+            "Heating systems — theory, components, inspection and operating principles",
+            "Oxygen systems — theory, components, inspection and operating principles"
+          ]
+        },
+        {
+          "id": "af25",
+          "name": "25 – Aircraft Fuel Systems",
+          "shortTitle": "25",
+          "subtitle": "Fuel systems: gravity/pressure feed, storage and distribution.",
+          "file": "25.json",
+          "weight": 1,
+          "topics": [
+            "Gravity and pressure-feed systems — safety, theory, components, inspection and operating principles",
+            "Storage and distribution — safety, theory, components, inspection and operating principles"
+          ]
+        },
+        {
+          "id": "af26",
+          "name": "26 – Fire Protection Systems",
+          "shortTitle": "26",
+          "subtitle": "Fire detection and extinguishing systems (components and operating principles).",
+          "file": "26.json",
+          "weight": 1,
+          "topics": [
+            "Fire detection systems — components, adjustments and operating principles",
+            "Fire extinguishing systems — components, adjustments and operating principles"
+          ]
+        },
+        {
+          "id": "af27",
+          "name": "27 – Aircraft Electrical Systems",
+          "shortTitle": "27",
+          "subtitle": "Electrical: batteries, AC/DC systems, wiring and troubleshooting.",
+          "file": "27.json",
+          "weight": 1,
+          "topics": [
+            "Batteries — theory, construction, inspection and operating principles",
+            "AC and DC electrical systems — theory, construction, inspection and application",
+            "Wiring — construction and inspection",
+            "Aircraft electrical systems — troubleshooting"
+          ]
+        },
+        {
+          "id": "af28",
+          "name": "28 – Aircraft Instrument Systems",
+          "shortTitle": "28",
+          "subtitle": "Instrument systems, pitot-static, compass and air data computers.",
+          "file": "28.json",
+          "weight": 1,
+          "topics": [
+            "Instrument systems — theory and application",
+            "Pitot-static systems — theory and application, inspection and operating principles",
+            "Compass systems — theory and application, inspection and operating principles",
+            "Air data computer — theory and application, inspection and operating principles"
+          ]
+        },
+        {
+          "id": "af29",
+          "name": "29 – Communication, Navigation & Recording Systems",
+          "shortTitle": "29",
+          "subtitle": "Comm/nav/recording: radios, antennas, radar, nav, TCAS, FDR/CVR.",
+          "file": "29.json",
+          "weight": 1,
+          "topics": [
+            "Radio transceivers — theory, inspection and operating principles",
+            "Antennas — theory, inspection and operating principles",
+            "Weather radar — theory, installation, inspection and operating principles",
+            "Navigation systems — theory, inspection and operating principles",
+            "TCAS — theory",
+            "Emergency frequencies and safety procedures — application and operating principles",
+            "FDR — theory, components and inspection/test",
+            "CVR — theory, components and inspection/test"
+          ]
+        },
+        {
+          "id": "af30",
+          "name": "30 – Autopilot Systems",
+          "shortTitle": "30",
+          "subtitle": "Autopilot and flight management systems fundamentals.",
+          "file": "30.json",
+          "weight": 1,
+          "topics": [
+            "Autopilot systems — theory and operating principles",
+            "Flight management systems — theory and operating principles"
+          ]
+        }
+      ]
+    }
+  ]
+}

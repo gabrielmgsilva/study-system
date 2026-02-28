@@ -1,3 +1,6 @@
+'use client';
+
+import React from 'react';
 import Link from 'next/link';
 import {
   GraduationCap,
@@ -9,6 +12,8 @@ import {
   Mail,
   ListChecks,
 } from 'lucide-react';
+
+import { ROUTES } from '@/lib/routes';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -38,9 +43,9 @@ export default function BecomeAMEPage() {
             variant="outline"
             className="border-white/10 bg-white/5 hover:bg-white/10"
           >
-            <Link href="/">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
+            <Link href={ROUTES.landing} className="flex items-center gap-2">
+              <ArrowLeft className="h-4 w-4" />
+              <span>Back</span>
             </Link>
           </Button>
 
@@ -297,10 +302,11 @@ export default function BecomeAMEPage() {
             variant="outline"
             className="border-white/10 bg-white/5 hover:bg-white/10"
           >
-            <Link href="/instructions">App Instructions</Link>
+            <Link href={ROUTES.instructions}>App Instructions</Link>
           </Button>
+
           <Button asChild>
-            <Link href="/help">Support / Help</Link>
+            <Link href={ROUTES.help}>Support / Help</Link>
           </Button>
         </div>
       </div>

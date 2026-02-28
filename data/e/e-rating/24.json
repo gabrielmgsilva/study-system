@@ -1,0 +1,432 @@
+[
+{
+"id": "AV-241-001",
+"ratingCode": "E",
+"examCode": "AV",
+"tcSectionCode": "24.0",
+"tcSectionTitle": "Navigation and Communication Systems",
+"tcTopicCode": "24.1",
+"tcTopicTitle": "Radio waves and radio signals – Theory and application",
+"topicPath": [
+{ "code": "24.0", "title": "Navigation and Communication Systems" },
+{ "code": "24.1", "title": "Radio waves and radio signals – Theory and application" }
+],
+"questionType": "single_choice",
+"stem": "An aircraft VHF communication transmitter appears to radiate normally on a nearby handheld receiver, but has significantly reduced range to ground stations. Which is the MOST likely radio-wave related cause?",
+"options": [
+{ "id": "A", "text": "The transmitter carrier frequency is too low to propagate in the atmosphere" },
+{ "id": "B", "text": "Excessive attenuation due to high SWR from an antenna or feedline mismatch" },
+{ "id": "C", "text": "The receiver squelch threshold is set too high" },
+{ "id": "D", "text": "Multipath reflection has increased the transmitted power output" }
+],
+"correctOptionId": "B",
+"references": [
+{
+"doc": "TP 14038E",
+"area": "Avionics",
+"topic": "24.1",
+"locator": "TP 14038E AV 24.1",
+"note": ""
+}
+],
+"explanation": {
+"correct": "A high standing wave ratio (SWR) indicates poor matching between transmitter, feedline, and antenna, causing reflected power and reduced effective radiated power, which reduces range.",
+"whyOthersAreWrong": {
+"A": "VHF propagation issues are not caused by being too low within the VHF band in this context.",
+"C": "Squelch affects reception audio gating, not transmitted range.",
+"D": "Multipath can cause fading or distortion, not increased transmitter power output."
+}
+},
+"difficulty": 2,
+"tags": [],
+"status": "draft",
+"version": 1
+},
+{
+"id": "AV-241-002",
+"ratingCode": "E",
+"examCode": "AV",
+"tcSectionCode": "24.0",
+"tcSectionTitle": "Navigation and Communication Systems",
+"tcTopicCode": "24.1",
+"tcTopicTitle": "Radio waves and radio signals – Theory and application",
+"topicPath": [
+{ "code": "24.0", "title": "Navigation and Communication Systems" },
+{ "code": "24.1", "title": "Radio waves and radio signals – Theory and application" }
+],
+"questionType": "single_choice",
+"stem": "A navigation receiver intermittently loses signal when the aircraft banks, with no faults found in the receiver. Which radio-wave behaviour best explains the symptom?",
+"options": [
+{ "id": "A", "text": "Refraction increases with bank angle and blocks the signal" },
+{ "id": "B", "text": "Antenna polarization and line-of-sight geometry can reduce received field strength during manoeuvres" },
+{ "id": "C", "text": "The signal changes from continuous wave to pulsed due to bank angle" },
+{ "id": "D", "text": "The frequency of the received signal increases due to centrifugal force" }
+],
+"correctOptionId": "B",
+"references": [
+{
+"doc": "TP 14038E",
+"area": "Avionics",
+"topic": "24.1",
+"locator": "TP 14038E AV 24.1",
+"note": ""
+}
+],
+"explanation": {
+"correct": "Banking can change antenna orientation relative to the transmitting station, affecting polarization alignment and line-of-sight geometry, reducing received signal strength.",
+"whyOthersAreWrong": {
+"A": "Refraction is primarily an environmental propagation effect and is not driven by bank angle in this way.",
+"C": "Modulation type does not change because the aircraft banks.",
+"D": "Centrifugal force does not change RF frequency; Doppler effects relate to relative velocity."
+}
+},
+"difficulty": 2,
+"tags": [],
+"status": "draft",
+"version": 1
+},
+{
+"id": "AV-241-003",
+"ratingCode": "E",
+"examCode": "AV",
+"tcSectionCode": "24.0",
+"tcSectionTitle": "Navigation and Communication Systems",
+"tcTopicCode": "24.1",
+"tcTopicTitle": "Radio waves and radio signals – Theory and application",
+"topicPath": [
+{ "code": "24.0", "title": "Navigation and Communication Systems" },
+{ "code": "24.1", "title": "Radio waves and radio signals – Theory and application" }
+],
+"questionType": "single_choice",
+"stem": "During troubleshooting, a technician measures a normal RF output at the transmitter test port, but the antenna output is low. Which component is MOST likely introducing signal loss?",
+"options": [
+{ "id": "A", "text": "Coaxial feedline and its connectors" },
+{ "id": "B", "text": "Microphone audio circuit" },
+{ "id": "C", "text": "Receiver local oscillator" },
+{ "id": "D", "text": "Aircraft intercom system" }
+],
+"correctOptionId": "A",
+"references": [
+{
+"doc": "TP 14038E",
+"area": "Avionics",
+"topic": "24.1",
+"locator": "TP 14038E AV 24.1",
+"note": ""
+}
+],
+"explanation": {
+"correct": "Loss between the transmitter and antenna is commonly caused by coaxial cable degradation, water ingress, poor bonding, damaged connectors, or corrosion, resulting in attenuation and poor radiation.",
+"whyOthersAreWrong": {
+"B": "Microphone audio affects modulation quality, not RF power delivered to the antenna.",
+"C": "The receiver local oscillator does not affect the transmitter RF power path.",
+"D": "The intercom affects audio routing, not RF output to the antenna."
+}
+},
+"difficulty": 2,
+"tags": [],
+"status": "draft",
+"version": 1
+},
+{
+"id": "AV-241-004",
+"ratingCode": "E",
+"examCode": "AV",
+"tcSectionCode": "24.0",
+"tcSectionTitle": "Navigation and Communication Systems",
+"tcTopicCode": "24.1",
+"tcTopicTitle": "Radio waves and radio signals – Theory and application",
+"topicPath": [
+{ "code": "24.0", "title": "Navigation and Communication Systems" },
+{ "code": "24.1", "title": "Radio waves and radio signals – Theory and application" }
+],
+"questionType": "single_choice",
+"stem": "A technician observes strong interference on a VHF navigation receiver whenever an onboard electrical motor operates. Which statement best describes how the interference reaches the receiver?",
+"options": [
+{ "id": "A", "text": "The motor changes the receiver’s tuned frequency directly" },
+{ "id": "B", "text": "The motor generates broadband electromagnetic noise that can be radiated or conducted into RF paths" },
+{ "id": "C", "text": "The motor causes the antenna to become resonant at a different harmonic" },
+{ "id": "D", "text": "The interference is caused only by static electricity on the airframe" }
+],
+"correctOptionId": "B",
+"references": [
+{
+"doc": "TP 14038E",
+"area": "Avionics",
+"topic": "24.1",
+"locator": "TP 14038E AV 24.1",
+"note": ""
+}
+],
+"explanation": {
+"correct": "Motors and switching devices can produce broadband EMI that couples into wiring or radiates into antennas and receiver front ends, degrading signal-to-noise ratio.",
+"whyOthersAreWrong": {
+"A": "Interference does not retune the receiver; it masks desired signals.",
+"C": "Motor operation typically introduces EMI rather than changing antenna resonance.",
+"D": "Static can cause noise, but the correlation with motor operation points to EMI."
+}
+},
+"difficulty": 2,
+"tags": [],
+"status": "draft",
+"version": 1
+},
+{
+"id": "AV-241-005",
+"ratingCode": "E",
+"examCode": "AV",
+"tcSectionCode": "24.0",
+"tcSectionTitle": "Navigation and Communication Systems",
+"tcTopicCode": "24.1",
+"tcTopicTitle": "Radio waves and radio signals – Theory and application",
+"topicPath": [
+{ "code": "24.0", "title": "Navigation and Communication Systems" },
+{ "code": "24.1", "title": "Radio waves and radio signals – Theory and application" }
+],
+"questionType": "single_choice",
+"stem": "A receiver shows correct frequency selection and audio output, but weak-signal performance is poor. Which RF principle best explains why a degraded front-end amplifier would cause this?",
+"options": [
+{ "id": "A", "text": "Reduced selectivity increases the antenna gain" },
+{ "id": "B", "text": "Increased noise figure reduces receiver sensitivity and degrades signal-to-noise ratio" },
+{ "id": "C", "text": "Increased modulation index prevents demodulation" },
+{ "id": "D", "text": "Reduced wavelength prevents antenna coupling" }
+],
+"correctOptionId": "B",
+"references": [
+{
+"doc": "TP 14038E",
+"area": "Avionics",
+"topic": "24.1",
+"locator": "TP 14038E AV 24.1",
+"note": ""
+}
+],
+"explanation": {
+"correct": "A degraded RF front end increases the receiver noise figure, reducing sensitivity so weak signals are lost in noise.",
+"whyOthersAreWrong": {
+"A": "Selectivity relates to filtering, not antenna gain.",
+"C": "Modulation index is a transmitter parameter, not a receiver front-end issue.",
+"D": "Wavelength is set by frequency and does not change due to amplifier condition."
+}
+},
+"difficulty": 2,
+"tags": [],
+"status": "draft",
+"version": 1
+},
+{
+"id": "AV-241-006",
+"ratingCode": "E",
+"examCode": "AV",
+"tcSectionCode": "24.0",
+"tcSectionTitle": "Navigation and Communication Systems",
+"tcTopicCode": "24.1",
+"tcTopicTitle": "Radio waves and radio signals – Theory and application",
+"topicPath": [
+{ "code": "24.0", "title": "Navigation and Communication Systems" },
+{ "code": "24.1", "title": "Radio waves and radio signals – Theory and application" }
+],
+"questionType": "single_choice",
+"stem": "Two antennas are installed too close together on the same aircraft surface. What is the MOST likely radio-wave related effect that can cause system performance issues?",
+"options": [
+{ "id": "A", "text": "The antennas will automatically synchronize frequencies" },
+{ "id": "B", "text": "Mutual coupling can detune antennas and increase interference between systems" },
+{ "id": "C", "text": "The closer spacing increases line-of-sight range to ground stations" },
+{ "id": "D", "text": "The antennas will eliminate multipath reflections" }
+],
+"correctOptionId": "B",
+"references": [
+{
+"doc": "TP 14038E",
+"area": "Avionics",
+"topic": "24.1",
+"locator": "TP 14038E AV 24.1",
+"note": ""
+}
+],
+"explanation": {
+"correct": "Close proximity can cause mutual coupling, altering impedance and radiation patterns and increasing interference between systems.",
+"whyOthersAreWrong": {
+"A": "Antennas do not synchronize frequencies.",
+"C": "Antenna spacing does not increase propagation range.",
+"D": "Antenna proximity does not eliminate multipath."
+}
+},
+"difficulty": 2,
+"tags": [],
+"status": "draft",
+"version": 1
+},
+{
+"id": "AV-241-007",
+"ratingCode": "E",
+"examCode": "AV",
+"tcSectionCode": "24.0",
+"tcSectionTitle": "Navigation and Communication Systems",
+"tcTopicCode": "24.1",
+"tcTopicTitle": "Radio waves and radio signals – Theory and application",
+"topicPath": [
+{ "code": "24.0", "title": "Navigation and Communication Systems" },
+{ "code": "24.1", "title": "Radio waves and radio signals – Theory and application" }
+],
+"questionType": "single_choice",
+"stem": "A VHF communication transmitter is reported as “scratchy” and difficult to understand at a distance, while nearby reception sounds acceptable. Which is the MOST likely RF-related explanation?",
+"options": [
+{ "id": "A", "text": "Overmodulation or distortion creating excessive sidebands and reducing intelligibility at lower received signal levels" },
+{ "id": "B", "text": "The receiver volume is set too low at the ground station" },
+{ "id": "C", "text": "The aircraft antenna has become more directional at short range only" },
+{ "id": "D", "text": "The transmitted wavelength has decreased due to temperature" }
+],
+"correctOptionId": "A",
+"references": [
+{
+"doc": "TP 14038E",
+"area": "Avionics",
+"topic": "24.1",
+"locator": "TP 14038E AV 24.1",
+"note": ""
+}
+],
+"explanation": {
+"correct": "Overmodulation or distortion can sound acceptable at high signal levels but becomes unintelligible as received signal level drops.",
+"whyOthersAreWrong": {
+"B": "Ground station volume does not selectively affect intelligibility with distance.",
+"C": "Antenna pattern changes are not limited to short range only.",
+"D": "Wavelength is determined by frequency and is not directly affected by temperature."
+}
+},
+"difficulty": 2,
+"tags": [],
+"status": "draft",
+"version": 1
+},
+{
+"id": "AV-241-008",
+"ratingCode": "E",
+"examCode": "AV",
+"tcSectionCode": "24.0",
+"tcSectionTitle": "Navigation and Communication Systems",
+"tcTopicCode": "24.1",
+"tcTopicTitle": "Radio waves and radio signals – Theory and application",
+"topicPath": [
+{ "code": "24.0", "title": "Navigation and Communication Systems" },
+{ "code": "24.1", "title": "Radio waves and radio signals – Theory and application" }
+],
+"questionType": "single_choice",
+"stem": "A technician is checking bonding and shielding on avionics wiring near a navigation antenna feeder. Which radio-wave concept best justifies this inspection?",
+"options": [
+{ "id": "A", "text": "Shielding improves DC resistance to prevent battery drain" },
+{ "id": "B", "text": "Proper bonding and shielding reduce unwanted RF coupling and prevent interference with desired signals" },
+{ "id": "C", "text": "Bonding increases antenna frequency to improve reception" },
+{ "id": "D", "text": "Shielding eliminates the need for correct antenna placement" }
+],
+"correctOptionId": "B",
+"references": [
+{
+"doc": "TP 14038E",
+"area": "Avionics",
+"topic": "24.1",
+"locator": "TP 14038E AV 24.1",
+"note": ""
+}
+],
+"explanation": {
+"correct": "Proper bonding and shielding control RF coupling and electromagnetic compatibility, preserving signal integrity.",
+"whyOthersAreWrong": {
+"A": "Shielding and bonding are not primarily for DC battery drain.",
+"C": "Bonding does not increase antenna frequency.",
+"D": "Shielding does not remove the need for correct antenna placement."
+}
+},
+"difficulty": 2,
+"tags": [],
+"status": "draft",
+"version": 1
+},
+{
+"id": "AV-241-009",
+"ratingCode": "E",
+"examCode": "AV",
+"tcSectionCode": "24.0",
+"tcSectionTitle": "Navigation and Communication Systems",
+"tcTopicCode": "24.1",
+"tcTopicTitle": "Radio waves and radio signals – Theory and application",
+"topicPath": [
+{ "code": "24.0", "title": "Navigation and Communication Systems" },
+{ "code": "24.1", "title": "Radio waves and radio signals – Theory and application" }
+],
+"questionType": "single_choice",
+"stem": "A navigation system using line-of-sight signals shows reduced reliability at low altitude in mountainous terrain. Which radio-wave effect is MOST likely contributing?",
+"options": [
+{ "id": "A", "text": "Increased ionospheric reflection improving signal strength" },
+{ "id": "B", "text": "Shadowing and multipath causing fading and intermittent reception" },
+{ "id": "C", "text": "Automatic frequency shift to avoid obstacles" },
+{ "id": "D", "text": "Higher altitude always increases attenuation" }
+],
+"correctOptionId": "B",
+"references": [
+{
+"doc": "TP 14038E",
+"area": "Avionics",
+"topic": "24.1",
+"locator": "TP 14038E AV 24.1",
+"note": ""
+}
+],
+"explanation": {
+"correct": "Terrain can block line-of-sight and create reflections that produce multipath fading, reducing reliability.",
+"whyOthersAreWrong": {
+"A": "Ionospheric reflection is associated with HF, not line-of-sight VHF/UHF systems.",
+"C": "Radios do not automatically change frequency to avoid obstacles.",
+"D": "Higher altitude generally improves line-of-sight coverage."
+}
+},
+"difficulty": 2,
+"tags": [],
+"status": "draft",
+"version": 1
+},
+{
+"id": "AV-241-010",
+"ratingCode": "E",
+"examCode": "AV",
+"tcSectionCode": "24.0",
+"tcSectionTitle": "Navigation and Communication Systems",
+"tcTopicCode": "24.1",
+"tcTopicTitle": "Radio waves and radio signals – Theory and application",
+"topicPath": [
+{ "code": "24.0", "title": "Navigation and Communication Systems" },
+{ "code": "24.1", "title": "Radio waves and radio signals – Theory and application" }
+],
+"questionType": "single_choice",
+"stem": "An aircraft experiences intermittent communication issues only when a second transmitter on a nearby frequency is keyed. Which radio-wave phenomenon best explains the issue?",
+"options": [
+{ "id": "A", "text": "Receiver desensitization due to strong adjacent-channel energy or intermodulation products" },
+{ "id": "B", "text": "The first transmitter changes modulation type automatically" },
+{ "id": "C", "text": "The antenna becomes non-conductive when two frequencies are present" },
+{ "id": "D", "text": "The receiver converts RF energy directly into DC and shuts down" }
+],
+"correctOptionId": "A",
+"references": [
+{
+"doc": "TP 14038E",
+"area": "Avionics",
+"topic": "24.1",
+"locator": "TP 14038E AV 24.1",
+"note": ""
+}
+],
+"explanation": {
+"correct": "A strong nearby transmission can overload receiver front-end stages, causing desensitization or intermodulation that masks the desired signal.",
+"whyOthersAreWrong": {
+"B": "Transmitters do not change modulation automatically due to another transmitter.",
+"C": "Antennas remain conductive; the issue is front-end overload or coupling.",
+"D": "Receivers do not normally convert RF to DC and shut down due to interference."
+}
+},
+"difficulty": 2,
+"tags": [],
+"status": "draft",
+"version": 1
+}
+]

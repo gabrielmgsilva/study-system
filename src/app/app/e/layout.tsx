@@ -1,0 +1,21 @@
+import "server-only";
+import AppShell from "@/components/AppShell";
+import ModuleGate from "@/lib/ModuleGate";
+import { ROUTES } from '@/lib/routes';
+
+
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return (
+    <AppShell
+      title="Avionics"
+      subtitle="Prepare for Transport Canada exams — Avionics"
+      backHref="/app"
+      backLabel="Back to Home"
+      maxWidthClass="max-w-6xl"
+    >
+      <ModuleGate licenseId="avionics" title="Avionics" backHref={ROUTES.landing}>
+        {children}
+      </ModuleGate>
+    </AppShell>
+  );
+}

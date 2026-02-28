@@ -1,21 +1,120 @@
 {
   "module": "regs",
-  "moduleTitle": "Regulatory Requirements – REGS / BREGS",
-  "moduleDescription": "Regulatory requirements for M, E, S and B licences, including CARs and associated standards used in the REGS/BREGS exams.",
+  "moduleTitle": "Regulatory Requirements – M",
+  "moduleDescription": "Transport Canada CARs and Standards applicable to the M rating (based on the TC guide).",
   "submodules": [
     {
-      "id": "regs_main",
-      "name": "REGS – Regulatory Requirements",
+      "id": "regs_m",
+      "name": "REGS – M",
       "folder": "",
       "sets": [
         {
-          "id": "regs01",
-          "name": "01 – Regulatory Requirements (CARs & Standards)",
-          "shortTitle": "REGS",
-          "subtitle": "CARs Parts 1–6 and related standards (7–17) consolidated for the REGS/BREGS exams.",
-          "file": "regs.json",
+          "id": "r01",
+          "name": "1.0 – General Provisions – Interpretation (CARs)",
+          "shortTitle": "1.0",
+          "subtitle": "Core definitions and interpretation.\n• Applicability and structure\n• Interpretation and definitions\nRefs: CARs 1.0",
+          "file": "CARs.json",
           "weight": 1
-        }
+        },
+        {
+          "id": "r02",
+          "name": "2.0 – Aircraft Identification and Registration / Leased Aircraft (CARs)",
+          "shortTitle": "2.0",
+          "subtitle": "Aircraft marking and registration.\n• Registration and marking\n• Leased aircraft by non-registered owner\nRefs: CARs 2.0",
+          "file": "CARs.json",
+          "weight": 1
+        },
+        {
+          "id": "r03",
+          "name": "3.0 – Personnel Licensing and Training (CARs)",
+          "shortTitle": "3.0",
+          "subtitle": "AME licensing and ratings.\n• Licensing requirements\n• Ratings and privileges\n• Training\nRefs: CARs 3.0",
+          "file": "CARs.json",
+          "weight": 1
+        },
+        {
+          "id": "r04",
+          "name": "4.0 – Airworthiness (CARs)",
+          "shortTitle": "4.0",
+          "subtitle": "Airworthiness requirements.\n• Responsibilities and compliance\n• Continuing airworthiness concepts\nRefs: CARs 4.0",
+          "file": "CARs.json",
+          "weight": 1
+        },
+        {
+          "id": "r05",
+          "name": "5.0 – General Operating and Flight Rules (CARs)",
+          "shortTitle": "5.0",
+          "subtitle": "Aircraft requirements under operating rules.\n• Applicable aircraft requirements\n• Operational constraints affecting maintenance\nRefs: CARs 5.0",
+          "file": "CARs.json",
+          "weight": 1
+        },
+        {
+          "id": "r06",
+          "name": "6.0 – Commercial Air Services (CARs)",
+          "shortTitle": "6.0",
+          "subtitle": "Maintenance requirements for air operators.\n• Operator maintenance responsibilities\n• Control and compliance\nRefs: CARs 6.0",
+          "file": "CARs.json",
+          "weight": 1
+        },
+
+        {
+          "id": "r07",
+          "name": "7.0 – Aircraft Registration (Standards)",
+          "shortTitle": "7.0",
+          "subtitle": "Standards supporting aircraft registration.\nRefs: STD 7.0",
+          "file": "Standards.json",
+          "weight": 1
+        },
+        {
+          "id": "r08",
+          "name": "8.0 – Airworthiness Directives (Standards)",
+          "shortTitle": "8.0",
+          "subtitle": "AD standards and compliance expectations.\nRefs: STD 8.0",
+          "file": "Standards.json",
+          "weight": 1
+        },
+        {
+          "id": "r09",
+          "name": "9.0 – AME Licensing (Standards)",
+          "shortTitle": "9.0",
+          "subtitle": "Standards supporting AME licensing.\nRefs: STD 9.0",
+          "file": "Standards.json",
+          "weight": 1
+        },
+        {
+          "id": "r10",
+          "name": "10.0 – Approved Maintenance Organizations (AMO) (Standards)",
+          "shortTitle": "10.0",
+          "subtitle": "AMO standards.\n• Privileges and responsibilities\n• Control systems\nRefs: STD 10.0",
+          "file": "Standards.json",
+          "weight": 1
+        },
+
+        { "id": "r11", "name": "11.0 – Borrowed Parts (Standards)", "shortTitle": "11.0", "subtitle": "Borrowed parts standards.\nRefs: STD 11.0", "file": "Standards.json", "weight": 1 },
+        { "id": "r12", "name": "12.0 – Defects (Standards)", "shortTitle": "12.0", "subtitle": "Defects standards.\n• Recording and control\nRefs: STD 12.0", "file": "Standards.json", "weight": 1 },
+        { "id": "r13", "name": "13.0 – Definitions (Standards)", "shortTitle": "13.0", "subtitle": "Definitions used by standards.\nRefs: STD 13.0", "file": "Standards.json", "weight": 1 },
+        { "id": "r14", "name": "14.0 – Elementary Work (Standards)", "shortTitle": "14.0", "subtitle": "Elementary work standards.\n• Scope and limitations\nRefs: STD 14.0", "file": "Standards.json", "weight": 1 },
+        { "id": "r15", "name": "15.0 – Flight Permits / Flight Authorities (Standards)", "shortTitle": "15.0", "subtitle": "Flight permits and authorities standards.\nRefs: STD 15.0", "file": "Standards.json", "weight": 1 },
+        { "id": "r16", "name": "16.0 – Inspection (Standards)", "shortTitle": "16.0", "subtitle": "Inspection standards.\n• Types and expectations\nRefs: STD 16.0", "file": "Standards.json", "weight": 1 },
+        { "id": "r17", "name": "17.0 – Life Limited Parts (Standards)", "shortTitle": "17.0", "subtitle": "Life-limited parts standards.\nRefs: STD 17.0", "file": "Standards.json", "weight": 1 },
+        { "id": "r18", "name": "18.0 – Maintenance Activities (Standards)", "shortTitle": "18.0", "subtitle": "Maintenance activity standards.\nRefs: STD 18.0", "file": "Standards.json", "weight": 1 },
+        { "id": "r19", "name": "19.0 – Maintenance Control Systems (Standards)", "shortTitle": "19.0", "subtitle": "Maintenance control system standards.\nRefs: STD 19.0", "file": "Standards.json", "weight": 1 },
+        { "id": "r20", "name": "20.0 – Maintenance Release / Release Certification (Standards)", "shortTitle": "20.0", "subtitle": "Maintenance release standards.\n• Release responsibilities\n• Certification statements\nRefs: STD 20.0", "file": "Standards.json", "weight": 1 },
+        { "id": "r21", "name": "21.0 – Maintenance Schedules (Standards)", "shortTitle": "21.0", "subtitle": "Maintenance schedule standards.\nRefs: STD 21.0", "file": "Standards.json", "weight": 1 },
+        { "id": "r22", "name": "22.0 – Modification / Repair (Standards)", "shortTitle": "22.0", "subtitle": "Modification and repair standards.\nRefs: STD 22.0", "file": "Standards.json", "weight": 1 },
+        { "id": "r23", "name": "23.0 – Non-Destructive Testing (NDT) (Standards)", "shortTitle": "23.0", "subtitle": "NDT standards.\nRefs: STD 23.0", "file": "Standards.json", "weight": 1 },
+        { "id": "r24", "name": "24.0 – Out-of-Phase Items (Standards)", "shortTitle": "24.0", "subtitle": "Out-of-phase item standards.\nRefs: STD 24.0", "file": "Standards.json", "weight": 1 },
+        { "id": "r25", "name": "25.0 – Parts Identification (Standards)", "shortTitle": "25.0", "subtitle": "Parts identification standards.\nRefs: STD 25.0", "file": "Standards.json", "weight": 1 },
+        { "id": "r26", "name": "26.0 – Performance of Work (Standards)", "shortTitle": "26.0", "subtitle": "Performance of work standards.\nRefs: STD 26.0", "file": "Standards.json", "weight": 1 },
+        { "id": "r27", "name": "27.0 – Person Responsible for Maintenance (PRM) (Standards)", "shortTitle": "27.0", "subtitle": "PRM standards.\nRefs: STD 27.0", "file": "Standards.json", "weight": 1 },
+        { "id": "r28", "name": "28.0 – Restricted Certification Authority (RCA) (Standards)", "shortTitle": "28.0", "subtitle": "RCA standards.\nRefs: STD 28.0", "file": "Standards.json", "weight": 1 },
+        { "id": "r29", "name": "29.0 – Specialized Maintenance (Standards)", "shortTitle": "29.0", "subtitle": "Specialized maintenance standards.\nRefs: STD 29.0", "file": "Standards.json", "weight": 1 },
+        { "id": "r30", "name": "30.0 – Technical Records (Standards)", "shortTitle": "30.0", "subtitle": "Technical records standards.\nRefs: STD 30.0", "file": "Standards.json", "weight": 1 },
+        { "id": "r31", "name": "31.0 – Type / Supplemental Type Certificates (Standards)", "shortTitle": "31.0", "subtitle": "Type/STC standards.\nRefs: STD 31.0", "file": "Standards.json", "weight": 1 },
+        { "id": "r32", "name": "32.0 – Used Parts (Standards)", "shortTitle": "32.0", "subtitle": "Used parts standards.\nRefs: STD 32.0", "file": "Standards.json", "weight": 1 },
+        { "id": "r33", "name": "33.0 – Weight and Balance (Standards)", "shortTitle": "33.0", "subtitle": "Weight & balance standards.\nRefs: STD 33.0", "file": "Standards.json", "weight": 1 },
+        { "id": "r34", "name": "34.0 – (N/A) (Standards)", "shortTitle": "34.0", "subtitle": "N/A (reserved).\nRefs: STD 34.0", "file": "Standards.json", "weight": 1 },
+        { "id": "r35", "name": "35.0 – General Knowledge on CARs/STDs (Standards)", "shortTitle": "35.0", "subtitle": "General knowledge on CARs and Standards.\nRefs: STD 35.0", "file": "Standards.json", "weight": 1 }
       ]
     }
   ]

@@ -12,6 +12,8 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 
+import { ROUTES } from '@/lib/routes';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -75,7 +77,7 @@ export default function HelpPage() {
             variant="outline"
             className="border-white/10 bg-white/5 hover:bg-white/10"
           >
-            <Link href="/">
+            <Link href={ROUTES.landing}>
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back
             </Link>
@@ -155,7 +157,10 @@ export default function HelpPage() {
                 </div>
                 <p className="mt-1 text-sm text-white/75">
                   Check{' '}
-                  <Link className="underline underline-offset-4" href="/instructions">
+                  <Link
+                    className="underline underline-offset-4"
+                    href={ROUTES.instructions}
+                  >
                     App Instructions / FAQ
                   </Link>
                   , and if you still need help, message us here.
@@ -260,10 +265,10 @@ export default function HelpPage() {
             variant="outline"
             className="border-white/10 bg-white/5 hover:bg-white/10"
           >
-            <Link href="/become-ame">How to Become an AME</Link>
+            <Link href={ROUTES.becomeAme}>How to Become an AME</Link>
           </Button>
           <Button asChild>
-            <Link href="/instructions">App Instructions</Link>
+            <Link href={ROUTES.instructions}>App Instructions</Link>
           </Button>
         </div>
       </div>

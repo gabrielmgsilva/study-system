@@ -10,6 +10,8 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 
+import { ROUTES } from '@/lib/routes';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -56,7 +58,7 @@ export default function ExamFeedbackPage() {
             variant="outline"
             className="border-white/10 bg-white/5 hover:bg-white/10"
           >
-            <Link href="/">
+            <Link href={ROUTES.landing}>
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back
             </Link>
@@ -126,7 +128,9 @@ export default function ExamFeedbackPage() {
             <form onSubmit={handleSubmit} className="space-y-3">
               {/* Exam type */}
               <div className="space-y-1">
-                <div className="text-xs text-white/70">Which exam did you take?</div>
+                <div className="text-xs text-white/70">
+                  Which exam did you take?
+                </div>
                 <Input
                   value={examType}
                   onChange={(e) => setExamType(e.target.value)}
@@ -210,9 +214,7 @@ export default function ExamFeedbackPage() {
               <AlertTriangle className="h-5 w-5" />
               Important note
             </CardTitle>
-            <CardDescription className="text-white/65">
-              Please read.
-            </CardDescription>
+            <CardDescription className="text-white/65">Please read.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="rounded-[22px] border border-amber-200/20 bg-amber-200/10 p-4">
@@ -232,10 +234,10 @@ export default function ExamFeedbackPage() {
             variant="outline"
             className="border-white/10 bg-white/5 hover:bg-white/10"
           >
-            <Link href="/study">Go to Study</Link>
+            <Link href={ROUTES.appHub}>Go to Study</Link>
           </Button>
           <Button asChild>
-            <Link href="/instructions">App Instructions</Link>
+            <Link href={ROUTES.instructions}>App Instructions</Link>
           </Button>
         </div>
       </div>

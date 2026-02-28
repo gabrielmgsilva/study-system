@@ -1,0 +1,156 @@
+{
+  "module": "standard_practices",
+  "moduleTitle": "Standard Practices – M",
+  "moduleDescription": "Standard Practices (STDP) topics for the Transport Canada M rating (based on the TC guide).",
+  "submodules": [
+    {
+      "id": "stdp_m",
+      "name": "Standard Practices – M",
+      "folder": "",
+      "sets": [
+        {
+          "id": "st01",
+          "name": "1 – Mathematics and Physics",
+          "shortTitle": "1",
+          "subtitle": "Shop math, measurement, motion, stress/strain, energy, matter, gas laws/fluids and atmosphere.",
+          "file": "1.json",
+          "weight": 1,
+          "outline": [
+            "Shop mathematics, graphs and charts — theory/application (1.1)",
+            "Measurement systems and conversion — calculation/application (1.2)",
+            "Speed, acceleration and motion — theory/application (1.3)",
+            "Stress/strain, energy/work, matter, gas laws/fluids, atmosphere (1.4–1.8)"
+          ],
+          "references": [{ "label": "TC", "ref": "STDP 1.0" }]
+        },
+        {
+          "id": "st02",
+          "name": "2 – Electricity and Electronics",
+          "shortTitle": "2",
+          "subtitle": "Electrical safety, sources, batteries, magnetism, DC/AC, wiring, semiconductors, motors, protection and number systems.",
+          "file": "2.json",
+          "weight": 1,
+          "outline": [
+            "Electrical safety procedures — theory/application (2.1)",
+            "Sources of electrical energy + batteries — theory/application (2.2–2.3)",
+            "Magnetism, DC/AC, power distribution, wiring practices (2.4–2.8)",
+            "Logic/ICs/semiconductors, motors, relays, protection, load analysis, number systems (2.9–2.19)"
+          ],
+          "references": [{ "label": "TC", "ref": "STDP 2.0" }]
+        },
+        {
+          "id": "st03",
+          "name": "3 – Aircraft Hardware",
+          "shortTitle": "3",
+          "subtitle": "Specifications/standards, rivets/fasteners, cables, bearings, gears, electrical hardware, lines/fittings and sealants.",
+          "file": "3.json",
+          "weight": 1,
+          "outline": [
+            "Specifications and standards — theory/application (3.1)",
+            "Rivets + threaded/special fasteners — identification/use (3.2–3.4)",
+            "Cables/turnbuckles, bearings/seals, gears/ratio basics (3.5–3.7)",
+            "Electrical hardware, lines/fittings, sealants — identification/application (3.8–3.10)"
+          ],
+          "references": [{ "label": "TC", "ref": "STDP 3.0" }]
+        },
+        {
+          "id": "st04",
+          "name": "4 – Aircraft Drawing",
+          "shortTitle": "4",
+          "subtitle": "Types of drawings, interpretation of drawings/diagrams/charts and station diagrams.",
+          "file": "4.json",
+          "weight": 1,
+          "outline": [
+            "Types of drawings — application (4.1)",
+            "Interpretation of drawings, diagrams and charts — theory/application (4.2)",
+            "Station diagrams — theory/application (4.3)"
+          ],
+          "references": [{ "label": "TC", "ref": "STDP 4.0" }]
+        },
+        {
+          "id": "st05",
+          "name": "5 – Weight and Balance",
+          "shortTitle": "5",
+          "subtitle": "CG limits/range plus weighing procedures and calculations.",
+          "file": "5.json",
+          "weight": 1,
+          "outline": [
+            "C of G design limits and range — knowledge/application (5.1)",
+            "Weighing procedures and calculations — knowledge/application (5.2)"
+          ],
+          "references": [{ "label": "TC", "ref": "STDP 5.0" }]
+        },
+        {
+          "id": "st06",
+          "name": "6 – Metallurgy and Corrosion Prevention",
+          "shortTitle": "6",
+          "subtitle": "Corrosion types, inspection, removal/treatment and heat treatment/temper designations.",
+          "file": "6.json",
+          "weight": 1,
+          "outline": [
+            "Types of corrosion — identification (6.1)",
+            "Inspection processes — theory/application (6.2)",
+            "Removal and treatment — theory/application (6.3)",
+            "Heat treatment, annealing and temper designation — theory/application (6.4)"
+          ],
+          "references": [{ "label": "TC", "ref": "STDP 6.0" }]
+        },
+        {
+          "id": "st07",
+          "name": "7 – Nondestructive Testing",
+          "shortTitle": "7",
+          "subtitle": "NDT inspection techniques: theory, types and application.",
+          "file": "7.json",
+          "weight": 1,
+          "outline": ["Inspection techniques — theory, types and application (7.1)"],
+          "references": [{ "label": "TC", "ref": "STDP 7.0" }]
+        },
+        {
+          "id": "st08",
+          "name": "8 – General Servicing and Standard Practices",
+          "shortTitle": "8",
+          "subtitle": "Fire protection, jacking/hoisting/levelling, ground servicing equipment, fueling/defueling, aviation fluids.",
+          "file": "8.json",
+          "weight": 1,
+          "outline": [
+            "Fire protection — types, prevention and extinguishing (8.1)",
+            "Jacking, hoisting and leveling — theory/application (8.2)",
+            "Ground servicing equipment + fueling/defueling — theory/application (8.3–8.4)",
+            "Aviation fluids including fuel and additive — types/application (8.5)"
+          ],
+          "references": [{ "label": "TC", "ref": "STDP 8.0" }]
+        },
+        {
+          "id": "st09",
+          "name": "9 – Tools and Measuring Devices",
+          "shortTitle": "9",
+          "subtitle": "Hand tools, power tools, measuring devices and test equipment.",
+          "file": "9.json",
+          "weight": 1,
+          "outline": [
+            "Hand tools — identification and use (9.1)",
+            "Power tools — identification and use (9.2)",
+            "Measuring devices — identification and use (9.3)",
+            "Test equipment — identification and application (9.4)"
+          ],
+          "references": [{ "label": "TC", "ref": "STDP 9.0" }]
+        },
+        {
+          "id": "st10",
+          "name": "10 – Aircraft Sheet Metal, Tubular, Wood and Composite Structures",
+          "shortTitle": "10",
+          "subtitle": "Sheet metal, fabrics, wood, composites, welding and rivet layout/installation.",
+          "file": "10.json",
+          "weight": 1,
+          "outline": [
+            "Sheet metal materials — theory/application (10.1)",
+            "Aircraft fabrics, wood, plastics/fiberglass/composites — theory/application (10.2–10.4)",
+            "Basic welding — theory/application (10.5)",
+            "Rivet layout patterns and installation — theory/application (10.6)"
+          ],
+          "references": [{ "label": "TC", "ref": "STDP 10.0" }]
+        }
+      ]
+    }
+  ]
+}

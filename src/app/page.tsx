@@ -1,311 +1,288 @@
-'use client';
-
-import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
 import {
-  BookOpen,
-  User,
+  ArrowRight,
+  ShieldCheck,
+  Layers,
+  Plane,
+  Radio,
   ClipboardList,
-  Info,
-  Search,
-  MessageSquare,
-  ChevronRight,
-  X,
-  LifeBuoy,
+  Check,
 } from 'lucide-react';
 
+import { ROUTES } from '@/lib/routes';
+
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import TipsTicker from '@/components/TipsTicker';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { GlassCard, GlassPanel } from '@/components/ui/glass';
 
-type PillProps = {
-  title: string;
-  href?: string;
-  icon: React.ReactNode;
-  onClick?: () => void;
-};
-
-function PillButton({ title, href, icon, onClick }: PillProps) {
-  const base =
-    'w-full rounded-full px-5 py-4 border transition-all flex items-center justify-between gap-3 ' +
-    'bg-slate-900/75 border-white/15 text-white hover:bg-slate-900/85 ' +
-    'hover:translate-x-[1px] hover:shadow-md active:translate-x-0';
-
-  const content = (
-    <div className={base}>
-      <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center">
-          {icon}
-        </div>
-        <div className="text-sm font-semibold">{title}</div>
-      </div>
-      <ChevronRight className="h-4 w-4 text-white/70" />
+function Feature({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex gap-2 text-sm text-white/85">
+      <Check className="h-4 w-4 text-white/85 shrink-0 mt-0.5" />
+      <span>{children}</span>
     </div>
   );
+}
 
-  if (href) {
-    return (
-      <Link href={href} className="block">
-        {content}
-      </Link>
-    );
-  }
-
+function PlanCard({
+  title,
+  price,
+  subtitle,
+  features,
+  highlight,
+}: {
+  title: string;
+  price: string;
+  subtitle: string;
+  features: string[];
+  highlight?: boolean;
+}) {
   return (
-    <button type="button" onClick={onClick} className="block w-full text-left">
-      {content}
-    </button>
+    <GlassCard className={highlight ? 'ring-1 ring-white/25' : ''}>
+      <CardHeader className="space-y-2">
+        <div className="flex items-start justify-between gap-3">
+          <CardTitle className="text-white">{title}</CardTitle>
+          <Badge className="border-white/18 bg-white/10 text-white" variant="outline">
+            {price}
+          </Badge>
+        </div>
+        <CardDescription className="text-white/75">{subtitle}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {features.map((f) => (
+          <Feature key={f}>{f}</Feature>
+        ))}
+      </CardContent>
+    </GlassCard>
   );
 }
 
 export default function HomePage() {
-  const router = useRouter();
-
-  const [qId, setQId] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const [showSearch, setShowSearch] = useState(false);
-
-  async function handleSearchById() {
-    if (loading) return;
-
-    const clean = qId.trim().toUpperCase();
-    if (!clean) return;
-
-    setLoading(true);
-    setErr(null);
-
-    try {
-      const res = await fetch(
-        `/api/question-by-id?id=${encodeURIComponent(clean)}`
-      );
-      const data = await res.json().catch(() => null);
-
-      if (!res.ok || !data?.ok) {
-        setErr('ID não encontrado. Exemplo: AF-0012');
-        return;
-      }
-
-      router.push(`/question/${encodeURIComponent(clean)}`);
-    } catch {
-      setErr('Erro ao buscar. Tente novamente.');
-    } finally {
-      setLoading(false);
-    }
-  }
-
   return (
-    <div className="min-h-[100dvh] bg-[#0b1220] p-4 md:p-8">
-      <div className="max-w-6xl mx-auto">
-        <div
-          className="
-            relative rounded-[48px] border border-white/10 shadow-xl overflow-hidden
-            h-[calc(100dvh-2rem)] md:h-[calc(100dvh-4rem)]
-          "
-        >
-          {/* Background */}
-          <div className="absolute inset-0">
-            <Image
-              src="/home/bg.png"
-              alt="Aviation background"
-              fill
-              priority
-              className="object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-r from-[#061427]/85 via-[#061427]/50 to-[#1b1307]/65" />
-            <div className="absolute inset-0 bg-black/20" />
-          </div>
-
-          <div className="relative z-10 h-full flex flex-col">
-            {/* Scroll */}
-            <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-none">
-              <div className="p-5 md:p-8">
-                {/* Top */}
-                <div className="flex items-start justify-between gap-4">
-                  {/* Logo */}
-                  <div className="relative -left-6 -top-6 md:-left-8 md:-top-8 shrink-0">
-                    <div className="h-[200px] w-[200px] md:h-[250px] md:w-[250px] rounded-full relative overflow-hidden">
-                      <div className="absolute inset-0 rounded-full border border-white/35 bg-white/10 backdrop-blur-md shadow-2xl" />
-                      <div className="absolute inset-[12px] rounded-full border border-white/25" />
-                      <div className="absolute inset-[22px] rounded-full border border-white/10" />
-                      <div className="absolute inset-[18px] rounded-full bg-[#061427]/25" />
-
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <img
-                          src="/home/logo.svg"
-                          alt=""
-                          className="absolute w-[92%] h-[92%] opacity-60 mix-blend-screen blur-[1.2px] pointer-events-none select-none"
-                          draggable={false}
-                        />
-                        <img
-                          src="/home/logo.svg"
-                          alt="AME ONE"
-                          className="w-[92%] h-[92%] opacity-95 mix-blend-screen drop-shadow-[0_14px_26px_rgba(0,0,0,0.55)] pointer-events-none select-none"
-                          draggable={false}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Student Area */}
-                  <div className="w-[260px] max-w-[75vw]">
-                    <PillButton
-                      title="Student Area"
-                      href="/student"
-                      icon={<User className="h-5 w-5 text-white" />}
-                    />
-                  </div>
-                </div>
-
-                {/* Body */}
-                <div className="mt-2 grid gap-6 md:grid-cols-[1.2fr_0.8fr] items-start">
-                  <div className="h-[150px] md:h-[180px]" />
-
-                  {/* RIGHT COLUMN */}
-                  <div className="space-y-3">
-                    {/* Core */}
-                    <PillButton
-                      title="Prepare for Written Test"
-                      href="/study"
-                      icon={<BookOpen className="h-5 w-5 text-white" />}
-                    />
-
-                    <PillButton
-                      title="Logbook"
-                      href="/m1m2/logbook"
-                      icon={<ClipboardList className="h-5 w-5 text-white" />}
-                    />
-
-                    <PillButton
-                      title={showSearch ? 'Close search' : 'Find a question'}
-                      icon={
-                        showSearch ? (
-                          <X className="h-5 w-5 text-white" />
-                        ) : (
-                          <Search className="h-5 w-5 text-white" />
-                        )
-                      }
-                      onClick={() => {
-                        setShowSearch((v) => !v);
-                        setErr(null);
-                      }}
-                    />
-
-                    {showSearch && (
-                      <div className="rounded-[24px] border border-white/12 bg-white/10 backdrop-blur p-3 space-y-2">
-                        <div className="text-xs text-white/70">
-                          Digite o ID (ex.:{' '}
-                          <span className="font-mono">AF-0012</span>)
-                        </div>
-                        <div className="flex gap-2">
-                          <Input
-                            value={qId}
-                            onChange={(e) => setQId(e.target.value)}
-                            placeholder="AF-0012"
-                            autoCapitalize="characters"
-                            spellCheck={false}
-                            disabled={loading}
-                            onKeyDown={(e) =>
-                              e.key === 'Enter' ? handleSearchById() : null
-                            }
-                            className="bg-white/10 border-white/15 text-white placeholder:text-white/45"
-                          />
-                          <Button
-                            onClick={handleSearchById}
-                            disabled={loading}
-                          >
-                            {loading ? '...' : 'Open'}
-                          </Button>
-                        </div>
-                        {err && (
-                          <p className="text-xs text-red-200">{err}</p>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Spacer */}
-                    <div className="pt-2" />
-
-                    {/* Feedback + Help */}
-                    <PillButton
-                      title="How was the exam?"
-                      href="/feedback"
-                      icon={<MessageSquare className="h-5 w-5 text-white" />}
-                    />
-
-                    <PillButton
-                      title="App Instructions / FAQ"
-                      href="/instructions"
-                      icon={<Info className="h-5 w-5 text-white" />}
-                    />
-
-                    <PillButton
-                      title="Support / Help"
-                      href="/support"
-                      icon={<LifeBuoy className="h-5 w-5 text-white" />}
-                    />
-
-                    <PillButton
-                      title="About"
-                      href="/about"
-                      icon={<Info className="h-5 w-5 text-white" />}
-                    />
-                  </div>
-                </div>
-
-                <div className="h-4 md:h-6" />
-              </div>
+    <div className="min-h-screen">
+      {/* Header */}
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-black/35 backdrop-blur-xl">
+        <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
+          <Link href={ROUTES.landing} className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-2xl border border-white/14 bg-white/10 flex items-center justify-center overflow-hidden">
+              <Image src="/home/logo.svg" alt="AME ONE" width={26} height={26} priority />
             </div>
 
-            {/* FOOTER */}
-            <div className="shrink-0 p-3 md:p-4 border-t border-white/10 bg-white/10 backdrop-blur-md space-y-2">
-              <div className="flex flex-wrap gap-1.5 text-white/80">
-                <Button
-                  asChild
-                  variant="outline"
-                  size="sm"
-                  className="h-8 px-3 border-white/10 bg-white/5 text-white hover:bg-white/10"
-                >
-                  <Link href="/about">About</Link>
-                </Button>
-
-                <Button
-                  asChild
-                  variant="outline"
-                  size="sm"
-                  className="h-8 px-3 border-white/10 bg-white/5 text-white hover:bg-white/10"
-                >
-                  <Link href="/instructions">Instructions</Link>
-                </Button>
-
-                <Button
-                  asChild
-                  variant="outline"
-                  size="sm"
-                  className="h-8 px-3 border-white/10 bg-white/5 text-white hover:bg-white/10"
-                >
-                  <Link href="/support">Support</Link>
-                </Button>
-
-                <Button
-                  asChild
-                  variant="outline"
-                  size="sm"
-                  className="h-8 px-3 border-white/10 bg-white/5 text-white hover:bg-white/10"
-                >
-                  <Link href="/terms">Legal</Link>
-                </Button>
-              </div>
-
-              <div className="rounded-[22px] border border-white/10 bg-white/10 backdrop-blur p-2">
-                <TipsTicker />
+            <div className="leading-tight">
+              <div className="text-sm font-semibold text-white">AME ONE</div>
+              <div className="text-[11px] text-white/70">
+                Licences-first study platform (Transport Canada mindset)
               </div>
             </div>
+          </Link>
+
+          <nav className="hidden md:flex items-center gap-6 text-sm text-white/80">
+            <Link className="hover:text-white" href={ROUTES.pricing}>
+              Pricing
+            </Link>
+            <Link className="hover:text-white" href={ROUTES.instructions}>
+              Instructions
+            </Link>
+            <Link className="hover:text-white" href={ROUTES.about}>
+              About
+            </Link>
+            <Link className="hover:text-white" href={ROUTES.help}>
+              Help
+            </Link>
+          </nav>
+
+          <div className="flex items-center gap-2">
+            <Button
+              asChild
+              variant="outline"
+              className="border-white/15 bg-white/10 text-white hover:bg-white/15"
+            >
+              <Link href={ROUTES.login}>Sign in</Link>
+            </Button>
+            <Button asChild className="bg-white text-black hover:bg-white/90">
+              <Link href={ROUTES.register} className="flex items-center gap-2">
+                Create account <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
           </div>
         </div>
-      </div>
+      </header>
+
+      {/* Hero */}
+      <main className="mx-auto max-w-6xl px-4 py-10 md:py-16 space-y-10">
+        <GlassPanel className="p-6 md:p-10">
+          <div className="grid gap-8 md:grid-cols-[1.2fr_0.8fr] items-start">
+            <div className="space-y-5">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-medium text-white">
+                <ShieldCheck className="h-4 w-4" />
+                Built for Transport Canada exams
+              </div>
+
+              <h1 className="text-3xl md:text-5xl font-semibold tracking-tight text-white">
+                Study like Transport Canada thinks.
+                <span className="block text-white/80">Buy access per licence.</span>
+              </h1>
+
+              <p className="text-white/75 md:text-lg max-w-2xl">
+                AME ONE is a licence-first platform: M, E, S, Balloons, plus a shared REGS module.
+                Clear gating, clean UX, and content organized the way the exams are structured.
+              </p>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <Button asChild size="lg" className="bg-white text-black hover:bg-white/90">
+                  <Link href={ROUTES.register} className="flex items-center gap-2">
+                    Start now <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+
+                <Button
+                  asChild
+                  size="lg"
+                  variant="outline"
+                  className="border-white/15 bg-white/10 text-white hover:bg-white/15"
+                >
+                  <Link href={ROUTES.appHub} className="flex items-center gap-2">
+                    Open Hub <Layers className="h-4 w-4" />
+                  </Link>
+                </Button>
+
+                <Button
+                  asChild
+                  size="lg"
+                  variant="ghost"
+                  className="text-white/80 hover:text-white hover:bg-white/10"
+                >
+                  <Link href={ROUTES.pricing}>See pricing</Link>
+                </Button>
+              </div>
+
+              <Separator className="bg-white/10" />
+
+              <div className="grid gap-3 md:grid-cols-3">
+                <div className="flex items-start gap-3">
+                  <div className="h-10 w-10 rounded-2xl border border-white/12 bg-white/10 flex items-center justify-center">
+                    <Plane className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-white">Licences = products</div>
+                    <div className="text-sm text-white/70">No “premium for everything”.</div>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="h-10 w-10 rounded-2xl border border-white/12 bg-white/10 flex items-center justify-center">
+                    <Radio className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-white">REGS is global</div>
+                    <div className="text-sm text-white/70">Unlock once → share across licences.</div>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="h-10 w-10 rounded-2xl border border-white/12 bg-white/10 flex items-center justify-center">
+                    <ClipboardList className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-white">Logbook is pro</div>
+                    <div className="text-sm text-white/70">Not a “bonus feature”.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="text-xs text-white/70">Plan examples (per licence)</div>
+              <PlanCard
+                title="BASIC"
+                price="~USD 10"
+                subtitle="Explore & Start"
+                features={[
+                  'Flashcards: daily limit',
+                  'Practice: cooldown',
+                  'Test: weekly limit',
+                  'No Logbook',
+                ]}
+              />
+              <PlanCard
+                title="STANDARD"
+                price="~USD 20"
+                subtitle="Serious Study (most popular)"
+                highlight
+                features={['Flashcards: unlimited', 'Practice: unlimited', 'Test: weekly limit', 'No Logbook']}
+              />
+              <PlanCard
+                title="PREMIUM"
+                price="~USD 30"
+                subtitle="Exam & Career"
+                features={['Everything unlimited', 'Test: unlimited', 'Logbook included', 'Priority access to new modules']}
+              />
+            </div>
+          </div>
+        </GlassPanel>
+
+        {/* Secondary section */}
+        <div className="grid gap-4 md:grid-cols-3">
+          <GlassCard className="p-6">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-2xl border border-white/12 bg-white/10 flex items-center justify-center">
+                <ShieldCheck className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <div className="text-white font-semibold">Exam-focused structure</div>
+                <div className="text-sm text-white/70">CARs / Standards / TC-style topic breakdown.</div>
+              </div>
+            </div>
+          </GlassCard>
+
+          <GlassCard className="p-6">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-2xl border border-white/12 bg-white/10 flex items-center justify-center">
+                <Layers className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <div className="text-white font-semibold">Clean gating</div>
+                <div className="text-sm text-white/70">Entitlements are the single source of truth.</div>
+              </div>
+            </div>
+          </GlassCard>
+
+          <GlassCard className="p-6">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-2xl border border-white/12 bg-white/10 flex items-center justify-center">
+                <ClipboardList className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <div className="text-white font-semibold">Professional Logbook</div>
+                <div className="text-sm text-white/70">Premium-only (or add-on later).</div>
+              </div>
+            </div>
+          </GlassCard>
+        </div>
+
+        {/* Footer */}
+        <footer className="pb-10">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-sm text-white/70">
+            <div>
+              © {new Date().getFullYear()} AME ONE — licence-first AME study platform.
+            </div>
+            <div className="flex items-center gap-4">
+              <Link className="hover:text-white" href={ROUTES.terms}>
+                Terms
+              </Link>
+              <Link className="hover:text-white" href={ROUTES.privacy}>
+                Privacy
+              </Link>
+              <Link className="hover:text-white" href={ROUTES.feedback}>
+                Feedback
+              </Link>
+            </div>
+          </div>
+        </footer>
+      </main>
     </div>
   );
 }

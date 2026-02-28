@@ -1,7 +1,11 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+
+import { ROUTES } from '@/lib/routes';
+import { getStudentState, type StudentState } from '@/lib/entitlementsClient';
+import { planCaps } from '@/lib/planEntitlements';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -21,8 +25,6 @@ import {
   Brain,
   Check,
   Coins,
-  Minus,
-  Plus,
   RefreshCw,
   Trophy,
   User,
@@ -36,68 +38,108 @@ import {
 export type OptionKey = 'A' | 'B' | 'C' | 'D';
 
 export interface RawQuestion {
-  id?: number;
-  question: string;
-  options: {
-    A: string;
-    B: string;
-    C: string;
-    D: string;
+  id: string;
+  ratingCode?: string;
+  examCode?: string;
+
+  tcSectionCode?: string;
+  tcSectionTitle?: string;
+  tcTopicCode?: string;
+  tcTopicTitle?: string;
+
+  topicPath?: { code: string; title: string }[];
+
+  questionType?: 'single_choice';
+  stem: string;
+
+  options: { id: OptionKey; text: string }[];
+  correctOptionId: OptionKey;
+
+  references?: {
+    doc?: string;
+    area?: string;
+    topic?: string;
+    locator?: string;
+    note?: string;
+  }[];
+
+  explanation?: {
+    correct?: string;
+    whyOthersAreWrong?: Partial<Record<OptionKey, string>>;
   };
-  correctAnswer?: OptionKey;
-  correct_answer?: OptionKey;
-  reference?: string;
-  source?: string;
-  explanation?: string;
-  category?: string;
+
+  difficulty?: number;
+  tags?: string[];
+  status?: 'draft' | 'validated' | 'published';
+  version?: number;
 }
 
 export interface DeckSection {
-  id: string;                // ex: 'part1', 'sp01'
-  title: string;             // título completo
-  shortTitle?: string;       // ex: 'Part I', '01'
-  subtitle?: string;         // descrição curta
-  weight?: number;           // peso para provas (default = 1)
-  questions: RawQuestion[];  // array de questões cru
+  id: string;
+  title: string;
+  shortTitle?: string;
+  subtitle?: string;
+
+  // ✅ Etapa 2: “preview do conteúdo” (TC guide)
+  topics?: string[];
+
+  weight?: number;
+  questions: RawQuestion[];
 }
 
 // --------------------------------------------------------
 // Tipos internos
 // --------------------------------------------------------
 
+type QuestionId = string;
+
 interface Question {
-  id: number;
+  id: QuestionId;
   sectionId: string;
-  question: string;
-  options: {
-    A: string;
-    B: string;
-    C: string;
-    D: string;
-  };
+  stem: string;
+
+  options: Record<OptionKey, string>;
   correctAnswer: OptionKey;
-  reference?: string;
-  source?: string;
-  explanation?: string;
-  category?: string;
+
+  tcSectionCode?: string;
+  tcSectionTitle?: string;
+  tcTopicCode?: string;
+  tcTopicTitle?: string;
+  topicPath?: { code: string; title: string }[];
+
+  references?: RawQuestion['references'];
+  explanation?: RawQuestion['explanation'];
+
+  difficulty?: number;
+  tags?: string[];
 }
 
 interface UserAnswer {
-  questionId: number;
+  questionId: QuestionId;
   selectedAnswer: OptionKey;
   isCorrect: boolean;
+
+  tcSectionCode?: string;
+  tcTopicCode?: string;
 }
 
-type QuestionScoreMap = Record<number, number>; // 0–5
+type QuestionScoreMap = Record<QuestionId, number>; // 0–5
 
 interface AdvancedEngineProps {
-  moduleId: string;              // usado no localStorage (ex: 'cars', 'stdp')
+  moduleId: string;
   moduleTitle: string;
   moduleDescription: string;
   sections: DeckSection[];
-  enableCredits?: boolean;       // se true, cobra crédito no modo Test
-  examCost?: number;             // custo em créditos por prova (default 1)
-  defaultTestQuestionCount?: number; // tamanho da prova (default 50)
+
+  // Plan-based experience gating (MVP). If omitted, study modes are unlimited.
+  licenseId?: 'm' | 'e' | 's' | 'balloons' | 'regs';
+  backHref?: string;
+
+  // Legacy (kept for compatibility; should remain false in AME ONE pages)
+  enableCredits?: boolean;
+  examCost?: number;
+
+  defaultTestQuestionCount?: number;
 }
 
 // --------------------------------------------------------
@@ -111,6 +153,16 @@ function shuffleArray<T>(array: T[]): T[] {
     [result[i], result[j]] = [result[j], result[i]];
   }
   return result;
+}
+
+function normalizeOptionsToRecord(
+  opts: { id: OptionKey; text: string }[],
+): Record<OptionKey, string> {
+  const record: Record<OptionKey, string> = { A: '', B: '', C: '', D: '' };
+  for (const o of opts) {
+    if (o && o.id && typeof o.text === 'string') record[o.id] = o.text;
+  }
+  return record;
 }
 
 function shuffleQuestionOptions(question: Question): Question {
@@ -137,21 +189,89 @@ function shuffleQuestionOptions(question: Question): Question {
   };
 }
 
-// indicador visual de nível (0–5) por questão
+function formatTime(seconds: number) {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+}
+
+function safeTopicKey(q: Question) {
+  // ✅ chave TC-like (preferência: tcTopicCode)
+  // fallback: sectionId (pra não quebrar se tcTopicCode vier vazio)
+  return q.tcTopicCode || `SECTION:${q.sectionId}`;
+}
+
+function roundRobinPick<T>(pools: Record<string, T[]>, count: number): T[] {
+  const keys = Object.keys(pools).filter((k) => (pools[k]?.length ?? 0) > 0);
+  if (keys.length === 0 || count <= 0) return [];
+
+  const order = shuffleArray(keys);
+  const out: T[] = [];
+
+  let guard = 0;
+  while (out.length < count && guard < 100000) {
+    guard++;
+    let progressed = false;
+
+    for (const k of order) {
+      const pool = pools[k];
+      if (pool && pool.length > 0) {
+        out.push(pool.shift() as T);
+        progressed = true;
+        if (out.length >= count) break;
+      }
+    }
+
+    if (!progressed) break; // nada mais pra pegar
+  }
+
+  return out;
+}
+
+// --------------------------------------------------------
+// Glass helpers (visual only)
+// --------------------------------------------------------
+
+function GlassCard({
+  children,
+  className = '',
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <Card
+      className={[
+        'relative overflow-hidden rounded-[30px] border-white/15 bg-white/10 backdrop-blur-md',
+        className,
+      ].join(' ')}
+    >
+      <div className="absolute inset-0 bg-black/25 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-br from-black/10 via-transparent to-black/25 pointer-events-none" />
+      <div className="relative">{children}</div>
+    </Card>
+  );
+}
+
+const outlineBtn =
+  'border border-white/15 bg-white/10 text-white hover:bg-white/15';
+const primaryBtn =
+  'border border-white/15 bg-black/70 text-white hover:bg-black/60';
+
 function QuestionScoreIndicator({ score }: { score: number }) {
   const max = 5;
   const levels = Array.from({ length: max + 1 }, (_, i) => i);
 
   return (
-    <div className="flex flex-col items-end gap-1 text-xs text-muted-foreground">
-      <span className="font-medium">Level {score}/5</span>
+    <div className="flex flex-col items-end gap-1 text-xs text-white/70">
+      <span className="font-medium text-white/80">Level {score}/5</span>
       <div className="flex gap-1">
         {levels.map((lvl) => (
           <div
             key={lvl}
             className={[
-              'h-2 w-2 rounded-full border border-gray-400',
-              lvl <= score ? 'bg-gray-800' : 'bg-transparent',
+              'h-2 w-2 rounded-full border border-white/35',
+              lvl <= score ? 'bg-white/80' : 'bg-transparent',
             ].join(' ')}
           />
         ))}
@@ -165,11 +285,53 @@ function QuestionScoreIndicator({ score }: { score: number }) {
 // --------------------------------------------------------
 
 function getScoreStorageKey(moduleId: string) {
-  return `${moduleId}_questionScores_v1`;
+  return `${moduleId}_questionScores_v2`;
 }
 
 function getCreditsStorageKey(moduleId: string) {
   return `${moduleId}_examCredits_v1`;
+}
+
+// ✅ novo: histórico local de testes
+function getTestHistoryStorageKey(moduleId: string) {
+  return `${moduleId}_testHistory_v1`;
+}
+
+type TestHistoryEntry = {
+  ts: number;
+  total: number;
+  correct: number;
+  answered: number;
+  incorrect: number;
+  unanswered: number;
+  percentage: number;
+  passMark: number;
+  pass: boolean;
+  focusTopics: string[];
+};
+
+function loadTestHistory(moduleId: string): TestHistoryEntry[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(getTestHistoryStorageKey(moduleId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as TestHistoryEntry[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveTestHistory(moduleId: string, entries: TestHistoryEntry[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(
+      getTestHistoryStorageKey(moduleId),
+      JSON.stringify(entries),
+    );
+  } catch {
+    // ignore
+  }
 }
 
 function loadQuestionScores(moduleId: string): QuestionScoreMap {
@@ -186,19 +348,22 @@ function loadQuestionScores(moduleId: string): QuestionScoreMap {
 function saveQuestionScores(moduleId: string, map: QuestionScoreMap) {
   if (typeof window === 'undefined') return;
   try {
-    window.localStorage.setItem(getScoreStorageKey(moduleId), JSON.stringify(map));
+    window.localStorage.setItem(
+      getScoreStorageKey(moduleId),
+      JSON.stringify(map),
+    );
   } catch {
     // ignore
   }
 }
 
-function getQuestionScore(map: QuestionScoreMap, questionId: number): number {
-  return map[questionId] ?? 3; // default 3 (meio termo)
+function getQuestionScore(map: QuestionScoreMap, questionId: QuestionId): number {
+  return map[questionId] ?? 3;
 }
 
 function applyAnswerToScore(
   map: QuestionScoreMap,
-  questionId: number,
+  questionId: QuestionId,
   isCorrect: boolean,
 ): QuestionScoreMap {
   const current = map[questionId] ?? 3;
@@ -227,10 +392,10 @@ function saveCredits(moduleId: string, value: number) {
   }
 }
 
-function formatTime(seconds: number) {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+function classifyTopic(percent: number) {
+  if (percent >= 80) return 'Strong';
+  if (percent >= 60) return 'Borderline';
+  return 'Needs Study';
 }
 
 // --------------------------------------------------------
@@ -242,19 +407,18 @@ function AdvancedEngine({
   moduleTitle,
   moduleDescription,
   sections,
+  licenseId,
+  backHref,
   enableCredits = true,
   examCost = 1,
   defaultTestQuestionCount = 50,
 }: AdvancedEngineProps) {
-  // ids das seções
   const sectionIds = useMemo(() => sections.map((s) => s.id), [sections]);
 
-  // estado de seleção de seções
   const [selectedSections, setSelectedSections] = useState<string[]>(() =>
     sectionIds.length > 0 ? [sectionIds[0]] : [],
   );
 
-  // modos de tela
   const [screenMode, setScreenMode] = useState<
     'home' | 'quiz' | 'results' | 'practiceResults' | 'account'
   >('home');
@@ -263,7 +427,6 @@ function AdvancedEngine({
     'flashcard',
   );
 
-  // decks
   const [allQuestions, setAllQuestions] = useState<Question[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -272,23 +435,82 @@ function AdvancedEngine({
   const [showFeedback, setShowFeedback] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
 
-  // timer (só test)
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
 
-  // níveis por questão
   const [questionScores, setQuestionScores] = useState<QuestionScoreMap>({});
-
-  // créditos
   const [credits, setCredits] = useState<number>(0);
 
-  // mapa de questões já respondidas (trava no practice/test)
-  const [lockedQuestions, setLockedQuestions] = useState<Record<number, boolean>>(
-    {},
-  );
+  // ----------------------------------------------------
+  // Plan-based gating (license plans)
+  // ----------------------------------------------------
+  const [student, setStudent] = useState<StudentState | null>(null);
+  const plan = student?.licenseEntitlements?.[licenseId ?? '']?.plan;
+  const caps = useMemo(() => (plan ? planCaps(plan) : null), [plan]);
+
+  useEffect(() => {
+    if (!licenseId) return;
+    let alive = true;
+    (async () => {
+      const s = await getStudentState({ force: false });
+      if (!alive) return;
+      setStudent(s);
+    })();
+    return () => { alive = false; };
+  }, [licenseId]);
+
+  function storageKey(kind: 'flashcards' | 'practice' | 'test') {
+    return `ameone_usage:${licenseId ?? 'unknown'}:${moduleId}:${kind}`;
+  }
+
+  function todayKey() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  function weekKey() {
+    const d = new Date();
+    const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const dayNum = date.getUTCDay() || 7;
+    date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+    const weekNo = Math.ceil((((date.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+    return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+  }
+
+  function readUsage(kind: 'flashcards' | 'practice' | 'test') {
+    if (typeof window === 'undefined') return 0;
+    try {
+      const raw = window.localStorage.getItem(storageKey(kind));
+      if (!raw) return 0;
+      const data = JSON.parse(raw);
+      const key = kind === 'test' ? weekKey() : todayKey();
+      if (data?.key !== key) return 0;
+      const n = Number(data?.count ?? 0);
+      return Number.isFinite(n) ? n : 0;
+    } catch { return 0; }
+  }
+
+  function writeUsage(kind: 'flashcards' | 'practice' | 'test', next: number) {
+    if (typeof window === 'undefined') return;
+    try {
+      const key = kind === 'test' ? weekKey() : todayKey();
+      window.localStorage.setItem(storageKey(kind), JSON.stringify({ key, count: next }));
+    } catch { /* ignore */ }
+  }
+
+  const [lockedQuestions, setLockedQuestions] = useState<
+    Record<QuestionId, boolean>
+  >({});
+
+  // ✅ para evitar salvar histórico 2x ao entrar em results
+  const savedResultRef = useRef(false);
+
+  // ✅ para evitar auto-finalize rodar 2x
+  const autoFinishRef = useRef(false);
 
   // ----------------------------------------------------
-  // Helpers com base nas sections
+  // Helpers sections
   // ----------------------------------------------------
 
   const getSectionById = (id: string) => sections.find((s) => s.id === id);
@@ -298,11 +520,9 @@ function AdvancedEngine({
     return section?.questions?.length ?? 0;
   };
 
-  const getAllSectionsQuestionCount = (): number =>
-    sections.reduce((sum, s) => sum + (s.questions?.length ?? 0), 0);
-
   const deckLabel = useMemo(() => {
-    if (selectedSections.length === 0) return `${moduleTitle} – No section selected`;
+    if (selectedSections.length === 0)
+      return `${moduleTitle} – No section selected`;
     if (selectedSections.length === sectionIds.length) {
       return `${moduleTitle} – All sections`;
     }
@@ -320,7 +540,6 @@ function AdvancedEngine({
   const buildDeckForSections = (sectionIdList: string[]): Question[] => {
     const activeIds = sectionIdList.length > 0 ? sectionIdList : sectionIds;
 
-    let runningId = 1;
     const result: Question[] = [];
 
     activeIds.forEach((sid) => {
@@ -328,21 +547,28 @@ function AdvancedEngine({
       if (!section) return;
 
       (section.questions || []).forEach((q) => {
-        if (!q || !q.question || !q.options) return;
+        if (!q || !q.id || !q.stem || !Array.isArray(q.options)) return;
 
-        const baseCorrect =
-          (q.correctAnswer ?? q.correct_answer ?? 'A') as OptionKey;
+        const baseCorrect = (q.correctOptionId ?? 'A') as OptionKey;
 
         const baseQuestion: Question = {
-          id: runningId++,
+          id: String(q.id),
           sectionId: sid,
-          question: q.question,
-          options: q.options,
+          stem: q.stem,
+          options: normalizeOptionsToRecord(q.options),
           correctAnswer: baseCorrect,
-          reference: q.reference,
-          source: q.source,
+
+          tcSectionCode: q.tcSectionCode,
+          tcSectionTitle: q.tcSectionTitle,
+          tcTopicCode: q.tcTopicCode,
+          tcTopicTitle: q.tcTopicTitle,
+          topicPath: q.topicPath,
+
+          references: q.references,
           explanation: q.explanation,
-          category: q.category,
+
+          difficulty: q.difficulty,
+          tags: q.tags,
         };
 
         result.push(shuffleQuestionOptions(baseQuestion));
@@ -352,6 +578,8 @@ function AdvancedEngine({
     return result;
   };
 
+  // ✅ TEST builder TC-like: balanceia por section weight,
+  // mas dentro de cada section faz mix por tcTopicCode (round-robin)
   const buildTestExamQuestions = (
     allQs: Question[],
     selectedSectionIds: string[],
@@ -363,40 +591,73 @@ function AdvancedEngine({
     const maxQuestions = Math.min(totalQuestions, allQs.length);
     if (maxQuestions <= 0) return [];
 
-    // agrupa por seção
-    const pools: Record<string, Question[]> = {};
+    // 1) calcula pesos por section
+    const sectionWeight: Record<string, number> = {};
     let totalWeight = 0;
 
     activeIds.forEach((sid) => {
-      pools[sid] = shuffleArray(allQs.filter((q) => q.sectionId === sid));
-      const section = getSectionById(sid);
-      const weight = section?.weight ?? 1;
-      totalWeight += weight;
+      const w = getSectionById(sid)?.weight ?? 1;
+      sectionWeight[sid] = w;
+      totalWeight += w;
     });
 
+    // 2) monta pools por section -> topicKey -> questions[]
+    const perSectionTopicPools: Record<string, Record<string, Question[]>> = {};
+
+    activeIds.forEach((sid) => {
+      const sectionQs = allQs.filter((q) => q.sectionId === sid);
+      const topicPools: Record<string, Question[]> = {};
+
+      shuffleArray(sectionQs).forEach((q) => {
+        const key = safeTopicKey(q);
+        if (!topicPools[key]) topicPools[key] = [];
+        topicPools[key].push(q);
+      });
+
+      perSectionTopicPools[sid] = topicPools;
+    });
+
+    // 3) pega "target" por section (peso), usando round-robin topic
     const selected: Question[] = [];
     const leftovers: Question[] = [];
+
     let remaining = maxQuestions;
 
     activeIds.forEach((sid) => {
-      const pool = pools[sid] ?? [];
-      if (pool.length === 0 || remaining <= 0) return;
+      if (remaining <= 0) return;
 
-      const section = getSectionById(sid);
-      const weight = section?.weight ?? 1;
-      const ideal = Math.round((maxQuestions * weight) / totalWeight);
+      const topicPools = perSectionTopicPools[sid] ?? {};
+      const availableCount = Object.values(topicPools).reduce(
+        (sum, arr) => sum + arr.length,
+        0,
+      );
+      if (availableCount <= 0) return;
 
-      const target = Math.min(ideal, pool.length, remaining);
-      selected.push(...pool.slice(0, target));
-      remaining -= target;
-      leftovers.push(...pool.slice(target));
+      const ideal = Math.round((maxQuestions * sectionWeight[sid]) / totalWeight);
+      const target = Math.min(ideal, availableCount, remaining);
+
+      const picked = roundRobinPick(topicPools, target);
+      selected.push(...picked);
+      remaining -= picked.length;
+
+      // sobras dessa section (pra fill)
+      const rest = Object.values(topicPools).flat();
+      leftovers.push(...rest);
     });
 
+    // 4) fill geral (também misturado por topicKey)
     if (remaining > 0 && leftovers.length > 0) {
-      const shuffledLeftovers = shuffleArray(leftovers);
-      selected.push(...shuffledLeftovers.slice(0, remaining));
+      const globalTopicPools: Record<string, Question[]> = {};
+      shuffleArray(leftovers).forEach((q) => {
+        const key = safeTopicKey(q);
+        if (!globalTopicPools[key]) globalTopicPools[key] = [];
+        globalTopicPools[key].push(q);
+      });
+
+      selected.push(...roundRobinPick(globalTopicPools, remaining));
     }
 
+    // 5) embaralha final (mantém mix)
     return shuffleArray(selected).slice(0, maxQuestions);
   };
 
@@ -408,8 +669,6 @@ function AdvancedEngine({
       ),
     [selectedSections, sections],
   );
-
-  const allSelected = selectedSections.length === sectionIds.length;
 
   // ----------------------------------------------------
   // Efeitos: carregar scores / créditos
@@ -460,6 +719,11 @@ function AdvancedEngine({
     setSelectedSections(sectionIds);
   };
 
+  const finishTest = useCallback(() => {
+    setScreenMode('results');
+    setIsTimerRunning(false);
+  }, []);
+
   const handleStartQuiz = (modeToUse: 'flashcard' | 'practice' | 'test') => {
     if (sections.length === 0) {
       alert('This module has no sections configured yet.');
@@ -474,7 +738,43 @@ function AdvancedEngine({
       return;
     }
 
-    // Test mode: créditos + prova balanceada
+    // reset guards
+    savedResultRef.current = false;
+    autoFinishRef.current = false;
+
+    // ----------------------------------------------------
+    // Experience gating (MVP) — based on license plan
+    // ----------------------------------------------------
+    if (caps) {
+      if (modeToUse === 'flashcard') {
+        const used = readUsage('flashcards');
+        const remaining = caps.flashcardsPerDay - used;
+        if (!Number.isFinite(remaining) || remaining <= 0) {
+          alert('Flashcards limit reached for today. Upgrade your plan to study unlimited.');
+          return;
+        }
+        // Consume by deck size (perceived experience)
+        const consume = Math.max(1, Math.min(totalQuestionsSelected || deck.length, remaining));
+        writeUsage('flashcards', used + consume);
+      }
+      if (modeToUse === 'practice') {
+        const used = readUsage('practice');
+        if (used >= caps.practicePerDay) {
+          alert('Practice limit reached for today. Upgrade your plan for unlimited practice.');
+          return;
+        }
+        writeUsage('practice', used + 1);
+      }
+      if (modeToUse === 'test') {
+        const used = readUsage('test');
+        if (used >= caps.testsPerWeek) {
+          alert('Test limit reached for this week. Upgrade your plan for more tests.');
+          return;
+        }
+        writeUsage('test', used + 1);
+      }
+    }
+
     if (modeToUse === 'test') {
       if (enableCredits && credits < examCost) {
         alert(
@@ -497,7 +797,6 @@ function AdvancedEngine({
       setTimeLeft(testQuestions.length > 25 ? 45 * 60 : 22 * 60);
       setIsTimerRunning(true);
     } else {
-      // flashcard / practice usam o deck completo
       setQuestions(deck);
       setTimeLeft(null);
       setIsTimerRunning(false);
@@ -523,13 +822,16 @@ function AdvancedEngine({
     setLockedQuestions({});
     setTimeLeft(null);
     setIsTimerRunning(false);
+
+    // reset guards (pra não carregar “state velho” num novo test)
+    savedResultRef.current = false;
+    autoFinishRef.current = false;
   };
 
   const handleAnswerSelect = (value: string) => {
     const currentQuestion = questions[currentQuestionIndex];
     if (!currentQuestion) return;
 
-    // trava practice/test
     if (
       (studyMode === 'practice' || studyMode === 'test') &&
       lockedQuestions[currentQuestion.id]
@@ -545,12 +847,10 @@ function AdvancedEngine({
     setIsCorrect(correct);
     setShowFeedback(studyMode === 'practice');
 
-    // score
     setQuestionScores((prev) =>
       applyAnswerToScore(prev, currentQuestion.id, correct),
     );
 
-    // salva resposta
     setUserAnswers((prev) => {
       const existingIndex = prev.findIndex(
         (a) => a.questionId === currentQuestion.id,
@@ -559,6 +859,8 @@ function AdvancedEngine({
         questionId: currentQuestion.id,
         selectedAnswer: value as OptionKey,
         isCorrect: correct,
+        tcSectionCode: currentQuestion.tcSectionCode,
+        tcTopicCode: currentQuestion.tcTopicCode,
       };
 
       if (existingIndex >= 0) {
@@ -569,33 +871,21 @@ function AdvancedEngine({
       return [...prev, answer];
     });
 
-    // trava questão
     if (studyMode === 'practice' || studyMode === 'test') {
       setLockedQuestions((prev) => ({ ...prev, [currentQuestion.id]: true }));
     }
 
-    // auto-finaliza prova quando respondeu tudo
-    if (studyMode === 'test') {
-      const newAnsweredCount = userAnswers.length + 1;
-      if (newAnsweredCount >= questions.length) {
-        setTimeout(() => {
-          setScreenMode('results');
-          setIsTimerRunning(false);
-        }, 300);
-      }
-    }
+    // ✅ REMOVIDO: auto-finalize antigo (stale state)
+    // Agora é garantido via useEffect (abaixo).
   };
 
   const handleNextQuestion = () => {
     if (currentQuestionIndex >= questions.length - 1) {
-      // fim do deck
       if (studyMode === 'test') {
-        setScreenMode('results');
-        setIsTimerRunning(false);
+        finishTest();
       } else if (studyMode === 'practice') {
         setScreenMode('practiceResults');
       } else {
-        // flashcard apenas volta pro início
         setCurrentQuestionIndex(0);
       }
       setSelectedAnswer('');
@@ -621,6 +911,9 @@ function AdvancedEngine({
 
   const handleRestartCurrentMode = () => {
     if (questions.length === 0) return;
+
+    savedResultRef.current = false;
+    autoFinishRef.current = false;
 
     if (studyMode === 'test') {
       if (enableCredits && credits < examCost) {
@@ -691,6 +984,64 @@ function AdvancedEngine({
     return { total, correct, answered, incorrect, unanswered, percentage };
   };
 
+  // relatório estilo TC (por tópico)
+  const calculateTopicBreakdown = () => {
+    const topicTitleByCode: Record<string, string> = {};
+    const sectionTitleByCode: Record<string, string> = {};
+
+    for (const q of questions) {
+      if (q.tcTopicCode && q.tcTopicTitle)
+        topicTitleByCode[q.tcTopicCode] = q.tcTopicTitle;
+      if (q.tcSectionCode && q.tcSectionTitle)
+        sectionTitleByCode[q.tcSectionCode] = q.tcSectionTitle;
+    }
+
+    const stats: Record<
+      string,
+      { total: number; correct: number; sectionCode?: string }
+    > = {};
+
+    for (const ans of userAnswers) {
+      if (!ans.tcTopicCode) continue;
+      if (!stats[ans.tcTopicCode]) {
+        stats[ans.tcTopicCode] = {
+          total: 0,
+          correct: 0,
+          sectionCode: ans.tcSectionCode,
+        };
+      }
+      stats[ans.tcTopicCode].total += 1;
+      if (ans.isCorrect) stats[ans.tcTopicCode].correct += 1;
+    }
+
+    const rows = Object.entries(stats)
+      .map(([topicCode, v]) => {
+        const percent =
+          v.total > 0 ? Math.round((v.correct / v.total) * 100) : 0;
+        return {
+          topicCode,
+          topicTitle: topicTitleByCode[topicCode] ?? '',
+          sectionCode: v.sectionCode ?? '',
+          sectionTitle: v.sectionCode
+            ? sectionTitleByCode[v.sectionCode] ?? ''
+            : '',
+          total: v.total,
+          correct: v.correct,
+          percent,
+          classification: classifyTopic(percent),
+        };
+      })
+      .sort((a, b) => {
+        const sc = a.sectionCode.localeCompare(b.sectionCode);
+        if (sc !== 0) return sc;
+        const tc = a.topicCode.localeCompare(b.topicCode);
+        if (tc !== 0) return tc;
+        return a.percent - b.percent;
+      });
+
+    return rows;
+  };
+
   const currentQuestion = questions[currentQuestionIndex];
   const currentScore =
     currentQuestion && questionScores
@@ -703,105 +1054,166 @@ function AdvancedEngine({
       : 0;
 
   // ----------------------------------------------------
+  // ✅ FIX 1: Auto-finalize confiável (sem stale state)
+  // ----------------------------------------------------
+  useEffect(() => {
+    if (studyMode !== 'test') return;
+    if (screenMode !== 'quiz') return;
+    if (!questions || questions.length === 0) return;
+
+    if (userAnswers.length < questions.length) return;
+    if (autoFinishRef.current) return;
+
+    autoFinishRef.current = true;
+    finishTest();
+  }, [studyMode, screenMode, userAnswers.length, questions.length, finishTest]);
+
+  // ----------------------------------------------------
+  // ✅ FIX 2: Salvar histórico 1x (hook top-level)
+  // ----------------------------------------------------
+  useEffect(() => {
+    if (studyMode !== 'test') return;
+    if (screenMode !== 'results') return;
+    if (savedResultRef.current) return;
+
+    const { total, correct, answered, incorrect, unanswered, percentage } =
+      calculateScore();
+
+    const passMark = 70;
+    const pass = percentage >= passMark;
+
+    const topicRows = calculateTopicBreakdown();
+    const focusTopics = topicRows
+      .filter((r) => r.classification === 'Needs Study')
+      .map((r) => r.topicCode);
+
+    const entry: TestHistoryEntry = {
+      ts: Date.now(),
+      total,
+      correct,
+      answered,
+      incorrect,
+      unanswered,
+      percentage,
+      passMark,
+      pass,
+      focusTopics,
+    };
+
+    const prev = loadTestHistory(moduleId);
+    const next = [entry, ...prev].slice(0, 30);
+    saveTestHistory(moduleId, next);
+
+    savedResultRef.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [moduleId, studyMode, screenMode]);
+
+  // ----------------------------------------------------
   // TELAS
   // ----------------------------------------------------
 
-  // 1) Tela "Minha conta" (créditos por módulo)
+  // 1) Minha conta
   if (screenMode === 'account') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4 py-8">
+      <div className="space-y-6 text-white">
         <div className="max-w-3xl mx-auto space-y-6">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <div className="space-y-1">
-              <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white border border-white/15 backdrop-blur-md">
                 <User className="h-3 w-3" />
                 <span>My account – {moduleTitle}</span>
               </div>
-              <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+              <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
                 Exam credits
               </h1>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-white/70">
                 Credits for Test mode sessions in this module.
               </p>
             </div>
 
-            <Button variant="outline" size="sm" onClick={handleGoHome}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleGoHome}
+              className={outlineBtn}
+            >
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back
             </Button>
           </div>
 
-          <Card>
+          <GlassCard>
             <CardHeader>
-              <CardTitle>Available credits</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-white">Available credits</CardTitle>
+              <CardDescription className="text-white/70">
                 Test mode consumes credits; Practice and Flashcards are free.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between rounded-lg border bg-muted/40 px-4 py-3">
-                <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between rounded-2xl border border-white/15 bg-white/5 px-4 py-3">
+                <div className="flex items-center gap-2 text-white/90">
                   <Coins className="h-4 w-4" />
                   <span className="text-sm font-semibold">
                     Credits for this module
                   </span>
                 </div>
-                <span className="font-mono text-lg">{credits}</span>
+                <span className="font-mono text-lg text-white">{credits}</span>
               </div>
-              <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+
+              <div className="flex flex-wrap gap-2 text-xs text-white/70">
                 <span>• 1 Test = {examCost} credit</span>
                 <span>• Practice and Flashcards are always free</span>
               </div>
             </CardContent>
+
             <CardFooter className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-white/60">
                 In the future, credits will be recharged via payment methods.
               </p>
-              {/* botão dev pra você encher os créditos */}
+
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setCredits((prev) => prev + 5)}
+                className={outlineBtn}
               >
                 Add 5 test credits (dev)
               </Button>
             </CardFooter>
-          </Card>
+          </GlassCard>
         </div>
       </div>
     );
   }
 
-  // 2) Tela inicial do módulo (seleção de seções + modos)
+  // 2) Home
   if (screenMode === 'home') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4 py-8">
+      <div className="space-y-6 text-white">
         <div className="max-w-3xl mx-auto space-y-8">
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-2">
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-white">
                 {moduleTitle}
               </h1>
-              <p className="text-sm text-muted-foreground">
-                {moduleDescription}
-              </p>
+              <p className="text-sm text-white/70">{moduleDescription}</p>
             </div>
 
             {enableCredits && (
               <div className="flex flex-col items-end gap-2">
-                <div className="inline-flex items-center gap-2 rounded-full border bg-muted/40 px-3 py-1 text-xs">
+                <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs backdrop-blur-md">
                   <Coins className="h-3 w-3" />
-                  <span className="font-medium">
+                  <span className="font-medium text-white/90">
                     Credits:{' '}
-                    <span className="font-mono">
-                      {credits}
-                    </span>
+                    <span className="font-mono text-white">{credits}</span>
                   </span>
                 </div>
+
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setScreenMode('account')}
+                  className={outlineBtn}
                 >
                   <User className="mr-2 h-4 w-4" />
                   My account
@@ -810,22 +1222,23 @@ function AdvancedEngine({
             )}
           </div>
 
-          <Card>
+          <GlassCard>
             <CardHeader>
-              <CardTitle>Sections</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-white">Sections</CardTitle>
+              <CardDescription className="text-white/70">
                 Select one or more sections to build the study deck.
               </CardDescription>
             </CardHeader>
+
             <CardContent className="space-y-4">
               {sections.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-white/70">
                   No sections configured for this module yet.
                 </p>
               ) : (
                 <>
-                  <div className="flex justify-between items-center">
-                    <p className="text-xs text-muted-foreground">
+                  <div className="flex justify-between items-center gap-4">
+                    <p className="text-xs text-white/60">
                       Click to toggle each section. You can combine multiple
                       sections in one session.
                     </p>
@@ -833,6 +1246,7 @@ function AdvancedEngine({
                       variant="outline"
                       size="sm"
                       onClick={handleSelectAllSections}
+                      className={outlineBtn}
                     >
                       Select all
                     </Button>
@@ -851,31 +1265,54 @@ function AdvancedEngine({
                           <button
                             type="button"
                             onClick={() => handleToggleSection(section.id)}
-                            className={`w-full flex items-center justify-between rounded-xl border px-4 py-3 text-left transition
-                              ${
-                                isActive
-                                  ? 'bg-gray-900 text-white border-gray-900 shadow-sm'
-                                  : 'bg-white hover:bg-gray-50 border-gray-200'
-                              }`}
+                            className={[
+                              'w-full flex items-center justify-between rounded-2xl border px-4 py-3 text-left transition',
+                              isActive
+                                ? 'bg-white/15 text-white border-white/20'
+                                : 'bg-white/5 text-white/85 border-white/15 hover:bg-white/10',
+                            ].join(' ')}
                           >
                             <div>
-                              <div className="text-sm font-semibold">
-                                {section.shortTitle || section.title}
-                              </div>
-                              <div
-                                className={`text-xs ${
-                                  isActive ? 'text-gray-200' : 'text-gray-600'
-                                }`}
-                              >
-                                {subtitle}
-                              </div>
-                            </div>
+  <div className="text-sm font-semibold">
+    {section.shortTitle || section.title}
+  </div>
+
+  <div
+    className={
+      isActive
+        ? 'text-xs text-white/75 whitespace-pre-line'
+        : 'text-xs text-white/60 whitespace-pre-line'
+    }
+  >
+    {subtitle}
+  </div>
+
+  {section.topics && section.topics.length > 0 ? (
+    <ul
+      className={
+        isActive
+          ? 'mt-2 space-y-1 text-xs text-white/70'
+          : 'mt-2 space-y-1 text-xs text-white/60'
+      }
+    >
+      {section.topics.slice(0, 4).map((t, idx) => (
+        <li key={idx}>• {t}</li>
+      ))}
+
+      {section.topics.length > 4 ? (
+        <li>• +{section.topics.length - 4} more…</li>
+      ) : null}
+    </ul>
+  ) : null}
+</div>
+
                             <span
-                              className={`text-xs px-2 py-1 rounded-full ${
+                              className={[
+                                'text-xs px-2 py-1 rounded-full border',
                                 isActive
-                                  ? 'bg-gray-800 text-gray-100'
-                                  : 'bg-gray-100 text-gray-700'
-                              }`}
+                                  ? 'bg-white/10 text-white border-white/20'
+                                  : 'bg-white/5 text-white/70 border-white/15',
+                              ].join(' ')}
                             >
                               {count} questions
                             </span>
@@ -885,71 +1322,73 @@ function AdvancedEngine({
                     })}
                   </ul>
 
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-white/70">
                     Selected sections:{' '}
-                    <span className="font-semibold">
+                    <span className="font-semibold text-white">
                       {selectedSections.length}
                     </span>{' '}
                     · Total questions in deck:{' '}
-                    <span className="font-semibold">
+                    <span className="font-semibold text-white">
                       {totalQuestionsSelected}
                     </span>
                   </p>
                 </>
               )}
             </CardContent>
-          </Card>
+          </GlassCard>
 
-          <Card>
+          <GlassCard>
             <CardHeader>
-              <CardTitle>Study modes</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-white">Study modes</CardTitle>
+              <CardDescription className="text-white/70">
                 Choose how you want to study this deck.
               </CardDescription>
             </CardHeader>
+
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between border rounded-lg px-4 py-3">
+              <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/15 bg-white/5 px-4 py-3">
                 <div>
-                  <p className="font-semibold">Flashcard mode</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="font-semibold text-white">Flashcard mode</p>
+                  <p className="text-xs text-white/70">
                     Shows the correct answer and explanation immediately.
                   </p>
                 </div>
                 <Button
                   disabled={totalQuestionsSelected === 0}
                   onClick={() => handleStartQuiz('flashcard')}
+                  className={primaryBtn}
                 >
                   Start
                 </Button>
               </div>
 
-              <div className="flex items-center justify-between border rounded-lg px-4 py-3">
+              <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/15 bg-white/5 px-4 py-3">
                 <div>
-                  <p className="font-semibold">Practice mode</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="font-semibold text-white">Practice mode</p>
+                  <p className="text-xs text-white/70">
                     Multiple choice with instant feedback. Free, unlimited.
                   </p>
                 </div>
                 <Button
                   disabled={totalQuestionsSelected === 0}
                   onClick={() => handleStartQuiz('practice')}
+                  className={primaryBtn}
                 >
                   Start
                 </Button>
               </div>
 
-              <div className="flex items-center justify-between border rounded-lg px-4 py-3">
+              <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/15 bg-white/5 px-4 py-3">
                 <div>
-                  <p className="font-semibold">Test mode</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="font-semibold text-white">Test mode</p>
+                  <p className="text-xs text-white/70">
                     Timed exam. Unanswered questions count as incorrect.
                     {enableCredits && (
                       <>
                         {' '}
                         Costs{' '}
-                        <span className="font-semibold">
-                          {examCost} credit
-                          {examCost !== 1 && 's'}
+                        <span className="font-semibold text-white">
+                          {examCost} credit{examCost !== 1 && 's'}
                         </span>{' '}
                         per test.
                       </>
@@ -959,38 +1398,51 @@ function AdvancedEngine({
                 <Button
                   disabled={totalQuestionsSelected === 0}
                   onClick={() => handleStartQuiz('test')}
+                  className={primaryBtn}
                 >
                   Start
                 </Button>
               </div>
             </CardContent>
-          </Card>
+          </GlassCard>
 
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <Link href="/">
-              <Button variant="outline" size="sm">
+          <div className="flex justify-between items-center gap-3 text-xs text-white/70">
+            <Button asChild variant="outline" size="sm" className={outlineBtn}>
+              <Link href={backHref ?? ROUTES.appHub} className="flex items-center">
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to main menu
-              </Button>
-            </Link>
-            <span>{deckLabel}</span>
+                Back
+              </Link>
+            </Button>
+            <span className="truncate">{deckLabel}</span>
           </div>
         </div>
       </div>
     );
   }
 
-  // 3) Tela de quiz (Flashcard / Practice / Test)
+  // 3) Quiz
   if (screenMode === 'quiz' && currentQuestion) {
     const isFlashcard = studyMode === 'flashcard';
     const isTest = studyMode === 'test';
 
+    const primaryRef =
+      currentQuestion.references && currentQuestion.references.length > 0
+        ? currentQuestion.references[0]
+        : undefined;
+
+    const topicBadge =
+      currentQuestion.tcTopicCode && currentQuestion.tcTopicTitle
+        ? `${currentQuestion.tcTopicCode} – ${currentQuestion.tcTopicTitle}`
+        : currentQuestion.tcTopicCode
+        ? currentQuestion.tcTopicCode
+        : null;
+
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4 py-8">
+      <div className="space-y-6 text-white">
         <div className="max-w-4xl mx-auto space-y-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="space-y-1">
-              <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium mb-1">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/15 text-white text-xs font-medium mb-1 backdrop-blur-md">
                 {isFlashcard ? (
                   <>
                     <BookOpen className="w-3 h-3" />
@@ -1008,21 +1460,29 @@ function AdvancedEngine({
                   </>
                 )}
               </div>
-              <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+
+              <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
                 {moduleTitle}
               </h1>
-              <p className="text-sm text-muted-foreground">
-                {deckLabel}
-              </p>
+              <p className="text-sm text-white/70">{deckLabel}</p>
+              {topicBadge && (
+                <p className="text-xs text-white/60">Topic: {topicBadge}</p>
+              )}
             </div>
 
             <div className="flex flex-col items-end space-y-2">
               {isTest && timeLeft !== null && (
-                <span className="font-mono text-sm px-2 py-1 rounded bg-secondary text-secondary-foreground">
+                <span className="font-mono text-sm px-2 py-1 rounded border border-white/15 bg-white/10 text-white">
                   Time left: {formatTime(timeLeft)}
                 </span>
               )}
-              <Button variant="outline" size="sm" onClick={handleGoHome}>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleGoHome}
+                className={outlineBtn}
+              >
                 <X className="w-4 h-4 mr-2" />
                 Exit
               </Button>
@@ -1030,68 +1490,94 @@ function AdvancedEngine({
           </div>
 
           <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <div className="flex items-center justify-between text-sm text-white/70">
               <span>
                 Question {currentQuestionIndex + 1} of {questions.length}
               </span>
               <span>{Math.round(progress)}% completed</span>
             </div>
-            <div className="w-full bg-secondary/40 rounded-full h-2 overflow-hidden">
+            <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden border border-white/10">
               <div
-                className="bg-primary h-2 rounded-full transition-all"
+                className="bg-white/70 h-2 rounded-full transition-all"
                 style={{ width: `${progress}%` }}
               />
             </div>
           </div>
 
-          <Card className="shadow-lg border-primary/10">
+          <GlassCard className="border-white/15">
             <CardHeader className="space-y-2">
               <div className="flex items-start justify-between gap-4">
-                <CardTitle className="text-lg md:text-xl">
-                  {currentQuestion.question}
+                <CardTitle className="text-lg md:text-xl text-white">
+                  {currentQuestion.stem}
                 </CardTitle>
-                {!isFlashcard && (
-                  <QuestionScoreIndicator score={currentScore} />
-                )}
+                {!isFlashcard && <QuestionScoreIndicator score={currentScore} />}
               </div>
             </CardHeader>
+
             <CardContent className="space-y-4">
               {isFlashcard ? (
                 <>
-                  <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 text-sm">
-                    <p className="font-semibold mb-1">Correct answer</p>
-                    <p>
+                  <div className="p-3 rounded-2xl bg-white/10 border border-white/15 text-sm">
+                    <p className="font-semibold mb-1 text-white">
+                      Correct answer
+                    </p>
+                    <p className="text-white/90">
                       {currentQuestion.correctAnswer}.{' '}
-                      {
-                        currentQuestion.options[
-                          currentQuestion.correctAnswer
-                        ]
-                      }
+                      {currentQuestion.options[currentQuestion.correctAnswer]}
                     </p>
                   </div>
-                  {currentQuestion.explanation && (
-                    <div className="p-3 rounded-lg bg-muted/60 text-sm">
-                      <p className="font-semibold mb-1">Explanation</p>
-                      <p>{currentQuestion.explanation}</p>
+
+                  {(currentQuestion.explanation?.correct ||
+                    currentQuestion.explanation?.whyOthersAreWrong) && (
+                    <div className="p-3 rounded-2xl bg-white/5 border border-white/10 text-sm space-y-2">
+                      <p className="font-semibold mb-1 text-white">
+                        Explanation
+                      </p>
+
+                      {currentQuestion.explanation?.correct && (
+                        <p className="text-white/80 whitespace-pre-wrap">
+  {currentQuestion.explanation.correct}
+</p>
+                      )}
+
+                      {currentQuestion.explanation?.whyOthersAreWrong && (
+  <div className="text-white/75 text-xs space-y-1">
+    <p className="font-semibold text-white/85">
+      Why the other options are incorrect
+    </p>
+
+    {(['A', 'B', 'C', 'D'] as const)
+      .filter((k) => k !== currentQuestion.correctAnswer)
+      .map((k) => {
+        const txt = currentQuestion.explanation?.whyOthersAreWrong?.[k];
+
+        return (
+          <p key={k} className="whitespace-pre-wrap">
+            <span className="font-semibold text-white/85">{k}:</span>{' '}
+            {txt && txt.trim().length > 0 ? txt : '—'}
+          </p>
+        );
+      })}
+  </div>
+)}
                     </div>
                   )}
-                  <div className="grid gap-2 text-xs text-muted-foreground md:grid-cols-2">
-                    {currentQuestion.reference && (
+
+                  <div className="grid gap-2 text-xs text-white/70 md:grid-cols-2">
+                    {primaryRef?.locator && (
                       <p>
-                        <span className="font-semibold">Reference: </span>
-                        {currentQuestion.reference}
+                        <span className="font-semibold text-white/90">
+                          Reference:{' '}
+                        </span>
+                        {primaryRef.locator}
                       </p>
                     )}
-                    {currentQuestion.source && (
+                    {currentQuestion.tcTopicCode && (
                       <p>
-                        <span className="font-semibold">Source: </span>
-                        {currentQuestion.source}
-                      </p>
-                    )}
-                    {currentQuestion.category && (
-                      <p>
-                        <span className="font-semibold">Category: </span>
-                        {currentQuestion.category}
+                        <span className="font-semibold text-white/90">
+                          TC Topic:{' '}
+                        </span>
+                        {currentQuestion.tcTopicCode}
                       </p>
                     )}
                   </div>
@@ -1106,20 +1592,20 @@ function AdvancedEngine({
                     {(['A', 'B', 'C', 'D'] as const).map((optionKey) => (
                       <Label
                         key={optionKey}
-                        className={`flex items-center space-x-3 p-3 border rounded-lg cursor-pointer transition-all ${
+                        className={[
+                          'flex items-center space-x-3 p-3 border rounded-2xl cursor-pointer transition-all',
                           selectedAnswer === optionKey
-                            ? 'border-primary bg-primary/5'
-                            : 'border-border hover:border-primary/60 hover:bg-primary/5'
-                        }`}
+                            ? 'border-white/30 bg-white/10'
+                            : 'border-white/15 bg-white/5 hover:border-white/25 hover:bg-white/10',
+                        ].join(' ')}
                       >
                         <RadioGroupItem
                           value={optionKey}
                           id={`${moduleId}-${currentQuestion.id}-${optionKey}`}
                         />
                         <div className="flex flex-col">
-                          <span className="font-semibold text-sm">
-                            {optionKey}.{' '}
-                            {currentQuestion.options[optionKey]}
+                          <span className="font-semibold text-sm text-white">
+                            {optionKey}. {currentQuestion.options[optionKey]}
                           </span>
                         </div>
                       </Label>
@@ -1128,23 +1614,26 @@ function AdvancedEngine({
 
                   {studyMode === 'practice' && showFeedback && (
                     <div
-                      className={`mt-4 p-3 rounded-lg text-sm flex items-start space-x-2 ${
+                      className={[
+                        'mt-4 p-3 rounded-2xl text-sm flex items-start space-x-2 border',
                         isCorrect
-                          ? 'bg-emerald-50 text-emerald-800 border border-emerald-100'
-                          : 'bg-red-50 text-red-800 border border-red-100'
-                      }`}
+                          ? 'bg-emerald-500/15 text-emerald-50 border-emerald-400/20'
+                          : 'bg-red-500/15 text-red-50 border-red-400/20',
+                      ].join(' ')}
                     >
                       <div className="mt-0.5">
                         {isCorrect ? (
-                          <Check className="w-4 h-4 text-emerald-500" />
+                          <Check className="w-4 h-4 text-emerald-300" />
                         ) : (
-                          <X className="w-4 h-4 text-red-500" />
+                          <X className="w-4 h-4 text-red-300" />
                         )}
                       </div>
+
                       <div>
                         <p className="font-semibold">
                           {isCorrect ? 'Correct!' : 'Incorrect.'}
                         </p>
+
                         {!isCorrect && (
                           <>
                             <p className="mt-1">
@@ -1158,12 +1647,19 @@ function AdvancedEngine({
                                 }
                               </span>
                             </p>
-                            {currentQuestion.reference && (
-                              <p className="mt-1 text-xs">
+
+                            {currentQuestion.explanation?.correct && (
+                              <p className="mt-2 text-xs text-white/80">
+                                {currentQuestion.explanation.correct}
+                              </p>
+                            )}
+
+                            {primaryRef?.locator && (
+                              <p className="mt-2 text-xs text-white/80">
                                 <span className="font-semibold">
                                   Reference:{' '}
                                 </span>
-                                {currentQuestion.reference}
+                                {primaryRef.locator}
                               </p>
                             )}
                           </>
@@ -1174,15 +1670,18 @@ function AdvancedEngine({
                 </>
               )}
             </CardContent>
+
             <CardFooter className="flex justify-between">
               <Button
                 variant="outline"
                 disabled={currentQuestionIndex === 0}
                 onClick={handlePreviousQuestion}
+                className={outlineBtn}
               >
                 Previous
               </Button>
-              <Button onClick={handleNextQuestion}>
+
+              <Button onClick={handleNextQuestion} className={primaryBtn}>
                 {currentQuestionIndex === questions.length - 1
                   ? isTest
                     ? 'Finish test'
@@ -1190,13 +1689,13 @@ function AdvancedEngine({
                   : 'Next'}
               </Button>
             </CardFooter>
-          </Card>
+          </GlassCard>
         </div>
       </div>
     );
   }
 
-  // 4) Resultados de Practice
+  // 4) Practice results
   if (screenMode === 'practiceResults') {
     const { total, correct, incorrect, answered, unanswered, percentage } =
       calculateScore();
@@ -1220,65 +1719,67 @@ function AdvancedEngine({
     }[];
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4 py-8">
+      <div className="space-y-6 text-white">
         <div className="max-w-4xl mx-auto space-y-6">
-          <Card className="shadow-lg">
+          <GlassCard className="border-white/15">
             <CardHeader className="text-center space-y-4">
-              <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
-                <Brain className="w-9 h-9 text-primary" />
+              <div className="mx-auto w-16 h-16 bg-white/10 rounded-full flex items-center justify-center border border-white/15">
+                <Brain className="w-9 h-9 text-white" />
               </div>
               <div className="space-y-2">
-                <CardTitle className="text-2xl font-bold">
+                <CardTitle className="text-2xl font-bold text-white">
                   Practice Summary – {moduleTitle}
                 </CardTitle>
-                <CardDescription className="text-sm text-muted-foreground">
+                <CardDescription className="text-sm text-white/70">
                   Use this to attack your weak questions.
                 </CardDescription>
               </div>
             </CardHeader>
+
             <CardContent className="space-y-6">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div className="space-y-2">
-                  <p className="text-3xl font-bold tracking-tight">
+                  <p className="text-3xl font-bold tracking-tight text-white">
                     {percentage}%{' '}
-                    <span className="text-sm font-normal text-muted-foreground">
+                    <span className="text-sm font-normal text-white/70">
                       correct in this practice
                     </span>
                   </p>
-                  <ul className="space-y-1 text-sm text-muted-foreground">
+                  <ul className="space-y-1 text-sm text-white/70">
                     <li>
                       • Total questions in deck:{' '}
-                      <span className="font-medium">{total}</span>
+                      <span className="font-medium text-white">{total}</span>
                     </li>
                     <li>
                       • Answered:{' '}
-                      <span className="font-medium">{answered}</span>
+                      <span className="font-medium text-white">{answered}</span>
                     </li>
                     <li>
                       • Unanswered:{' '}
-                      <span className="font-medium">{unanswered}</span>
+                      <span className="font-medium text-white">{unanswered}</span>
                     </li>
                     <li>
                       • Correct:{' '}
-                      <span className="font-medium">{correct}</span>
+                      <span className="font-medium text-white">{correct}</span>
                     </li>
                     <li>
                       • Incorrect:{' '}
-                      <span className="font-medium">{incorrect}</span>
+                      <span className="font-medium text-white">{incorrect}</span>
                     </li>
                   </ul>
                 </div>
+
                 <div className="w-full md:w-64">
                   <div className="relative w-32 h-32 mx-auto">
-                    <div className="absolute inset-0 rounded-full bg-secondary" />
+                    <div className="absolute inset-0 rounded-full bg-white/10 border border-white/10" />
                     <div
-                      className="absolute inset-2 rounded-full border-[8px] border-primary"
+                      className="absolute inset-2 rounded-full border-[8px] border-white/70"
                       style={{
-                        background: `conic-gradient(var(--primary) ${percentage}%, transparent ${percentage}%)`,
+                        background: `conic-gradient(rgba(255,255,255,0.85) ${percentage}%, rgba(255,255,255,0.08) ${percentage}%)`,
                       }}
                     />
-                    <div className="absolute inset-6 rounded-full bg-background flex items-center justify-center">
-                      <span className="text-2xl font-bold">
+                    <div className="absolute inset-6 rounded-full bg-black/40 border border-white/10 flex items-center justify-center">
+                      <span className="text-2xl font-bold text-white">
                         {percentage}%
                       </span>
                     </div>
@@ -1286,79 +1787,85 @@ function AdvancedEngine({
                 </div>
               </div>
 
-              <div className="border-t pt-4 space-y-3">
-                <h3 className="text-sm font-semibold">Questions you missed</h3>
+              <div className="border-t border-white/10 pt-4 space-y-3">
+                <h3 className="text-sm font-semibold text-white">
+                  Questions you missed
+                </h3>
                 {incorrectDetails.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-white/70">
                     You didn&apos;t miss any question in this practice. Great
                     job!
                   </p>
                 ) : (
                   <div className="space-y-3 max-h-72 overflow-auto pr-1">
-                    {incorrectDetails.map(({ idx, question, answer }) => (
-                      <div
-                        key={`${question.id}-${idx}`}
-                        className="border rounded-md p-2 bg-muted/40 text-xs"
-                      >
-                        <p className="font-semibold mb-1">
-                          Q{idx + 1}. {question.question}
-                        </p>
-                        <p className="mb-1">
-                          Your answer:{' '}
-                          <span className="font-semibold">
-                            {answer.selectedAnswer}.{' '}
-                            {question.options[answer.selectedAnswer]}
-                          </span>
-                        </p>
-                        <p className="mb-1">
-                          Correct answer:{' '}
-                          <span className="font-semibold">
-                            {question.correctAnswer}.{' '}
-                            {
-                              question.options[
-                                question.correctAnswer
-                              ]
-                            }
-                          </span>
-                        </p>
-                        {question.reference && (
-                          <p className="text-[11px] text-muted-foreground">
-                            Reference: {question.reference}
+                    {incorrectDetails.map(({ idx, question, answer }) => {
+                      const primaryRef =
+                        question.references && question.references.length > 0
+                          ? question.references[0]
+                          : undefined;
+
+                      return (
+                        <div
+                          key={`${question.id}-${idx}`}
+                          className="border border-white/10 rounded-2xl p-3 bg-white/5 text-xs"
+                        >
+                          <p className="font-semibold mb-1 text-white">
+                            Q{idx + 1}. {question.stem}
                           </p>
-                        )}
-                      </div>
-                    ))}
+                          <p className="mb-1 text-white/80">
+                            Your answer:{' '}
+                            <span className="font-semibold text-white">
+                              {answer.selectedAnswer}.{' '}
+                              {question.options[answer.selectedAnswer]}
+                            </span>
+                          </p>
+                          <p className="mb-1 text-white/80">
+                            Correct answer:{' '}
+                            <span className="font-semibold text-white">
+                              {question.correctAnswer}.{' '}
+                              {question.options[question.correctAnswer]}
+                            </span>
+                          </p>
+                          {primaryRef?.locator && (
+                            <p className="text-[11px] text-white/60">
+                              Reference: {primaryRef.locator}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
             </CardContent>
+
             <CardFooter className="flex flex-col md:flex-row md:justify-between gap-3">
               <div className="flex flex-col gap-2 w-full md:w-auto">
                 <Button
-                  className="w-full md:w-auto"
+                  className={primaryBtn + ' w-full md:w-auto'}
                   size="sm"
                   onClick={handleRestartCurrentMode}
                 >
                   <Brain className="w-4 h-4 mr-2" />
                   Repeat practice with same configuration
                 </Button>
+
                 <Button
-                  className="w-full md:w-auto"
+                  className={'w-full md:w-auto ' + outlineBtn}
                   size="sm"
                   variant="outline"
-                  disabled={
-                    userAnswers.filter((a) => !a.isCorrect).length === 0
-                  }
+                  disabled={userAnswers.filter((a) => !a.isCorrect).length === 0}
                   onClick={handlePracticeOnlyIncorrect}
                 >
                   Study only the questions I got wrong
                 </Button>
               </div>
+
               <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
                 <Button
                   onClick={handleGoHome}
                   variant="outline"
-                  className="w-full sm:w-auto"
+                  className={'w-full sm:w-auto ' + outlineBtn}
                   size="sm"
                 >
                   <BookOpen className="w-4 h-4 mr-2" />
@@ -1366,103 +1873,215 @@ function AdvancedEngine({
                 </Button>
               </div>
             </CardFooter>
-          </Card>
+          </GlassCard>
         </div>
       </div>
     );
   }
 
-  // 5) Resultados de Test
+  // 5) Test results (✅ PASS/FAIL + Focus topics + Save history)
   if (screenMode === 'results') {
     const { total, correct, incorrect, answered, unanswered, percentage } =
       calculateScore();
 
+    const passMark = 70; // ✅ TC-like
+    const pass = percentage >= passMark;
+
+    const topicRows = calculateTopicBreakdown();
+    const hasTopicBreakdown = topicRows.length > 0;
+
+    const focusTopics = topicRows
+      .filter((r) => r.classification === 'Needs Study')
+      .map((r) => r.topicCode);
+
+    const focusText =
+      focusTopics.length > 0
+        ? `You should focus on: ${focusTopics.join(', ')}`
+        : 'No weak topics detected in this test (keep practicing to confirm).';
+
+    const handleCopyFocus = async () => {
+      try {
+        await navigator.clipboard.writeText(focusText);
+      } catch {
+        // ignore
+      }
+    };
+
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4 py-8">
+      <div className="space-y-6 text-white">
         <div className="max-w-4xl mx-auto space-y-6">
-          <Card className="shadow-lg">
+          <GlassCard className="border-white/15">
             <CardHeader className="text-center space-y-4">
-              <div className="mx-auto w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center">
-                <Trophy className="w-10 h-10 text-primary" />
+              <div className="mx-auto w-20 h-20 bg-white/10 rounded-full flex items-center justify-center border border-white/15">
+                <Trophy className="w-10 h-10 text-white" />
               </div>
               <div className="space-y-2">
-                <CardTitle className="text-3xl font-bold">
+                <CardTitle className="text-3xl font-bold text-white">
                   Test Results – {moduleTitle}
                 </CardTitle>
-                <CardDescription className="text-base text-muted-foreground">
-                  Review your performance and identify areas to improve.
+                <CardDescription className="text-base text-white/70">
+                  Unofficial TC-style feedback (for study only).
                 </CardDescription>
               </div>
             </CardHeader>
+
             <CardContent className="space-y-6">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div className="space-y-2">
-                  <p className="text-4xl font-bold tracking-tight">
+                  <p className="text-4xl font-bold tracking-tight text-white">
                     {percentage}%{' '}
-                    <span className="text-base font-normal text-muted-foreground">
+                    <span className="text-base font-normal text-white/70">
                       score
                     </span>
                   </p>
-                  <p className="text-sm text-muted-foreground">
+
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={[
+                        'inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold border',
+                        pass
+                          ? 'bg-emerald-500/15 text-emerald-50 border-emerald-400/20'
+                          : 'bg-red-500/15 text-red-50 border-red-400/20',
+                      ].join(' ')}
+                    >
+                      {pass ? 'PASS' : 'FAIL'} (pass mark {passMark}%)
+                    </span>
+                    <span className="text-xs text-white/60">
+                      Unanswered count as incorrect
+                    </span>
+                  </div>
+
+                  <p className="text-sm text-white/70">
                     {correct} of {total} questions correct
                   </p>
-                  <ul className="space-y-1 text-sm text-muted-foreground">
+                  <ul className="space-y-1 text-sm text-white/70">
                     <li>
                       • Answered:{' '}
-                      <span className="font-medium">{answered}</span>
+                      <span className="font-medium text-white">{answered}</span>
                     </li>
                     <li>
                       • Unanswered:{' '}
-                      <span className="font-medium">
+                      <span className="font-medium text-white">
                         {unanswered}
                       </span>
                     </li>
                     <li>
                       • Incorrect:{' '}
-                      <span className="font-medium">{incorrect}</span>
+                      <span className="font-medium text-white">{incorrect}</span>
                     </li>
                   </ul>
                 </div>
+
                 <div className="w-full md:w-64">
                   <div className="relative w-40 h-40 mx-auto">
-                    <div className="absolute inset-0 rounded-full bg-secondary" />
+                    <div className="absolute inset-0 rounded-full bg-white/10 border border-white/10" />
                     <div
-                      className="absolute inset-3 rounded-full border-[10px] border-primary"
+                      className="absolute inset-3 rounded-full border-[10px] border-white/70"
                       style={{
-                        background: `conic-gradient(var(--primary) ${percentage}%, transparent ${percentage}%)`,
+                        background: `conic-gradient(rgba(255,255,255,0.85) ${percentage}%, rgba(255,255,255,0.08) ${percentage}%)`,
                       }}
                     />
-                    <div className="absolute inset-7 rounded-full bg-background flex items-center justify-center">
-                      <span className="text-3xl font-bold">
+                    <div className="absolute inset-7 rounded-full bg-black/40 border border-white/10 flex items-center justify-center">
+                      <span className="text-3xl font-bold text-white">
                         {percentage}%
                       </span>
                     </div>
                   </div>
                 </div>
               </div>
+
+              {/* ✅ Focus topics (copy) */}
+              {hasTopicBreakdown && (
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-white">
+                        Study focus
+                      </p>
+                      <p className="text-xs text-white/70 mt-1">{focusText}</p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={outlineBtn}
+                      onClick={handleCopyFocus}
+                    >
+                      Copy
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {hasTopicBreakdown && (
+                <div className="border-t border-white/10 pt-4 space-y-3">
+                  <h3 className="text-sm font-semibold text-white">
+                    Topic breakdown (TC-style feedback)
+                  </h3>
+                  <p className="text-xs text-white/70">
+                    This helps you see which TC topics need more study.
+                  </p>
+
+                  <div className="space-y-2 max-h-80 overflow-auto pr-1">
+                    {topicRows.map((r) => (
+                      <div
+                        key={r.topicCode}
+                        className="rounded-2xl border border-white/10 bg-white/5 p-3"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="space-y-1">
+                            <p className="text-sm font-semibold text-white">
+                              {r.topicCode}
+                              {r.topicTitle ? ` – ${r.topicTitle}` : ''}
+                            </p>
+                            {r.sectionCode && (
+                              <p className="text-xs text-white/60">
+                                Section {r.sectionCode}
+                                {r.sectionTitle ? ` – ${r.sectionTitle}` : ''}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="text-right">
+                            <p className="text-sm font-semibold text-white">
+                              {r.correct}/{r.total} · {r.percent}%
+                            </p>
+                            <p className="text-xs text-white/70">
+                              {r.classification}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </CardContent>
+
             <CardFooter className="flex flex-col md:flex-row md:justify-between gap-3">
               <Button
                 onClick={handleRestartCurrentMode}
-                className="w-full md:w-auto"
+                className={primaryBtn + ' w-full md:w-auto'}
                 size="lg"
               >
                 <Brain className="w-4 h-4 mr-2" />
                 Take another test
               </Button>
+
               <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
                 <Button
                   onClick={handleGoHome}
                   variant="outline"
-                  className="w-full sm:w-auto"
+                  className={'w-full sm:w-auto ' + outlineBtn}
                   size="lg"
                 >
                   <BookOpen className="w-4 h-4 mr-2" />
                   Back to module home
                 </Button>
+
                 <Button
                   onClick={handlePracticeOnlyIncorrect}
                   variant="outline"
+                  className={outlineBtn}
                   size="lg"
                 >
                   <RefreshCw className="w-4 h-4 mr-2" />
@@ -1470,13 +2089,12 @@ function AdvancedEngine({
                 </Button>
               </div>
             </CardFooter>
-          </Card>
+          </GlassCard>
         </div>
       </div>
     );
   }
 
-  // fallback (não deveria chegar aqui)
   return null;
 }
 

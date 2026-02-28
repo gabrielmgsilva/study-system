@@ -2,13 +2,14 @@ import Link from 'next/link';
 import {
   Info,
   ArrowLeft,
-  ShieldCheck,
   Target,
   BookOpen,
   Coins,
   Users,
   AlertTriangle,
 } from 'lucide-react';
+
+import { ROUTES } from '@/lib/routes';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -30,7 +31,7 @@ export default function AboutPage() {
             variant="outline"
             className="border-white/10 bg-white/5 hover:bg-white/10"
           >
-            <Link href="/">
+            <Link href={ROUTES.landing}>
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back
             </Link>
@@ -76,8 +77,8 @@ export default function AboutPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-sm text-white/80">
-                AME ONE was created to simplify and optimize exam preparation for
-                Aircraft Maintenance Engineers. The goal is not to overwhelm
+                AME ONE was created to simplify and optimize exam preparation
+                for Aircraft Maintenance Engineers. The goal is not to overwhelm
                 users with theory, but to help them focus on what actually
                 matters for real exams.
               </p>
@@ -198,10 +199,10 @@ export default function AboutPage() {
             variant="outline"
             className="border-white/10 bg-white/5 hover:bg-white/10"
           >
-            <Link href="/instructions">App Instructions</Link>
+            <Link href={ROUTES.instructions}>App Instructions</Link>
           </Button>
           <Button asChild>
-            <Link href="/study">Go to Study</Link>
+            <Link href={ROUTES.appHub}>Go to Study</Link>
           </Button>
         </div>
       </div>

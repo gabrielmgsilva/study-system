@@ -1,36 +1,36 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AME ONE (dev)
 
-## Getting Started
-
-First, run the development server:
+## Setup
 
 ```bash
+npm install
+npx prisma db push
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Build
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run build
+npm start
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Notes
+- Auth: custom cookie `ameone_session` + middleware (Option A).
+- Entitlements are the source of truth for module access.
+- License plans gate *experience* (daily / weekly limits), not absolute counters.
 
-## Learn More
+## Manual test checklist (release)
+- [ ] Register → lands on `/app/hub`
+- [ ] Login / logout redirects behave (no bouncing to `/auth/login`)
+- [ ] Hub tiles load, no 404
+- [ ] Unlock a module → refresh → still unlocked
+- [ ] Open each study page → no hydration warnings
+- [ ] Plan gating:
+  - Basic: flashcards limited per day, practice limited per day, test limited per week
+  - Standard: flashcards/practice unlimited, tests limited per week
+  - Premium: unlimited + logbook flag true
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Dev helper endpoints
+> These are temporary until billing exists.
+- `POST /api/entitlements/set-plan` body: `{ "licenseId": "m", "plan": "standard" }`

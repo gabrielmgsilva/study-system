@@ -7,80 +7,108 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Logbook {
-  id         String   @id @default(cuid())
-  licenceKey String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  username      String?
+  passwordHash  String
+  createdAt     DateTime       @default(now())
 
-  signatories           Signatory[]
-  taskSignatureRequests TaskSignatureRequest[] // ✅ opposite relation
-  auditEvents           AuditEvent[] // ✅ opposite relation
+  sessions      Session[]
+  creditAccount CreditAccount?
+  creditLedger  CreditLedger[]
+  entitlements  Entitlement[]
+  licenseEntitlements LicenseEntitlement[]
 }
 
-model Signatory {
-  id            String   @id @default(cuid())
-  logbookId     String
-  slotNumber    Int // 1..15
-  name          String   @default("")
-  email         String   @default("")
-  licenceNumber String   @default("")
-  initials      String   @default("")
-  dateSigned    String   @default("") // yyyy-mm-dd (campo da TC)
-  status        String   @default("DRAFT") // DRAFT | PENDING | VERIFIED
-  signatureSvg  String   @default("") // ✅ SVG salvo
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  logbook Logbook @relation(fields: [logbookId], references: [id], onDelete: Cascade)
-
-  verificationRequests  SignatoryVerificationRequest[] // ✅ opposite relation
-  taskSignatureRequests TaskSignatureRequest[] // ✅ opposite relation
-
-  @@unique([logbookId, slotNumber])
-}
-
-model SignatoryVerificationRequest {
-  id          String   @id @default(cuid())
-  signatoryId String
-  token       String   @unique
-  status      String   @default("SENT") // SENT | USED | EXPIRED
-  expiresAt   DateTime
-  createdAt   DateTime @default(now())
-
-  signatory Signatory @relation(fields: [signatoryId], references: [id], onDelete: Cascade)
-
-  @@index([signatoryId])
-}
-
-model TaskSignatureRequest {
-  id          String @id @default(cuid())
-  logbookId   String
-  signatoryId String
-
-  // o que será assinado (você pode guardar como JSON string por enquanto)
-  payloadJson String @default("") // ex: [{rowIndex, ata, taskText, ...}]
-
-  token     String   @unique
-  status    String   @default("SENT") // SENT | APPROVED | DECLINED | EXPIRED
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-
-  logbook   Logbook   @relation(fields: [logbookId], references: [id], onDelete: Cascade)
-  signatory Signatory @relation(fields: [signatoryId], references: [id], onDelete: Cascade)
-
-  @@index([logbookId])
-  @@index([signatoryId])
-}
-
-model AuditEvent {
+model Session {
   id        String   @id @default(cuid())
-  logbookId String
-  type      String // ex: "SIGNATORY_VERIFY_SENT", "SIGNATORY_VERIFIED", "TASK_SIGN_REQUESTED", etc
-  message   String   @default("")
+  userId    String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model CreditAccount {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  balance   Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model CreditLedger {
+  id        String   @id @default(cuid())
+  userId    String
+  delta     Int
+  reason    String
   createdAt DateTime @default(now())
 
-  logbook Logbook @relation(fields: [logbookId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([logbookId])
+  @@index([userId])
+}
+
+model Entitlement {
+  id        String   @id @default(cuid())
+  userId    String
+  moduleKey String   // ex: "regs.core", "m.powerplant"
+  granted   Boolean  @default(true)
+  grantedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, moduleKey])
+  @@index([userId])
+}
+
+//
+// Enums — Planos e Acessos (por licença)
+//
+enum PlanTier {
+  basic
+  standard
+  premium
+}
+
+enum FlashcardsAccess {
+  daily_limit
+  unlimited
+}
+
+enum PracticeAccess {
+  cooldown
+  unlimited
+}
+
+enum TestAccess {
+  weekly_limit
+  unlimited
+}
+
+//
+// Entitlement por LICENÇA (produto)
+//
+model LicenseEntitlement {
+  id        String           @id @default(cuid())
+  userId    String
+  licenseId String           // "m" | "e" | "s" | "balloons" | "regs"
+
+  plan       PlanTier         @default(basic)
+  flashcards FlashcardsAccess @default(daily_limit)
+  practice   PracticeAccess   @default(cooldown)
+  test       TestAccess       @default(weekly_limit)
+  logbook    Boolean          @default(false)
+
+  grantedAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, licenseId])
+  @@index([userId])
 }

@@ -1,0 +1,40 @@
+import { NextResponse } from 'next/server';
+
+import { prisma } from '@/lib/prisma';
+import { hashPassword } from '@/lib/auth';
+
+export async function POST(req: Request) {
+  const { token, newPassword } = await req.json().catch(() => ({}));
+  const t = String(token || '').trim();
+  const p = String(newPassword || '');
+
+  if (!t || !p) {
+    return NextResponse.json({ message: 'Missing payload.' }, { status: 400 });
+  }
+
+  if (p.length < 8) {
+    return NextResponse.json({ message: 'Password must be at least 8 characters.' }, { status: 400 });
+  }
+
+  const row = await prisma.passwordResetToken.findUnique({
+    where: { token: t },
+    select: { id: true, userId: true, expiresAt: true, usedAt: true },
+  });
+
+  if (!row || row.usedAt || row.expiresAt.getTime() < Date.now()) {
+    return NextResponse.json({ message: 'Invalid or expired token.' }, { status: 400 });
+  }
+
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: row.userId },
+      data: { passwordHash: hashPassword(p), lastPasswordChangeAt: new Date() },
+    }),
+    prisma.passwordResetToken.update({
+      where: { id: row.id },
+      data: { usedAt: new Date() },
+    }),
+  ]);
+
+  return NextResponse.json({ ok: true });
+}

@@ -16,7 +16,7 @@
 | Linguagem | TypeScript | 5.x |
 | Runtime | React | 19.x |
 | ORM | Prisma | 6.19.x |
-| Banco de Dados | SQLite (dev) | — |
+| Banco de Dados | PostgreSQL (cloud) | — |
 | CSS | Tailwind CSS | 4.x |
 | UI Library | Shadcn/ui (Radix UI) | — |
 | Email | Resend | 6.x |
@@ -242,7 +242,7 @@ UNIQUE(user_id, license_id)
 |---|---|---|
 | ~~P0~~ | ~~Schema incompleto~~ | ✅ Corrigido |
 | P0 | Sem rate limiting | ❌ Pendente |
-| P0 | SQLite em produção | ❌ Pendente (migrar para PostgreSQL) |
+| ~~P0~~ | ~~SQLite em produção~~ | ✅ Migrado para PostgreSQL |
 | P1 | Sem persistência de progresso de estudo | ❌ Pendente |
 | ~~P1~~ | ~~Sem guard centralizado~~ | ✅ Corrigido |
 | P1 | Limites de uso no localStorage | ❌ Pendente |

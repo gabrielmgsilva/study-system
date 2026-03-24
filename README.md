@@ -4,6 +4,17 @@
 
 ```bash
 npm install
+```
+
+Create a `.env` file (see `.env.example`) with your PostgreSQL connection string:
+
+```env
+DATABASE_URL="postgresql://user:password@host:5432/ameone?schema=public"
+```
+
+Then push the schema and start the dev server:
+
+```bash
 npx prisma db push
 npm run dev
 ```
@@ -16,6 +27,7 @@ npm start
 ```
 
 ## Notes
+- **Database:** PostgreSQL (cloud). No local SQLite.
 - Auth: custom cookie `ameone_session` + middleware (Option A).
 - Entitlements are the source of truth for module access.
 - License plans gate *experience* (daily / weekly limits), not absolute counters.

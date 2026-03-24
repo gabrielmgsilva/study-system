@@ -59,6 +59,7 @@ Fase 6 — Cache, Performance & Otimizações
 - [x] `.env` e `.env.local` removidos do git; `.env.example` criado
 - [x] Remoção de 5 tabelas não utilizadas (StudyProgress, StudySession, UserStreak, PracticeState, TestAttempt)
 - [x] Remoção de 2 enums não utilizados (StudyMode, TestStatus)
+- [x] Migração do banco de dados de SQLite para PostgreSQL (cloud)
 
 ---
 
@@ -475,23 +476,14 @@ Todas protegidas por `requireAdmin()`.
 
 ## Fase 6 — Cache, Performance & Otimizações
 
-**Objetivo:** Redis para cache/rate limiting, migração para PostgreSQL.
+**Objetivo:** Redis para cache/rate limiting e otimizações de performance.
 
 **Duração estimada:** 5-7 dias  
 **Dependência:** Fase 5 concluída
 
-### 6.1 Migração para PostgreSQL
+> **Nota:** A migração para PostgreSQL já foi concluída na Fase 1.
 
-Alterar `datasource db` no schema:
-
-```prisma
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-```
-
-### 6.2 Redis
+### 6.1 Redis
 
 ```bash
 npm install ioredis
@@ -503,7 +495,7 @@ Uso:
 - Contadores de uso em tempo real
 - Cache de perfil/entitlements (TTL 5min)
 
-### 6.3 Quando Considerar MongoDB (Pós-MVP)
+### 6.2 Quando Considerar MongoDB (Pós-MVP)
 
 Não recomendado para o MVP. PostgreSQL com JSONB atende todas as necessidades. Reavaliar se:
 - Volume > 10M registros de sessões de estudo
@@ -511,7 +503,6 @@ Não recomendado para o MVP. PostgreSQL com JSONB atende todas as necessidades. 
 - Analytics em tempo real com aggregation pipeline
 
 **Critério de conclusão da Fase 6:**
-- [ ] PostgreSQL em produção
 - [ ] Redis configurado para cache e rate limiting
 - [ ] Performance < 200ms nas APIs principais
 

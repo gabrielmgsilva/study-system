@@ -50,8 +50,12 @@ function verifyPbkdf2Password(password: string, stored: string): boolean {
 
   if (!digest || !iterations || !salt || !hash) return false;
 
+  // Only allow known digest algorithms
+  const allowedDigests = ['sha256', 'sha512', 'sha1'];
+  if (!allowedDigests.includes(digest)) return false;
+
   const candidate = crypto
-    .pbkdf2Sync(password, salt, iterations, PBKDF2_KEYLEN, digest as string)
+    .pbkdf2Sync(password, salt, iterations, PBKDF2_KEYLEN, digest)
     .toString('hex');
 
   const a = Buffer.from(hash, 'hex');

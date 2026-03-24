@@ -1,32 +1,46 @@
 import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 
-const ITERATIONS = 120_000;
-const KEYLEN = 32;
-const DIGEST = 'sha256';
+// ---------------------------------------------------------------------------
+// bcrypt (new default)
+// ---------------------------------------------------------------------------
 
-export function requireAuthSecret(): string {
-  const s = process.env.AUTH_SECRET;
-  if (!s) throw new Error('Missing AUTH_SECRET in environment.');
-  return s;
+const BCRYPT_ROUNDS = 12;
+
+export async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, BCRYPT_ROUNDS);
 }
 
 /**
- * Format:
- * pbkdf2$sha256$120000$saltHex$hashHex
+ * Verify a password against a stored hash.
+ * Supports both bcrypt (new) and PBKDF2 (legacy) formats.
  */
-export function hashPassword(password: string): string {
-  const salt = crypto.randomBytes(16).toString('hex');
-  const hash = crypto
-    .pbkdf2Sync(password, salt, ITERATIONS, KEYLEN, DIGEST)
-    .toString('hex');
-  return `pbkdf2$${DIGEST}$${ITERATIONS}$${salt}$${hash}`;
+export async function verifyPassword(password: string, stored: string): Promise<boolean> {
+  // Legacy PBKDF2 format: pbkdf2$sha256$120000$salt$hash
+  if (stored.startsWith('pbkdf2$')) {
+    return verifyPbkdf2Password(password, stored);
+  }
+
+  // bcrypt format: $2a$... or $2b$...
+  return bcrypt.compare(password, stored);
 }
 
-export function verifyPassword(password: string, stored: string): boolean {
-  // Support both "pbkdf2$sha256$..." and any accidental extra separators (defensive)
-  const parts = stored.split('$').filter(Boolean);
+/**
+ * Check whether a stored hash is in the legacy PBKDF2 format and should be
+ * re-hashed with bcrypt on the next successful login.
+ */
+export function needsRehash(stored: string): boolean {
+  return stored.startsWith('pbkdf2$');
+}
 
-  // Expected: [ 'pbkdf2', digest, iterations, salt, hash ]
+// ---------------------------------------------------------------------------
+// PBKDF2 legacy support (read-only, for migration)
+// ---------------------------------------------------------------------------
+
+const PBKDF2_KEYLEN = 32;
+
+function verifyPbkdf2Password(password: string, stored: string): boolean {
+  const parts = stored.split('$').filter(Boolean);
   if (parts.length !== 5 || parts[0] !== 'pbkdf2') return false;
 
   const digest = parts[1];
@@ -37,7 +51,7 @@ export function verifyPassword(password: string, stored: string): boolean {
   if (!digest || !iterations || !salt || !hash) return false;
 
   const candidate = crypto
-    .pbkdf2Sync(password, salt, iterations, KEYLEN, digest as any)
+    .pbkdf2Sync(password, salt, iterations, PBKDF2_KEYLEN, digest as string)
     .toString('hex');
 
   const a = Buffer.from(hash, 'hex');
@@ -45,6 +59,16 @@ export function verifyPassword(password: string, stored: string): boolean {
   if (a.length !== b.length) return false;
 
   return crypto.timingSafeEqual(a, b);
+}
+
+// ---------------------------------------------------------------------------
+// Session signing (HMAC-SHA256)
+// ---------------------------------------------------------------------------
+
+export function requireAuthSecret(): string {
+  const s = process.env.AUTH_SECRET;
+  if (!s) throw new Error('Missing AUTH_SECRET in environment.');
+  return s;
 }
 
 export function signSessionId(sessionId: string): string {

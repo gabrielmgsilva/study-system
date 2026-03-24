@@ -35,12 +35,12 @@ export async function POST(req: Request) {
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { passwordHash: true } });
   if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
-  const ok = verifyPassword(String(currentPassword), user.passwordHash);
+  const ok = await verifyPassword(String(currentPassword), user.passwordHash);
   if (!ok) {
     return NextResponse.json({ message: 'Current password is incorrect.' }, { status: 400 });
   }
 
-  const passwordHash = hashPassword(newPass);
+  const passwordHash = await hashPassword(newPass);
   await prisma.user.update({
     where: { id: userId },
     data: { passwordHash, lastPasswordChangeAt: new Date() },

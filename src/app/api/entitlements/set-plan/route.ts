@@ -1,26 +1,17 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
-import { verifySignedSession } from '@/lib/auth';
 import { defaultLicenseExperience } from '@/lib/planEntitlements';
+import { requireAdmin, isAuthError } from '@/lib/guards';
 
 export async function POST(req: Request) {
-  const cookie = (await cookies()).get('ameone_session')?.value;
-  if (!cookie) {
-    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requireAdmin();
+  if (isAuthError(auth)) return auth;
 
-  const sessionId = verifySignedSession(cookie);
-  if (!sessionId) {
-    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-  }
+  const { licenseId, plan, userId: targetUserId } = await req.json().catch(() => ({}));
 
-  const session = await prisma.session.findUnique({ where: { id: sessionId } });
-  if (!session || session.expiresAt < new Date()) {
-    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-  }
+  // Admin can change any user's plan; defaults to their own for backward compat
+  const effectiveUserId = targetUserId ? String(targetUserId).trim() : auth.userId;
 
-  const { licenseId, plan } = await req.json().catch(() => ({}));
   const lid = String(licenseId || '').trim();
   const tier = String(plan || '').trim();
 
@@ -34,7 +25,7 @@ export async function POST(req: Request) {
   const exp = defaultLicenseExperience(tier as any);
 
   await prisma.licenseEntitlement.upsert({
-    where: { userId_licenseId: { userId: session.userId, licenseId: lid } },
+    where: { userId_licenseId: { userId: effectiveUserId, licenseId: lid } },
     update: {
       plan: exp.plan,
       flashcards: exp.flashcards,
@@ -43,7 +34,7 @@ export async function POST(req: Request) {
       logbook: exp.logbook,
     },
     create: {
-      userId: session.userId,
+      userId: effectiveUserId,
       licenseId: lid,
       plan: exp.plan,
       flashcards: exp.flashcards,

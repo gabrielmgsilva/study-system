@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { verifyPassword, signSessionId } from '@/lib/auth';
+import { verifyPassword, signSessionId, hashPassword, needsRehash } from '@/lib/auth';
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({} as any));
@@ -29,14 +29,22 @@ export async function POST(req: Request) {
     return NextResponse.json({ message: 'Invalid credentials.' }, { status: 401 });
   }
 
+  // Transparent migration: re-hash legacy PBKDF2 passwords with bcrypt
+  if (needsRehash(user.passwordHash)) {
+    const newHash = await hashPassword(pwd);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash: newHash },
+    });
+  }
+
   const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 12);
 
   const session = await prisma.session.create({
     data: { userId: user.id, expiresAt },
   });
 
-  // funciona se signSessionId for sync ou async
-  const cookieValue = await Promise.resolve(signSessionId(session.id));
+  const cookieValue = signSessionId(session.id);
 
   const res = NextResponse.json({ ok: true });
 

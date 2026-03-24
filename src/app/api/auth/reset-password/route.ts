@@ -25,10 +25,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ message: 'Invalid or expired token.' }, { status: 400 });
   }
 
+  const newHash = await hashPassword(p);
+
   await prisma.$transaction([
     prisma.user.update({
       where: { id: row.userId },
-      data: { passwordHash: hashPassword(p), lastPasswordChangeAt: new Date() },
+      data: { passwordHash: newHash, lastPasswordChangeAt: new Date() },
     }),
     prisma.passwordResetToken.update({
       where: { id: row.id },

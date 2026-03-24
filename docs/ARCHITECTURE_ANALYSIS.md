@@ -1,8 +1,8 @@
 # AME One — Análise de Arquitetura e Estrutura de Dados
 
 > **Data:** 2026-03-24  
-> **Versão:** 1.0  
-> **Escopo:** Avaliação do estado atual da aplicação para planejamento do MVP
+> **Versão:** 2.0 (atualizado após limpeza do schema para MVP)  
+> **Escopo:** Estado atual da aplicação após correções da Fase 1
 
 ---
 
@@ -16,13 +16,14 @@
 | Linguagem | TypeScript | 5.x |
 | Runtime | React | 19.x |
 | ORM | Prisma | 6.19.x |
-| Banco de Dados | SQLite | — |
+| Banco de Dados | SQLite (dev) | — |
 | CSS | Tailwind CSS | 4.x |
 | UI Library | Shadcn/ui (Radix UI) | — |
 | Email | Resend | 6.x |
 | Pagamento | Stripe (dependência instalada, não integrado) | 17.x |
 | Validação | Zod | 3.x |
 | Formulários | React Hook Form | 7.x |
+| Hashing | bcryptjs (12 rounds) | 3.x |
 
 ### 1.2 Estrutura de Diretórios
 
@@ -49,130 +50,135 @@ study-system/
 │   │   ├── study/              # Motor de estudo (AdvancedEngine)
 │   │   └── ui/                 # Shadcn/ui (50+ componentes)
 │   └── lib/                    # Utilitários e lógica de negócios
-│       ├── auth.ts             # Hashing de senha (PBKDF2), assinatura de sessão (HMAC)
-│       ├── adminAuth.ts        # Verificação de email admin
+│       ├── auth.ts             # Hashing bcrypt + PBKDF2 legado, assinatura de sessão (HMAC)
+│       ├── guards.ts           # Guards centralizados (requireAuth, requireAdmin)
+│       ├── adminAuth.ts        # Verificação de email admin (legado)
 │       ├── prisma.ts           # Singleton Prisma Client
 │       ├── routes.ts           # Definições type-safe de rotas
 │       ├── planEntitlements.ts # Mapeamento plano → experiência
 │       └── entitlementsClient.ts # Estado client-side de entitlements
 ├── prisma/
-│   └── schema.prisma           # Schema do banco de dados
+│   └── schema.prisma           # Schema do banco de dados (7 modelos)
 ├── data/                       # Dados de estudo em JSON (questões, flashcards)
 │   ├── m/                      # Questões de Maintenance
 │   ├── e/                      # Questões de Avionics
 │   ├── s/                      # Questões de Structures
 │   ├── regs/                   # Questões de Regulamentos
 │   └── bregs/                  # Questões de Balloons
-└── dev.db                      # Banco SQLite (desenvolvimento)
+└── .env.example                # Template de variáveis de ambiente
 ```
 
 ---
 
-## 2. Análise do Banco de Dados
+## 2. Banco de Dados — Estado Atual (MVP)
 
-### 2.1 Modelos Existentes
+### 2.1 Princípio: Apenas modelos em uso
 
-#### User
+O schema contém **apenas 7 modelos** — todos ativamente utilizados no código. Modelos futuros (progresso, streaks, test state) serão adicionados apenas quando houver API e frontend consumindo-os.
+
+### 2.2 Modelos Ativos
+
+#### User (tabela: `users`)
 ```
-id            String    PK, CUID
-email         String    UNIQUE
-username      String?   Opcional
-passwordHash  String    Hash PBKDF2-SHA256
-createdAt     DateTime  Auto
-```
-
-**Problemas identificados:**
-- ❌ Campo `lastPasswordChangeAt` é referenciado no código (`reset-password/route.ts`) mas **não existe no schema**
-- ⚠️ Não há campo `role` (admin/user) — validação de admin feita por lista de emails em `.env`
-- ⚠️ Não há campos de perfil (nome completo, avatar, país, etc.)
-- ⚠️ Sem soft delete (`deletedAt`)
-- ⚠️ Convenção de nomes usa camelCase em vez de snake_case
-
-#### Session
-```
-id        String    PK, CUID
-userId    String    FK → User
-createdAt DateTime  Auto
-expiresAt DateTime  12h de vida
+id                     String    PK, CUID
+email                  String    UNIQUE
+username               String?   Opcional
+password_hash          String    bcrypt (12 rounds), com suporte legado PBKDF2
+role                   UserRole  user | admin (default: user)
+last_password_change_at DateTime? Rastreamento de mudança de senha
+created_at             DateTime  Auto
+updated_at             DateTime  Auto (@updatedAt)
 ```
 
-**Problemas identificados:**
-- ⚠️ Sem informações de dispositivo/IP para auditoria
-- ⚠️ Sem mecanismo de revogação em massa
-
-#### CreditAccount
+#### Session (tabela: `sessions`)
 ```
-id        String    PK, CUID
-userId    String    UNIQUE, FK → User
-balance   Int       Saldo de créditos
-createdAt DateTime  Auto
-updatedAt DateTime  Auto
+id          String    PK, CUID
+user_id     String    FK → users, CASCADE
+created_at  DateTime  Auto
+expires_at  DateTime  12h de vida
 ```
 
-#### CreditLedger
+#### PasswordResetToken (tabela: `password_reset_tokens`)
 ```
-id        String    PK, CUID
-userId    String    FK → User
-delta     Int       Variação (±)
-reason    String    Motivo
-createdAt DateTime  Auto
-```
-
-#### Entitlement (Legacy — acesso por módulo)
-```
-id        String    PK, CUID
-userId    String    FK → User
-moduleKey String    Ex: "regs.core", "m.powerplant"
-granted   Boolean   Default: true
-grantedAt DateTime  Auto
-UNIQUE(userId, moduleKey)
+id          String    PK, CUID
+user_id     String    FK → users, CASCADE
+token       String    UNIQUE (crypto.randomBytes 32)
+expires_at  DateTime  30 min de vida
+used_at     DateTime? Marca token como consumido
+created_at  DateTime  Auto
 ```
 
-#### LicenseEntitlement (Atual — acesso por licença)
+#### CreditAccount (tabela: `credit_accounts`)
 ```
-id         String             PK, CUID
-userId     String             FK → User
-licenseId  String             "m"|"e"|"s"|"balloons"|"regs"
-plan       PlanTier           basic|standard|premium
-flashcards FlashcardsAccess   daily_limit|unlimited
-practice   PracticeAccess     cooldown|unlimited
-test       TestAccess         weekly_limit|unlimited
-logbook    Boolean            Default: false
-grantedAt  DateTime           Auto
-UNIQUE(userId, licenseId)
+id          String    PK, CUID
+user_id     String    UNIQUE, FK → users, CASCADE
+balance     Int       Saldo de créditos (default: 0)
+created_at  DateTime  Auto
+updated_at  DateTime  Auto (@updatedAt)
 ```
 
-#### PasswordResetToken (AUSENTE NO SCHEMA)
+#### CreditLedger (tabela: `credit_ledger`)
 ```
-⚠️ Modelo referenciado no código (forgot-password, reset-password)
-   mas NÃO existe no schema Prisma atual.
-   Campos esperados: id, userId, token, expiresAt, usedAt
+id          String    PK, CUID
+user_id     String    FK → users, CASCADE
+delta       Int       Variação (±)
+reason      String    Motivo ("Welcome credits", "Unlock m.airframe")
+created_at  DateTime  Auto
 ```
 
-### 2.2 Problemas Críticos do Schema
+#### Entitlement (tabela: `entitlements`)
+```
+id          String    PK, CUID
+user_id     String    FK → users, CASCADE
+module_key  String    Ex: "regs.core", "m.powerplant"
+granted     Boolean   Default: true
+granted_at  DateTime  Auto
+UNIQUE(user_id, module_key)
+```
 
-| # | Severidade | Descrição |
+#### LicenseEntitlement (tabela: `license_entitlements`)
+```
+id          String             PK, CUID
+user_id     String             FK → users, CASCADE
+license_id  String             "m"|"e"|"s"|"balloons"|"regs"
+plan        PlanTier           basic|standard|premium
+flashcards  FlashcardsAccess   daily_limit|unlimited
+practice    PracticeAccess     cooldown|unlimited
+test        TestAccess         weekly_limit|unlimited
+logbook     Boolean            Default: false
+granted_at  DateTime           Auto
+updated_at  DateTime           Auto (@updatedAt)
+UNIQUE(user_id, license_id)
+```
+
+### 2.3 Enums
+
+| Enum | Valores | Uso |
 |---|---|---|
-| 1 | 🔴 Crítico | `PasswordResetToken` ausente no schema — funcionalidades de reset de senha quebradas |
-| 2 | 🔴 Crítico | `lastPasswordChangeAt` ausente no modelo `User` — referenciado no reset-password |
-| 3 | 🟡 Médio | SQLite inadequado para produção (sem concorrência, sem tipos avançados) |
-| 4 | 🟡 Médio | Convenção de nomes misturada (camelCase no schema, mas o padrão SQL é snake_case) |
-| 5 | 🟡 Médio | Modelo `Entitlement` (legacy) coexiste com `LicenseEntitlement` — redundância |
-| 6 | 🟡 Médio | Sem modelos para progresso de estudo, estado de prática, resultados de teste |
-| 7 | 🟡 Médio | Sem modelo de Subscription/Plan para gestão de assinaturas |
-| 8 | 🟡 Médio | Sem modelo de admin panel (conteúdos, gestão de questões) |
-| 9 | 🟢 Baixo | Sem `updatedAt` na maioria dos modelos |
-| 10 | 🟢 Baixo | Sem índices compostos para consultas frequentes |
+| `UserRole` | `user`, `admin` | Campo `role` no User |
+| `PlanTier` | `basic`, `standard`, `premium` | Campo `plan` no LicenseEntitlement |
+| `FlashcardsAccess` | `daily_limit`, `unlimited` | Campo `flashcards` no LicenseEntitlement |
+| `PracticeAccess` | `cooldown`, `unlimited` | Campo `practice` no LicenseEntitlement |
+| `TestAccess` | `weekly_limit`, `unlimited` | Campo `test` no LicenseEntitlement |
+
+### 2.4 Convenções
+
+- ✅ Todas as tabelas usam `@@map("snake_case")` para nomes no banco
+- ✅ Todos os campos usam `@map("snake_case")` quando o nome Prisma difere
+- ✅ IDs são CUID (collision-resistant)
+- ✅ Cascade delete em todas as relações para User
+- ✅ Índices em `userId` para todas as tabelas de relação
 
 ---
 
-## 3. Análise de Segurança
+## 3. Segurança — Estado Atual
 
 ### 3.1 Autenticação
 
 | Aspecto | Estado Atual | Avaliação |
 |---|---|---|
-| Hashing de senhas | PBKDF2-SHA256, 120k iterações | ⚠️ Funcional, mas bcrypt é o padrão da indústria |
+| Hashing de senhas | bcrypt 12 rounds (com fallback PBKDF2 legado) | ✅ Padrão da indústria |
+| Auto-rehash | Senhas PBKDF2 migradas para bcrypt no login | ✅ Migração transparente |
 | Sessões | Cookie HMAC-SHA256 com sessão no DB | ✅ Seguro |
 | Cookie `httpOnly` | Sim | ✅ |
 | Cookie `secure` | Apenas em produção | ✅ |
@@ -186,31 +192,23 @@ UNIQUE(userId, licenseId)
 | Aspecto | Estado Atual | Avaliação |
 |---|---|---|
 | Middleware de rotas | Protege `/app/*` e `/admin/*` | ✅ Funcional |
-| Guard de admin | Lista de emails em `.env` | ⚠️ Frágil, não escalável |
-| Guard de API | Verificação manual em cada rota | ❌ Sem guard centralizado |
-| Validação de roles | Inexistente | ❌ Necessário para admin panel |
-| Rate limiting | Inexistente | ❌ Vulnerável a brute force |
+| Guard centralizado | `requireAuth()` e `requireAdmin()` em `src/lib/guards.ts` | ✅ Implementado |
+| Role no banco | Campo `role` (user/admin) no modelo User | ✅ Implementado |
+| Endpoint `set-plan` | Protegido por `requireAdmin()` | ✅ Corrigido |
+| Rate limiting | Inexistente | ❌ Pendente |
 | CSRF protection | Apenas `sameSite: lax` | ⚠️ Mínimo |
 
-### 3.3 Vulnerabilidades Identificadas
+### 3.3 Itens Pendentes de Segurança
 
-1. **Sem rate limiting** em login/register — vulnerável a ataques de força bruta
-2. **Admin guard baseado em email** — sem role no banco, qualquer pessoa que conheça os emails pode tentar escalar privilégios
-3. **Sem validação centralizada de APIs** — cada rota implementa sua própria verificação de autenticação
-4. **Endpoint `set-plan` sem proteção real** — marcado como "dev-only" mas acessível em produção
-5. **`AUTH_SECRET` hardcoded** no `.env.local` de desenvolvimento com valor previsível
-6. **Schema incompleto** — `PasswordResetToken` referenciado no código mas ausente do schema, causando erros em runtime
+1. **Rate limiting** em login/register/forgot-password — vulnerável a brute force
+2. **Variáveis de ambiente** — `.env` e `.env.local` removidos do git ✅, mas `AUTH_SECRET` precisa ser forte em produção
+3. **Headers de segurança** (CSP, HSTS) — não configurados
 
 ---
 
-## 4. Análise da Lógica de Negócio
+## 4. Lógica de Negócio
 
 ### 4.1 Modelo de Licenças e Planos
-
-O sistema implementa um modelo "License-first":
-- **5 licenças:** M (Maintenance), E (Avionics), S (Structures), Balloons, Regs
-- **3 tiers:** Basic, Standard, Premium
-- **Acessos gateados por tier:** flashcards/dia, práticas/dia, testes/semana
 
 | Tier | Flashcards/dia | Práticas/dia | Testes/semana | Logbook |
 |---|---|---|---|---|
@@ -218,94 +216,59 @@ O sistema implementa um modelo "License-first":
 | Standard | ∞ | ∞ | 3 | ❌ |
 | Premium | ∞ | ∞ | ∞ | ✅ |
 
-**Problemas:**
-- ⚠️ Limites de uso são rastreados apenas no `localStorage` — podem ser burlados
-- ⚠️ Sem modelo de Subscription para integração com Stripe
-- ⚠️ Sem controle de validade temporal das assinaturas
+**Status:** ⚠️ Limites de uso rastreados apenas no `localStorage` — podem ser burlados.
 
 ### 4.2 Motor de Estudo (AdvancedEngine)
 
-O componente `AdvancedEngine` (~2000 linhas) implementa 3 modos:
-- **Flashcard:** Exibe questão + resposta correta destacada
-- **Practice:** Feedback imediato após cada resposta
-- **Test:** Simulado com N questões aleatórias, resultado no final
+3 modos funcionais: Flashcard, Practice, Test.
 
-**Problemas:**
-- ❌ Sem persistência de progresso de estudo no backend
-- ❌ Sem salvamento de estado da prova de prática (se sair, perde tudo)
-- ❌ Sem cancelamento controlado do modo teste (se sair da tela, prova é perdida)
-- ❌ Sem histórico de resultados de testes anteriores
-- ⚠️ Dados de questões carregados de arquivos JSON estáticos — sem admin para gerenciar
+**Pendências:**
+- Sem persistência de progresso no backend
+- Sem salvamento de estado da prova de prática
+- Sem cancelamento controlado do modo teste
+- Sem histórico de resultados
 
-### 4.3 Sistema de Créditos
+### 4.3 Sistema de Créditos — ✅ Funcional
 
-- Usuários recebem 10 créditos no registro
-- Créditos podem ser gastos para desbloquear módulos
-- Ledger registra todas as transações (auditoria)
-- ✅ Operações atômicas via `prisma.$transaction`
-
-### 4.4 Painel Administrativo
-
-- ❌ Praticamente inexistente — apenas `/admin/modules` com verificação básica de email
-- ❌ Sem CRUD de questões, flashcards, ou conteúdos de estudo
-- ❌ Sem gestão de usuários
-- ❌ Sem gestão de planos/assinaturas
+- 10 créditos ao registrar, gastos para desbloquear módulos
+- Ledger com auditoria completa
+- Operações atômicas via `prisma.$transaction`
 
 ---
 
-## 5. Análise da Infraestrutura
+## 5. Resumo de Riscos Restantes para o MVP
 
-### 5.1 Build e Deploy
-
-| Aspecto | Estado | Avaliação |
+| Prioridade | Risco | Status |
 |---|---|---|
-| TypeScript strict | Habilitado no tsconfig | ✅ |
-| ESLint | Configurado mas ignorado no build (`ignoreDuringBuilds: true`) | ⚠️ |
-| TypeScript build errors | Ignorados (`ignoreBuildErrors: true`) | ❌ Perigoso |
-| Testes | Inexistentes — sem test runner configurado | ❌ |
-| CI/CD | Não configurado | ⚠️ |
-
-### 5.2 Dependências Relevantes
-
-- **Stripe** (`stripe`, `@stripe/stripe-js`): Instalado mas **não integrado**
-- **Supabase** (`@supabase/supabase-js`): Instalado mas **não utilizado** no código atual
-- **ElevenLabs** (`@elevenlabs/react`): Instalado, uso não identificado
-- **Resend**: Configurado para envio de emails de reset de senha
-
-### 5.3 Armazenamento de Dados de Estudo
-
-- Questões armazenadas em arquivos JSON no diretório `data/`
-- Carregadas no client-side pelo `AdvancedEngine`
-- Sem mecanismo de versionamento ou atualização dinâmica
-- Sem interface admin para CRUD de questões
+| ~~P0~~ | ~~Schema incompleto~~ | ✅ Corrigido |
+| P0 | Sem rate limiting | ❌ Pendente |
+| P0 | SQLite em produção | ❌ Pendente (migrar para PostgreSQL) |
+| P1 | Sem persistência de progresso de estudo | ❌ Pendente |
+| ~~P1~~ | ~~Sem guard centralizado~~ | ✅ Corrigido |
+| P1 | Limites de uso no localStorage | ❌ Pendente |
+| P2 | Sem admin panel funcional | ❌ Pendente |
+| P2 | Sem integração Stripe | ❌ Pendente |
+| P3 | Sem testes automatizados | ❌ Pendente |
 
 ---
 
-## 6. Resumo de Riscos para o MVP
+## 6. Conclusão
 
-| Prioridade | Risco | Impacto |
-|---|---|---|
-| P0 | Schema incompleto (PasswordResetToken, lastPasswordChangeAt) | Funcionalidades de reset de senha não funcionam |
-| P0 | Sem rate limiting | Vulnerável a ataques de força bruta |
-| P0 | SQLite em produção | Inadequado para múltiplos usuários simultâneos |
-| P1 | Sem persistência de progresso de estudo | Experiência de usuário ruim; sem gamificação possível |
-| P1 | Sem guard centralizado de API | Segurança frágil; rotas podem ser acessadas indevidamente |
-| P1 | Limites de uso no localStorage | Facilmente burlados pelo usuário |
-| P2 | Sem admin panel funcional | Equipe não consegue gerenciar conteúdo |
-| P2 | Sem integração Stripe | Sem monetização |
-| P2 | Sem testes automatizados | Regressões não detectadas |
-| P3 | TypeScript/ESLint ignorados no build | Bugs silenciosos |
+Após as correções da Fase 1, o AME One possui:
 
----
+**✅ Implementado:**
+- Schema completo e consistente (7 modelos, todos em uso)
+- Senhas com bcrypt (migração transparente de PBKDF2)
+- Guards centralizados de autenticação e autorização
+- Role de admin no banco de dados
+- Convenção snake_case no banco
+- Variáveis de ambiente fora do repositório
 
-## 7. Conclusão
+**❌ Pendente para MVP:**
+- Rate limiting
+- Migração para PostgreSQL
+- Persistência de progresso de estudo (novos modelos quando necessário)
+- Admin panel
+- Integração de pagamentos
 
-O AME One possui uma **base sólida** com boas práticas em várias áreas (cookie security, timing-safe comparisons, atomic transactions). Porém, há **lacunas críticas** que impedem o lançamento como MVP:
-
-1. **Schema incompleto** com modelos referenciados no código mas ausentes do Prisma
-2. **Segurança insuficiente** para produção (sem rate limiting, admin guard frágil)
-3. **Sem persistência de progresso** — funcionalidade central para engajamento tipo Duolingo
-4. **Sem infraestrutura de gestão** (admin panel, CRUD de conteúdo)
-5. **Banco inadequado** para produção (SQLite → PostgreSQL)
-
-O documento `IMPROVEMENT_PLAN.md` detalha o planejamento incremental para resolver esses problemas em fases evolutivas.
+O documento `IMPROVEMENT_PLAN.md` detalha as fases restantes.

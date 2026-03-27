@@ -17,7 +17,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   }
 
-  const user = await prisma.user.findUnique({ where: { email: normalizedEmail }, select: { id: true } });
+  const user = await prisma.user.findFirst({
+    where: { email: normalizedEmail, deletedAt: null },
+    select: { id: true },
+  });
   if (!user) {
     return NextResponse.json({ ok: true });
   }

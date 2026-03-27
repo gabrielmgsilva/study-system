@@ -9,7 +9,7 @@ type Signatory = {
   email: string;
   licenceOrAuthNo?: string | null;
   initials?: string | null;
-  status: 'DRAFT' | 'VERIFIED' | 'NEEDS_REVERIFY';
+  status: 'draft' | 'pending' | 'verified' | 'needs_reverify';
 };
 
 const LS_KEY = 'ameone_dev_logbookId';

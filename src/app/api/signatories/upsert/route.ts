@@ -5,19 +5,18 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
 
-  const logbookId = String(body.logbookId || '').trim();
+  const logbookId = Number(body.logbookId);
   const slotNumber = Number(body.slotNumber);
 
-  if (!logbookId || !Number.isInteger(slotNumber) || slotNumber < 1 || slotNumber > 15) {
+  if (!Number.isInteger(logbookId) || logbookId <= 0 || !Number.isInteger(slotNumber) || slotNumber < 1 || slotNumber > 15) {
     return NextResponse.json({ error: 'Missing/invalid logbookId or slotNumber' }, { status: 400 });
   }
 
   const data = {
     name: String(body.name || ''),
     email: String(body.email || ''),
-    licenceNumber: String(body.licenceNumber || ''),
+    licenceOrAuthNo: String(body.licenceNumber || body.licenceOrAuthNo || ''),
     initials: String(body.initials || ''),
-    dateSigned: String(body.dateSigned || ''),
   };
 
   const signatory = await prisma.signatory.upsert({
@@ -27,10 +26,10 @@ export async function POST(req: Request) {
       logbookId,
       slotNumber,
       ...data,
-      status: 'DRAFT',
-      signatureSvg: '',
+      status: 'draft',
+      signatureSvg: null,
     },
   });
 
-  return NextResponse.json({ signatory });
+  return NextResponse.json({ signatory: { ...signatory, id: String(signatory.id), logbookId: String(signatory.logbookId) } });
 }

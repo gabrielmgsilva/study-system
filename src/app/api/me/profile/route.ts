@@ -1,32 +1,29 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 
 import { prisma } from '@/lib/prisma';
-import { verifySignedSession } from '@/lib/auth';
+import { getCurrentSessionServer } from '@/lib/currentUserServer';
 
 async function getUserIdOrThrow() {
-  const cookie = (await cookies()).get('ameone_session')?.value;
-  const sessionId = verifySignedSession(cookie);
-  if (!sessionId) return null;
-
-  const session = await prisma.session.findUnique({ where: { id: sessionId } });
-  if (!session || session.expiresAt.getTime() < Date.now()) return null;
-  return session.userId;
+  const session = await getCurrentSessionServer();
+  return session?.userId ?? null;
 }
 
 export async function GET() {
   const userId = await getUserIdOrThrow();
   if (!userId) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
+  const user = await prisma.user.findFirst({
+    where: { id: userId, deletedAt: null },
     select: {
       id: true,
       email: true,
+      name: true,
       username: true,
+      primaryLicenseId: true,
+      studyLevel: true,
+      studyGoal: true,
+      onboardingCompletedAt: true,
       createdAt: true,
-      termsAcceptedAt: true,
-      termsVersion: true,
       lastPasswordChangeAt: true,
     },
   });
@@ -38,23 +35,26 @@ export async function PATCH(req: Request) {
   const userId = await getUserIdOrThrow();
   if (!userId) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
-  const { username } = await req.json().catch(() => ({}));
+  const { name } = await req.json().catch(() => ({}));
 
-  const clean = username ? String(username).trim() : '';
+  const clean = name ? String(name).trim().replace(/\s+/g, ' ') : '';
   if (clean && clean.length > 40) {
-    return NextResponse.json({ message: 'Username is too long.' }, { status: 400 });
+    return NextResponse.json({ message: 'Name is too long.' }, { status: 400 });
   }
 
   const user = await prisma.user.update({
     where: { id: userId },
-    data: { username: clean || null },
+    data: { name: clean || null },
     select: {
       id: true,
       email: true,
+      name: true,
       username: true,
+      primaryLicenseId: true,
+      studyLevel: true,
+      studyGoal: true,
+      onboardingCompletedAt: true,
       createdAt: true,
-      termsAcceptedAt: true,
-      termsVersion: true,
       lastPasswordChangeAt: true,
     },
   });

@@ -49,8 +49,9 @@ study-system/
 │   │   ├── study/              # Motor de estudo (AdvancedEngine)
 │   │   └── ui/                 # Shadcn/ui (50+ componentes)
 │   └── lib/                    # Utilitários e lógica de negócios
-│       ├── auth.ts             # Hashing de senha (PBKDF2), assinatura de sessão (HMAC)
-│       ├── adminAuth.ts        # Verificação de email admin
+│       ├── auth.ts             # Hashing de senha e migração transparente PBKDF2 -> bcrypt
+│       ├── authz.ts            # Separação de acesso por role entre /app e /admin
+│       ├── jwt.ts              # JWT stateless + cookie httpOnly
 │       ├── prisma.ts           # Singleton Prisma Client
 │       ├── routes.ts           # Definições type-safe de rotas
 │       ├── planEntitlements.ts # Mapeamento plano → experiência
@@ -83,22 +84,17 @@ createdAt     DateTime  Auto
 
 **Problemas identificados:**
 - ❌ Campo `lastPasswordChangeAt` é referenciado no código (`reset-password/route.ts`) mas **não existe no schema**
-- ⚠️ Não há campo `role` (admin/user) — validação de admin feita por lista de emails em `.env`
+- ✅ O campo `role` passou a ser a fonte única de verdade para separar admin e estudante.
 - ⚠️ Não há campos de perfil (nome completo, avatar, país, etc.)
 - ⚠️ Sem soft delete (`deletedAt`)
 - ⚠️ Convenção de nomes usa camelCase em vez de snake_case
 
-#### Session
-```
-id        String    PK, CUID
-userId    String    FK → User
-createdAt DateTime  Auto
-expiresAt DateTime  12h de vida
-```
+#### Authentication
 
-**Problemas identificados:**
-- ⚠️ Sem informações de dispositivo/IP para auditoria
-- ⚠️ Sem mecanismo de revogação em massa
+- Autenticação agora é stateless, baseada em JWT assinado com HS256 via `jose`.
+- O token é armazenado no cookie httpOnly `ameone_token` com expiração de 12 horas.
+- Middleware e guards usam o payload do token diretamente, sem tabela `Session`.
+- A separação entre área administrativa e área do estudante é feita pelo `User.role` persistido no banco.
 
 #### CreditAccount
 ```
@@ -172,13 +168,13 @@ UNIQUE(userId, licenseId)
 
 | Aspecto | Estado Atual | Avaliação |
 |---|---|---|
-| Hashing de senhas | PBKDF2-SHA256, 120k iterações | ⚠️ Funcional, mas bcrypt é o padrão da indústria |
-| Sessões | Cookie HMAC-SHA256 com sessão no DB | ✅ Seguro |
+| Hashing de senhas | bcrypt 12 rounds, com fallback legado PBKDF2 | ✅ Adequado |
+| Sessões | JWT stateless em cookie `httpOnly` | ✅ Seguro |
 | Cookie `httpOnly` | Sim | ✅ |
 | Cookie `secure` | Apenas em produção | ✅ |
 | Cookie `sameSite` | `lax` | ✅ |
-| Timing-safe comparison | Sim, `crypto.timingSafeEqual` | ✅ |
-| Expiração de sessão | 12h, verificada no middleware | ✅ |
+| Verificação de assinatura | HS256 via `jose` no middleware e servidor | ✅ |
+| Expiração de sessão | 12h, verificada no JWT | ✅ |
 | Proteção contra enumeração | Sim, no forgot-password | ✅ |
 
 ### 3.2 Autorização
@@ -186,17 +182,17 @@ UNIQUE(userId, licenseId)
 | Aspecto | Estado Atual | Avaliação |
 |---|---|---|
 | Middleware de rotas | Protege `/app/*` e `/admin/*` | ✅ Funcional |
-| Guard de admin | Lista de emails em `.env` | ⚠️ Frágil, não escalável |
-| Guard de API | Verificação manual em cada rota | ❌ Sem guard centralizado |
-| Validação de roles | Inexistente | ❌ Necessário para admin panel |
+| Guard de admin | Baseado em `User.role` no JWT | ✅ Alinhado ao banco |
+| Guard de API | `requireAuth()` e `requireAdmin()` centralizados | ✅ Melhorado |
+| Validação de roles | Separação entre `/app` e `/admin` | ✅ Implementada |
 | Rate limiting | Inexistente | ❌ Vulnerável a brute force |
 | CSRF protection | Apenas `sameSite: lax` | ⚠️ Mínimo |
 
 ### 3.3 Vulnerabilidades Identificadas
 
 1. **Sem rate limiting** em login/register — vulnerável a ataques de força bruta
-2. **Admin guard baseado em email** — sem role no banco, qualquer pessoa que conheça os emails pode tentar escalar privilégios
-3. **Sem validação centralizada de APIs** — cada rota implementa sua própria verificação de autenticação
+2. **Sem revogação central de JWT** — logout invalida o cookie atual, mas não existe blacklist de tokens
+3. **Proteção de API ainda depende de adoção consistente dos guards** em rotas novas
 4. **Endpoint `set-plan` sem proteção real** — marcado como "dev-only" mas acessível em produção
 5. **`AUTH_SECRET` hardcoded** no `.env.local` de desenvolvimento com valor previsível
 6. **Schema incompleto** — `PasswordResetToken` referenciado no código mas ausente do schema, causando erros em runtime

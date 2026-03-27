@@ -1,17 +1,12 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 
 import { prisma } from '@/lib/prisma';
-import { hashPassword, verifyPassword, verifySignedSession } from '@/lib/auth';
+import { hashPassword, verifyPassword } from '@/lib/auth';
+import { getCurrentSessionServer } from '@/lib/currentUserServer';
 
 async function getUserIdOrNull() {
-  const cookie = (await cookies()).get('ameone_session')?.value;
-  const sessionId = verifySignedSession(cookie);
-  if (!sessionId) return null;
-
-  const session = await prisma.session.findUnique({ where: { id: sessionId } });
-  if (!session || session.expiresAt.getTime() < Date.now()) return null;
-  return session.userId;
+  const session = await getCurrentSessionServer();
+  return session?.userId ?? null;
 }
 
 export async function POST(req: Request) {
@@ -32,7 +27,10 @@ export async function POST(req: Request) {
     );
   }
 
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { passwordHash: true } });
+  const user = await prisma.user.findFirst({
+    where: { id: userId, deletedAt: null },
+    select: { passwordHash: true },
+  });
   if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
   const ok = await verifyPassword(String(currentPassword), user.passwordHash);

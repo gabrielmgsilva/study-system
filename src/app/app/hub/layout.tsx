@@ -10,6 +10,7 @@ export default function StudyLayout({ children }: { children: React.ReactNode })
       backHref="/app"
       backLabel="Back to Home"
       maxWidthClass="max-w-6xl"
+      showHeader={false}
     >
       {children}
     </AppShell>

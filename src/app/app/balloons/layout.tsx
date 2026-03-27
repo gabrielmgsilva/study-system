@@ -12,6 +12,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       backHref="/app"
       backLabel="Back to Home"
       maxWidthClass="max-w-6xl"
+      showHeader={false}
     >
       <ModuleGate licenseId="balloons" title="Balloons" backHref={ROUTES.landing}>
         {children}

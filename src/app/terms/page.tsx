@@ -9,6 +9,7 @@ import {
   CardContent,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { ROUTES } from '@/lib/routes';
 
 const LAST_UPDATED = '2026-01-01';
 

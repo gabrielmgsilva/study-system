@@ -6,15 +6,26 @@ import { sendEmailDev } from '@/lib/email-dev';
 export async function POST(req: Request) {
   const body = await req.json();
   const { logbookId, signatoryId, tasks } = body;
+  const parsedLogbookId = Number(logbookId);
+  const parsedSignatoryId = Number(signatoryId);
 
-  if (!logbookId || !signatoryId || !Array.isArray(tasks) || tasks.length === 0) {
+  if (
+    !Number.isInteger(parsedLogbookId) ||
+    parsedLogbookId <= 0 ||
+    !Number.isInteger(parsedSignatoryId) ||
+    parsedSignatoryId <= 0 ||
+    !Array.isArray(tasks) ||
+    tasks.length === 0
+  ) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
   }
 
-  const signatory = await prisma.signatory.findUnique({ where: { id: signatoryId } });
+  const signatory = await prisma.signatory.findFirst({
+    where: { id: parsedSignatoryId, logbookId: parsedLogbookId, deletedAt: null },
+  });
   if (!signatory) return NextResponse.json({ error: 'Signatory not found' }, { status: 404 });
 
-  if (signatory.status !== 'VERIFIED' || !signatory.signatureSvg) {
+  if (signatory.status !== 'verified' || !signatory.signatureSvg) {
     return NextResponse.json(
       { error: 'Signatory must be VERIFIED and have a saved signature' },
       { status: 400 }
@@ -26,8 +37,8 @@ export async function POST(req: Request) {
 
   const reqRecord = await prisma.taskSignatureRequest.create({
     data: {
-      logbookId,
-      signatoryId,
+      logbookId: parsedLogbookId,
+      signatoryId: parsedSignatoryId,
       tokenHash,
       expiresAt: addDays(7),
       payloadJson: JSON.stringify({ tasks }),
@@ -46,7 +57,7 @@ export async function POST(req: Request) {
       action: 'TASK_SIGNATURE_REQUEST_SENT',
       metaJson: JSON.stringify({
         taskSignatureRequestId: reqRecord.id,
-        signatoryId,
+        signatoryId: parsedSignatoryId,
         taskCount: tasks.length,
       }),
     },

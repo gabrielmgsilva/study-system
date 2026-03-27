@@ -12,6 +12,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       backHref={ROUTES.appHub}
       backLabel="Back to Home"
       maxWidthClass="max-w-6xl"
+      showHeader={false}
     >
       <ModuleGate licenseId="m" title="M" backHref={ROUTES.appHub}>
         {children}

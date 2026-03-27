@@ -3,8 +3,10 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, ArrowRight, Plane, Lock, Unlock } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { ArrowRight, Plane, Lock, Unlock } from 'lucide-react';
 
+import { getAppLocaleFromPathname, localizeAppHref } from '@/lib/i18n/app';
 import { ROUTES } from '@/lib/routes';
 import {
   getStudentState,
@@ -31,6 +33,9 @@ type ModuleItem = {
 };
 
 export default function MHubPage() {
+  const pathname = usePathname();
+  const locale = getAppLocaleFromPathname(pathname);
+  const isPt = locale === 'pt';
   const [ready, setReady] = useState(false);
   const [student, setStudent] = useState<StudentState | null>(null);
 
@@ -94,96 +99,85 @@ export default function MHubPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header (dark/glass friendly) */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-3 border-b border-slate-200 pb-5 md:flex-row md:items-end md:justify-between">
         <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white border border-white/15 backdrop-blur-md">
-            <Plane className="h-3 w-3" />
-            <span>M – Aircraft Maintenance Engineer</span>
+          <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600">
+            <Plane className="h-3 w-3 text-[#2d4bb3]" />
+            <span>{isPt ? 'M — Mecânico de Manutenção de Aeronaves' : 'M – Aircraft Maintenance Engineer'}</span>
           </div>
 
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
-            M – Study Modules
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">
+            {isPt ? 'M — Módulos de estudo' : 'M – Study Modules'}
           </h1>
-          <p className="text-sm text-white/70">
-            Unlock modules individually as you need them.
+          <p className="text-sm text-slate-500">
+            {isPt ? 'Libere módulos individualmente conforme necessário.' : 'Unlock modules individually as you need them.'}
           </p>
         </div>
 
-        <Button
-          asChild
-          size="sm"
-          className="border border-white/15 bg-white/10 text-white hover:bg-white/15"
-          variant="outline"
-        >
-          <Link href={ROUTES.m} className="flex items-center gap-2">
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </Link>
-        </Button>
+        <div className="text-right">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+            {isPt ? 'Módulos' : 'Modules'}
+          </div>
+          <div className="text-3xl font-semibold leading-none text-[#2d4bb3]">5</div>
+        </div>
       </div>
 
-      {/* Modules card (dark/glass) */}
-      <Card className="relative overflow-hidden rounded-[30px] border-white/15 bg-white/10 backdrop-blur-md">
-        {/* overlays obrigatórios */}
-        <div className="absolute inset-0 bg-black/25 pointer-events-none" />
-        <div className="absolute inset-0 bg-gradient-to-br from-black/10 via-transparent to-black/25 pointer-events-none" />
-
-        <CardHeader className="relative">
-          <CardTitle className="text-white">Modules</CardTitle>
-          <CardDescription className="text-white/70">
-            Choose a module below. Locked modules require unlock.
+      <Card className="rounded-[30px] border-slate-200 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
+        <CardHeader>
+          <CardTitle className="text-slate-900">{isPt ? 'Módulos' : 'Modules'}</CardTitle>
+          <CardDescription className="text-slate-500">
+            {isPt
+              ? 'Escolha um módulo abaixo. Módulos bloqueados exigem liberação.'
+              : 'Choose a module below. Locked modules require unlock.'}
           </CardDescription>
         </CardHeader>
 
-        <CardContent className="relative space-y-2">
+        <CardContent className="space-y-2">
           {modules.map((m) => {
             const unlocked = hasModule(m.moduleKey);
 
             return (
               <div
                 key={m.id}
-                className="flex flex-col gap-3 rounded-2xl border border-white/15 bg-white/5 p-4 md:flex-row md:items-center md:justify-between"
+                className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 md:flex-row md:items-center md:justify-between"
               >
                 <div className="space-y-1">
-                  <p className="font-medium text-sm text-white">{m.name}</p>
-                  <p className="text-xs text-white/70">{m.desc}</p>
+                  <p className="text-sm font-medium text-slate-900">{m.name}</p>
+                  <p className="text-xs text-slate-500">{m.desc}</p>
                 </div>
 
                 <div className="flex items-center justify-between gap-3 md:justify-end">
-                  {/* Status badge */}
                   {!ready ? null : unlocked ? (
-                    <Badge className="gap-1 border border-white/15 bg-white/10 text-white">
+                    <Badge className="gap-1 border border-emerald-200 bg-emerald-50 text-emerald-700">
                       <Unlock className="h-3 w-3" />
-                      Unlocked
+                      {isPt ? 'Liberado' : 'Unlocked'}
                     </Badge>
                   ) : (
-                    <Badge className="gap-1 border border-white/15 bg-transparent text-white/90">
+                    <Badge className="gap-1 border border-amber-200 bg-amber-50 text-amber-700">
                       <Lock className="h-3 w-3" />
-                      Locked
+                      {isPt ? 'Bloqueado' : 'Locked'}
                     </Badge>
                   )}
 
-                  {/* Action button */}
                   {unlocked ? (
                     <Button
                       asChild
                       size="sm"
                       variant="outline"
-                      className="border border-white/15 bg-white/10 text-white hover:bg-white/15"
+                      className="border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                     >
-                      <Link href={m.href} className="flex items-center">
-                        Open <ArrowRight className="ml-1 h-4 w-4" />
+                      <Link href={localizeAppHref(m.href, locale)} className="flex items-center">
+                        {isPt ? 'Abrir' : 'Open'} <ArrowRight className="ml-1 h-4 w-4" />
                       </Link>
                     </Button>
                   ) : (
                     <Button
                       asChild
                       size="sm"
-                      className="border border-white/15 bg-black/70 text-white hover:bg-black/60"
+                      className="border border-[#2d4bb3] bg-[#2d4bb3] text-white hover:bg-[#243d99]"
                     >
-                      <Link href={ROUTES.student} className="flex items-center">
-                        Unlock <ArrowRight className="ml-1 h-4 w-4" />
+                      <Link href={localizeAppHref(ROUTES.student, locale)} className="flex items-center">
+                        {isPt ? 'Liberar' : 'Unlock'} <ArrowRight className="ml-1 h-4 w-4" />
                       </Link>
                     </Button>
                   )}

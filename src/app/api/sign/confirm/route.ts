@@ -14,8 +14,8 @@ export async function POST(req: Request) {
 
   const tokenHash = hashToken(token);
 
-  const r = await prisma.taskSignatureRequest.findUnique({
-    where: { tokenHash },
+  const r = await prisma.taskSignatureRequest.findFirst({
+    where: { tokenHash, deletedAt: null, signatory: { deletedAt: null }, logbook: { deletedAt: null } },
     include: { signatory: true },
   });
 

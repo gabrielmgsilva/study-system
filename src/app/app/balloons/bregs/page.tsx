@@ -1,11 +1,8 @@
-'use client';
+import { redirect } from 'next/navigation';
 
-import React from 'react';
+import { ROUTES } from '@/lib/routes';
 
-import BalloonsBregsPage from './page';
-
-// Legacy route kept for backward compatibility.
-// This page simply renders the new BREGS page.
+// Legacy route kept until the Balloons BREGS study page is implemented.
 export default function BalloonsStudyRegsLegacyPage() {
-  return <BalloonsBregsPage />;
+  redirect(ROUTES.balloonsHub);
 }

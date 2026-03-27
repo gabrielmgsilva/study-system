@@ -11,6 +11,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       subtitle="Standard Practices, Structures Rating, Logbook"
       backHref={ROUTES.appHome}
       backLabel="Back to App Home"
+      showHeader={false}
     >
       <ModuleGate
         licenseId="s"

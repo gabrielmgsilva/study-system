@@ -9,15 +9,15 @@ import AdvancedEngine, {
 } from '@/components/study/AdvancedEngine';
 
 // --- IMPORTS ALINHADOS COM OS ARQUIVOS DA PASTA --- //
-import scienceMathData from '../../../../../data/avionics/standardPractices/01_science_math.json';
-import wiringPracticesData from '../../../../../data/avionics/standardPractices/02_wiring_practices.json';
-import hardwareData from '../../../../../data/avionics/standardPractices/03_hardware.json';
-import toolsData from '../../../../../data/avionics/standardPractices/04_tools.json';
-import basicSystemsData from '../../../../../data/avionics/standardPractices/05_basic_systems.json';
-import basicElectricityData from '../../../../../data/avionics/standardPractices/06_basic_electricity.json';
-import basicElectronicsData from '../../../../../data/avionics/standardPractices/07_basic_electronics.json';
-import corrosionData from '../../../../../data/avionics/standardPractices/08_corrosion.json';
-import ndtData from '../../../../../data/avionics/standardPractices/09_ndt.json';
+import scienceMathData from '../../../../../data/e/standardpractices/1.json';
+import wiringPracticesData from '../../../../../data/e/standardpractices/2.json';
+import hardwareData from '../../../../../data/e/standardpractices/3.json';
+import toolsData from '../../../../../data/e/standardpractices/4.json';
+import basicSystemsData from '../../../../../data/e/standardpractices/5.json';
+import basicElectricityData from '../../../../../data/e/standardpractices/6.json';
+import basicElectronicsData from '../../../../../data/e/standardpractices/7.json';
+import corrosionData from '../../../../../data/e/standardpractices/8.json';
+import ndtData from '../../../../../data/e/standardpractices/9.json';
 
 // --- SECTIONS PARA O ADVANCEDENGINE --- //
 const sections: DeckSection[] = [
@@ -109,6 +109,7 @@ export default function EStandardPracticesPage() {
       <AdvancedEngine
         licenseId="e"
         moduleId="standard-practices-avionics"
+        moduleKey="e.standard-practices"
         moduleTitle="Standard Practices – Avionics (E)"
         moduleDescription="Build a deck by selecting Standard Practices subjects and study in Flashcard, Practice, or Test mode."
         sections={sections}

@@ -1,0 +1,4 @@
+{
+  "/[locale]/auth/login/page": "app/[locale]/auth/login/page.js",
+  "/admin/plans/page": "app/admin/plans/page.js"
+}

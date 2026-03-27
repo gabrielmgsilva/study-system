@@ -2,8 +2,10 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Wind, FileText, ArrowLeft, BookOpen, ClipboardList } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { Wind, FileText, BookOpen, ClipboardList } from 'lucide-react';
 
+import { getAppLocaleFromPathname, localizeAppHref } from '@/lib/i18n/app';
 import { ROUTES } from '@/lib/routes';
 
 import {
@@ -17,72 +19,73 @@ import {
 import { Button } from '@/components/ui/button';
 
 export default function BalloonsMenuPage() {
+  const pathname = usePathname();
+  const locale = getAppLocaleFromPathname(pathname);
+  const isPt = locale === 'pt';
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-3 border-b border-slate-200 pb-5 md:flex-row md:items-end md:justify-between">
         <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-medium text-white">
-            <Wind className="h-3 w-3 text-white/90" />
-            <span>Licence B – Balloons</span>
+          <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600">
+            <Wind className="h-3 w-3 text-[#2d4bb3]" />
+            <span>{isPt ? 'Licença B — Balões' : 'Licence B – Balloons'}</span>
           </div>
 
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
-            Balloons – Licence Home
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">
+            {isPt ? 'Balões — Início da licença' : 'Balloons – Licence Home'}
           </h1>
 
-          <p className="text-sm text-white/75 max-w-2xl">
-            Study for BREGS and balloon operations/maintenance, plus a TC-style
-            experience logbook for the B rating.
+          <p className="max-w-2xl text-sm text-slate-500">
+            {isPt
+              ? 'Estude BREGS e operações/manutenção de balões, além de um logbook de experiência no estilo TC para a habilitação B.'
+              : 'Study for BREGS and balloon operations/maintenance, plus a TC-style experience logbook for the B rating.'}
           </p>
         </div>
 
-        <Button
-          asChild
-          variant="outline"
-          size="sm"
-          className="border-white/15 bg-white/10 text-white hover:bg-white/15"
-        >
-          <Link href={ROUTES.appHub} className="flex items-center gap-2">
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </Link>
-        </Button>
+        <div className="text-right">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+            {isPt ? 'Rotas disponíveis' : 'Available Routes'}
+          </div>
+          <div className="text-3xl font-semibold leading-none text-[#2d4bb3]">2</div>
+        </div>
       </div>
 
-      {/* Primary actions */}
       <div className="grid gap-4 md:grid-cols-2">
-        {/* Study Hub */}
-        <Link href={ROUTES.module('balloons', 'hub')} className="block">
+        <Link href={localizeAppHref(ROUTES.module('balloons', 'hub'), locale)} className="block">
           <Card
-            className="
-              relative h-full overflow-hidden rounded-[30px]
-              border-white/15 bg-white/10 backdrop-blur-md
-              transition-all hover:bg-white/15 hover:shadow-md cursor-pointer
-            "
+            className="h-full cursor-pointer overflow-hidden rounded-[30px] border-slate-200 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.08)] transition-all hover:border-slate-300 hover:bg-slate-50 hover:shadow-[0_20px_46px_rgba(15,23,42,0.10)]"
           >
-            <div className="absolute inset-0 bg-black/25 pointer-events-none" />
-            <div className="absolute inset-0 bg-gradient-to-br from-black/10 via-transparent to-black/25 pointer-events-none" />
-
-            <div className="relative">
+            <div>
               <CardHeader>
-                <CardTitle className="text-base md:text-lg flex items-center gap-2 text-white">
-                  <span className="h-8 w-8 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center">
-                    <BookOpen className="h-4 w-4 text-white" />
+                <CardTitle className="flex items-center gap-2 text-base text-slate-900 md:text-lg">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-2xl border border-slate-200 bg-[#eef3ff]">
+                    <BookOpen className="h-4 w-4 text-[#2d4bb3]" />
                   </span>
-                  Study Hub (Balloons)
+                  {isPt ? 'Hub de estudo (Balões)' : 'Study Hub (Balloons)'}
                 </CardTitle>
-                <CardDescription className="text-xs md:text-sm text-white/75">
-                  Central place to practice, run quizzes, and navigate balloon
-                  study topics.
+                <CardDescription className="text-xs text-slate-500 md:text-sm">
+                  {isPt
+                    ? 'Ponto central para praticar, fazer questionários e navegar pelos tópicos de estudo de balões.'
+                    : 'Central place to practice, run quizzes, and navigate balloon study topics.'}
                 </CardDescription>
               </CardHeader>
 
-              <CardContent className="text-xs text-white/75">
+              <CardContent className="text-xs text-slate-500">
                 <ul className="list-disc pl-4 space-y-1">
-                  <li>Choose what to study first</li>
-                  <li>Flashcards, practice, and test mode</li>
-                  <li>Review regulatory and operational requirements</li>
+                  {isPt ? (
+                    <>
+                      <li>Escolha o que estudar primeiro</li>
+                      <li>Flashcards, prática e modo prova</li>
+                      <li>Revise requisitos regulatórios e operacionais</li>
+                    </>
+                  ) : (
+                    <>
+                      <li>Choose what to study first</li>
+                      <li>Flashcards, practice, and test mode</li>
+                      <li>Review regulatory and operational requirements</li>
+                    </>
+                  )}
                 </ul>
               </CardContent>
 
@@ -90,46 +93,49 @@ export default function BalloonsMenuPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="w-full border-white/15 bg-white/10 text-white hover:bg-white/15"
+                  className="w-full border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                 >
-                  Open Study Hub
+                  {isPt ? 'Abrir hub de estudo' : 'Open Study Hub'}
                 </Button>
               </CardFooter>
             </div>
           </Card>
         </Link>
 
-        {/* Logbook */}
-        <Link href={ROUTES.balloonsLogbook} className="block">
+        <Link href={localizeAppHref(ROUTES.balloonsLogbook, locale)} className="block">
           <Card
-            className="
-              relative h-full overflow-hidden rounded-[30px]
-              border-white/15 bg-white/10 backdrop-blur-md
-              transition-all hover:bg-white/15 hover:shadow-md cursor-pointer
-            "
+            className="h-full cursor-pointer overflow-hidden rounded-[30px] border-slate-200 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.08)] transition-all hover:border-slate-300 hover:bg-slate-50 hover:shadow-[0_20px_46px_rgba(15,23,42,0.10)]"
           >
-            <div className="absolute inset-0 bg-black/25 pointer-events-none" />
-            <div className="absolute inset-0 bg-gradient-to-br from-black/10 via-transparent to-black/25 pointer-events-none" />
-
-            <div className="relative">
+            <div>
               <CardHeader>
-                <CardTitle className="text-base md:text-lg flex items-center gap-2 text-white">
-                  <span className="h-8 w-8 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center">
-                    <ClipboardList className="h-4 w-4 text-white" />
+                <CardTitle className="flex items-center gap-2 text-base text-slate-900 md:text-lg">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-2xl border border-slate-200 bg-[#eef3ff]">
+                    <ClipboardList className="h-4 w-4 text-[#2d4bb3]" />
                   </span>
-                  Balloons Logbook (B)
+                  {isPt ? 'Logbook de Balões (B)' : 'Balloons Logbook (B)'}
                 </CardTitle>
-                <CardDescription className="text-xs md:text-sm text-white/75">
-                  TC-style experience logbook for the B rating, aligned with
-                  sample tasks.
+                <CardDescription className="text-xs text-slate-500 md:text-sm">
+                  {isPt
+                    ? 'Logbook de experiência no estilo TC para a habilitação B, alinhado às tarefas modelo.'
+                    : 'TC-style experience logbook for the B rating, aligned with sample tasks.'}
                 </CardDescription>
               </CardHeader>
 
-              <CardContent className="text-xs text-white/75">
+              <CardContent className="text-xs text-slate-500">
                 <ul className="list-disc pl-4 space-y-1">
-                  <li>Envelope inspections and load tape checks</li>
-                  <li>Parachute, vent, burner and fuel system tasks</li>
-                  <li>Basket, instruments and technical records inspections</li>
+                  {isPt ? (
+                    <>
+                      <li>Inspeções de envelope e verificações de fitas de carga</li>
+                      <li>Tarefas de paraquedas, vent, queimador e sistema de combustível</li>
+                      <li>Inspeções de cesto, instrumentos e registros técnicos</li>
+                    </>
+                  ) : (
+                    <>
+                      <li>Envelope inspections and load tape checks</li>
+                      <li>Parachute, vent, burner and fuel system tasks</li>
+                      <li>Basket, instruments and technical records inspections</li>
+                    </>
+                  )}
                 </ul>
               </CardContent>
 
@@ -137,9 +143,9 @@ export default function BalloonsMenuPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="w-full border-white/15 bg-white/10 text-white hover:bg-white/15"
+                  className="w-full border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                 >
-                  Open Balloons Logbook
+                  {isPt ? 'Abrir logbook de balões' : 'Open Balloons Logbook'}
                 </Button>
               </CardFooter>
             </div>
@@ -147,39 +153,34 @@ export default function BalloonsMenuPage() {
         </Link>
       </div>
 
-      {/* Study note */}
-      <Card className="relative overflow-hidden rounded-[30px] border-white/15 bg-white/10 backdrop-blur-md">
-        <div className="absolute inset-0 bg-black/25 pointer-events-none" />
-        <div className="absolute inset-0 bg-gradient-to-br from-black/10 via-transparent to-black/25 pointer-events-none" />
-        <div className="relative">
+      <Card className="overflow-hidden rounded-[30px] border-[#d8e0fb] bg-[linear-gradient(90deg,rgba(238,243,255,0.95),rgba(255,248,245,0.9))] shadow-[0_14px_32px_rgba(15,23,42,0.04)]">
+        <div>
           <CardHeader>
-            <CardTitle className="text-sm flex items-center gap-2 text-white">
-              <span className="h-8 w-8 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center">
-                <FileText className="h-4 w-4 text-white" />
+            <CardTitle className="flex items-center gap-2 text-sm text-slate-900">
+              <span className="flex h-8 w-8 items-center justify-center rounded-2xl border border-slate-200 bg-[#eef3ff]">
+                <FileText className="h-4 w-4 text-[#2d4bb3]" />
               </span>
-              Study note
+              {isPt ? 'Recomendações de estudo' : 'Study Recommendations'}
             </CardTitle>
-            <CardDescription className="text-xs text-white/75">
-              This platform is a supplement—not a replacement—for official
-              references.
+            <CardDescription className="text-xs text-slate-500">
+              {isPt ? 'Mantenha BREGS e a revisão operacional numa estrutura de rotas consistente.' : 'Keep BREGS and operational review in one consistent route structure.'}
             </CardDescription>
           </CardHeader>
 
-          <CardContent className="space-y-3 text-sm text-white/75">
-            <p>
-              This platform is a supplement—not a replacement—for official
-              references. Many questions are inspired by real exam style, but
-              you should always study the official Transport Canada materials
-              for deeper understanding.
-            </p>
-
-            <div className="rounded-2xl border border-white/15 bg-white/5 p-4">
-              <p className="font-semibold text-white/90 mb-1">Exam strategy</p>
-              <p className="text-white/75">
-                Read the whole question, read all options, eliminate the most
-                incorrect answers, then choose the best remaining option.
-              </p>
-            </div>
+          <CardContent className="space-y-3 text-sm text-slate-500">
+            {isPt ? (
+              <>
+                <p>Use o hub de estudo para um início guiado ao alternar entre revisão regulatória e tópicos operacionais.</p>
+                <p>Mantenha o logbook na mesma árvore de navegação para que a experiência prática siga conectada à trilha teórica.</p>
+                <p>Use referências oficiais para aprofundar o entendimento sempre que um tema exigir precisão regulatória.</p>
+              </>
+            ) : (
+              <>
+                <p>Use the study hub for a guided start when switching between regulatory review and operational topics.</p>
+                <p>Keep the logbook in the same navigation tree so practical experience stays connected to the theory route.</p>
+                <p>Use official references to deepen understanding whenever a topic requires regulatory precision.</p>
+              </>
+            )}
           </CardContent>
         </div>
       </Card>

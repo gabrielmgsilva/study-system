@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 import { ROUTES } from '@/lib/routes';
 import {
@@ -10,6 +11,11 @@ import {
   normalizeModuleKey,
   type StudentState,
 } from '@/lib/entitlementsClient';
+import {
+  getAppDictionary,
+  getAppLocaleFromPathname,
+  localizeAppHref,
+} from '@/lib/i18n/app';
 import { getEffectiveFlag, type ModuleStatus } from '@/lib/moduleFlags';
 
 import { Button } from '@/components/ui/button';
@@ -62,19 +68,9 @@ function rankStatus(s: ModuleStatus) {
 }
 
 function statusTitle(s: ModuleStatus) {
-  if (s === 'maintenance') return 'Under maintenance';
-  if (s === 'coming_soon') return 'Coming soon';
+  if (s === 'maintenance') return 'maintenance';
+  if (s === 'coming_soon') return 'comingSoon';
   return 'Active';
-}
-
-function statusBody(s: ModuleStatus) {
-  if (s === 'maintenance') {
-    return 'This module is temporarily under maintenance. Please try again later.';
-  }
-  if (s === 'coming_soon') {
-    return 'This module is not available yet. It will be released soon.';
-  }
-  return '';
 }
 
 export default function EntitlementGuard({
@@ -84,6 +80,9 @@ export default function EntitlementGuard({
   backHref,
   backLabel,
 }: EntitlementGuardProps) {
+  const pathname = usePathname();
+  const locale = getAppLocaleFromPathname(pathname);
+  const dictionary = getAppDictionary(locale);
   const [ready, setReady] = useState(false);
   const [student, setStudent] = useState<StudentState | null>(null);
 
@@ -141,11 +140,11 @@ export default function EntitlementGuard({
   if (!ready) {
     return (
       <div className="p-4 md:p-8">
-        <Card className="rounded-[30px] border-white/15 bg-white/10 backdrop-blur-md">
+        <Card className="rounded-[30px] border-slate-200 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
           <CardHeader>
-            <CardTitle className="text-white">{title}</CardTitle>
+            <CardTitle className="text-slate-900">{title}</CardTitle>
           </CardHeader>
-          <CardContent className="text-white/75 text-sm">Loading…</CardContent>
+          <CardContent className="text-sm text-slate-500">{dictionary.guards.loading}</CardContent>
         </Card>
       </div>
     );
@@ -154,22 +153,29 @@ export default function EntitlementGuard({
   if (flagInfo && flagInfo.status !== 'active') {
     return (
       <div className="p-4 md:p-8">
-        <Card className="rounded-[30px] border-white/15 bg-white/10 backdrop-blur-md">
+        <Card className="rounded-[30px] border-slate-200 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
           <CardHeader>
-            <CardTitle className="text-white">{title}</CardTitle>
+            <CardTitle className="text-slate-900">{title}</CardTitle>
           </CardHeader>
 
-          <CardContent className="space-y-3 text-sm text-white/75">
-            <div className="inline-flex w-fit items-center rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/80">
-              {statusTitle(flagInfo.status)}
+          <CardContent className="space-y-3 text-sm text-slate-500">
+            <div className="inline-flex w-fit items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600">
+              {statusTitle(flagInfo.status) === 'maintenance'
+                ? dictionary.guards.underMaintenance
+                : dictionary.guards.comingSoon}
             </div>
 
-            <p>{flagInfo.message ?? statusBody(flagInfo.status)}</p>
+            <p>
+              {flagInfo.message ??
+                (flagInfo.status === 'maintenance'
+                  ? dictionary.guards.maintenanceBody
+                  : dictionary.guards.comingSoonBody)}
+            </p>
 
             {!!keys.length && (
-              <div className="rounded-2xl border border-white/15 bg-white/5 p-3">
-                <div className="text-xs text-white/80 font-medium mb-1">Keys checked:</div>
-                <ul className="text-xs text-white/70 list-disc pl-4 space-y-1">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                <div className="mb-1 text-xs font-medium text-slate-700">{dictionary.guards.keysChecked}</div>
+                <ul className="list-disc space-y-1 pl-4 text-xs text-slate-500">
                   {keys.map((k) => (
                     <li key={k}>{k}</li>
                   ))}
@@ -180,17 +186,19 @@ export default function EntitlementGuard({
             <div className="flex flex-col gap-2 sm:flex-row">
               <Button
                 asChild
-                className="border border-white/15 bg-black/70 text-white hover:bg-black/60"
+                className="border border-[#2d4bb3] bg-[#2d4bb3] text-white hover:bg-[#243d99]"
               >
-                <Link href={ROUTES.student}>Open Student Area</Link>
+                <Link href={localizeAppHref(ROUTES.student, locale)}>{dictionary.guards.openStudentArea}</Link>
               </Button>
 
               <Button
                 asChild
                 variant="outline"
-                className="border-white/15 bg-white/10 text-white hover:bg-white/15"
+                className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
               >
-                <Link href={backHref ?? ROUTES.appHome}>{backLabel ?? 'Back'}</Link>
+                <Link href={localizeAppHref(backHref ?? ROUTES.appHome, locale)}>
+                  {backLabel ?? dictionary.guards.back}
+                </Link>
               </Button>
             </div>
           </CardContent>
@@ -202,18 +210,18 @@ export default function EntitlementGuard({
   if (!unlocked) {
     return (
       <div className="p-4 md:p-8">
-        <Card className="rounded-[30px] border-white/15 bg-white/10 backdrop-blur-md">
+        <Card className="rounded-[30px] border-slate-200 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
           <CardHeader>
-            <CardTitle className="text-white">{title}</CardTitle>
+            <CardTitle className="text-slate-900">{title}</CardTitle>
           </CardHeader>
 
-          <CardContent className="space-y-3 text-sm text-white/75">
-            <p>This module is locked for your current plan.</p>
+          <CardContent className="space-y-3 text-sm text-slate-500">
+            <p>{dictionary.guards.lockedForPlan}</p>
 
             {!!keys.length && (
-              <div className="rounded-2xl border border-white/15 bg-white/5 p-3">
-                <div className="text-xs text-white/80 font-medium mb-1">Keys checked:</div>
-                <ul className="text-xs text-white/70 list-disc pl-4 space-y-1">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                <div className="mb-1 text-xs font-medium text-slate-700">{dictionary.guards.keysChecked}</div>
+                <ul className="list-disc space-y-1 pl-4 text-xs text-slate-500">
                   {keys.map((k) => (
                     <li key={k}>{k}</li>
                   ))}
@@ -224,17 +232,19 @@ export default function EntitlementGuard({
             <div className="flex flex-col gap-2 sm:flex-row">
               <Button
                 asChild
-                className="border border-white/15 bg-black/70 text-white hover:bg-black/60"
+                className="border border-[#2d4bb3] bg-[#2d4bb3] text-white hover:bg-[#243d99]"
               >
-                <Link href={ROUTES.student}>Open Student Area</Link>
+                <Link href={localizeAppHref(ROUTES.student, locale)}>{dictionary.guards.openStudentArea}</Link>
               </Button>
 
               <Button
                 asChild
                 variant="outline"
-                className="border-white/15 bg-white/10 text-white hover:bg-white/15"
+                className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
               >
-                <Link href={backHref ?? ROUTES.appHome}>{backLabel ?? 'Back'}</Link>
+                <Link href={localizeAppHref(backHref ?? ROUTES.appHome, locale)}>
+                  {backLabel ?? dictionary.guards.back}
+                </Link>
               </Button>
             </div>
           </CardContent>

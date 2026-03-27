@@ -94,6 +94,10 @@
     height: 100%;
   }
 
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     @apply bg-background text-foreground;
   }
@@ -118,22 +122,6 @@
   position: fixed;
   inset: 0;
   pointer-events: none;
-
-  background:
-    /* 🎯 spotlight principal (zona de leitura do hero) */
-    radial-gradient(
-      820px 460px at 30% 22%,
-      rgba(0, 0, 0, 0.15),
-      rgba(0, 0, 0, 0.45) 60%,
-      rgba(0, 0, 0, 0.70) 100%
-    ),
-
-    /* 🎬 vinheta cinematográfica nas bordas */
-    radial-gradient(
-      1600px 1000px at 50% 50%,
-      rgba(0, 0, 0, 0.05),
-      rgba(0, 0, 0, 0.55)
-    );
 }
 
 /* 🔹 LAYER 2 — contraste global MUITO leve */
@@ -144,7 +132,6 @@
   pointer-events: none;
 
   /* ⚠️ não passe de 0.10 aqui */
-  background: rgba(0, 0, 0, 0.08);
 }
 
 /* ===============================
@@ -165,6 +152,23 @@
 
 .scrollbar-none::-webkit-scrollbar {
   display: none;
+}
+
+.landing-grid {
+  background-image:
+    linear-gradient(rgba(84, 154, 255, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(84, 154, 255, 0.12) 1px, transparent 1px),
+    radial-gradient(circle at 32% 26%, rgba(32, 176, 255, 0.18), transparent 26%);
+  background-size: 30px 30px, 30px 30px, auto;
+  background-position: center;
+}
+
+.landing-hero-pattern {
+  background:
+    linear-gradient(135deg, rgba(8, 26, 56, 0.96), rgba(14, 41, 84, 0.92)),
+    url('/home/bg.png');
+  background-size: cover, 980px;
+  background-position: center, center;
 }
 
 /* ===============================

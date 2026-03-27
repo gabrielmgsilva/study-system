@@ -3,22 +3,30 @@
 import React, { useEffect, useState } from 'react';
 import { ensureLogbookId } from '@/lib/logbookBootstrap';
 import LogbookUI from './LogbookUI';
+import type { LogbookProfileId, LicenceType } from './logbookProfiles';
 
-export default function LogbookClientWrapper() {
+type LicenceKey = LogbookProfileId;
+
+export default function LogbookClientWrapper({
+  licenceKey = 'm',
+  initialLicenceType = 'M',
+}: {
+  licenceKey?: LicenceKey;
+  initialLicenceType?: LicenceType;
+}) {
   const [logbookId, setLogbookId] = useState<string>('');
   const [bootError, setBootError] = useState<string>('');
 
   useEffect(() => {
     (async () => {
       try {
-        // ✅ contrato novo
-        const id = await ensureLogbookId('m');
+        const id = await ensureLogbookId(licenceKey);
         setLogbookId(id);
       } catch (e: any) {
         setBootError(e?.message ?? 'Bootstrap error');
       }
     })();
-  }, []);
+  }, [licenceKey]);
 
   if (bootError) {
     return (
@@ -30,8 +38,14 @@ export default function LogbookClientWrapper() {
   }
 
   if (!logbookId) {
-    return <div className="p-6 text-gray-700">Loading logbook…</div>;
+    return <div className="p-6 text-slate-700">Loading logbook…</div>;
   }
 
-  return <LogbookUI logbookId={logbookId} />;
+  return (
+    <LogbookUI
+      logbookId={logbookId}
+      initialLicenceType={initialLicenceType}
+      profileId={licenceKey}
+    />
+  );
 }

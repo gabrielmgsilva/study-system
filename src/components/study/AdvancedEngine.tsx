@@ -4,8 +4,12 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link';
 
 import { ROUTES } from '@/lib/routes';
-import { getStudentState, type StudentState } from '@/lib/entitlementsClient';
+import {
+  getStudentState,
+  type StudentState,
+} from '@/lib/entitlementsClient';
 import { planCaps } from '@/lib/planEntitlements';
+import type { LicenseUsageCaps, LicenseUsageSummary } from '@/lib/entitlementsClient';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -127,6 +131,7 @@ type QuestionScoreMap = Record<QuestionId, number>; // 0–5
 
 interface AdvancedEngineProps {
   moduleId: string;
+  moduleKey?: string;
   moduleTitle: string;
   moduleDescription: string;
   sections: DeckSection[];
@@ -242,36 +247,34 @@ function GlassCard({
   return (
     <Card
       className={[
-        'relative overflow-hidden rounded-[30px] border-white/15 bg-white/10 backdrop-blur-md',
+        'rounded-[30px] border border-slate-200 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.08)]',
         className,
       ].join(' ')}
     >
-      <div className="absolute inset-0 bg-black/25 pointer-events-none" />
-      <div className="absolute inset-0 bg-gradient-to-br from-black/10 via-transparent to-black/25 pointer-events-none" />
-      <div className="relative">{children}</div>
+      <div>{children}</div>
     </Card>
   );
 }
 
 const outlineBtn =
-  'border border-white/15 bg-white/10 text-white hover:bg-white/15';
+  'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50';
 const primaryBtn =
-  'border border-white/15 bg-black/70 text-white hover:bg-black/60';
+  'border border-[#2d4bb3] bg-[#2d4bb3] text-white hover:bg-[#243d99]';
 
 function QuestionScoreIndicator({ score }: { score: number }) {
   const max = 5;
   const levels = Array.from({ length: max + 1 }, (_, i) => i);
 
   return (
-    <div className="flex flex-col items-end gap-1 text-xs text-white/70">
-      <span className="font-medium text-white/80">Level {score}/5</span>
+    <div className="flex flex-col items-end gap-1 text-xs text-slate-500">
+      <span className="font-medium text-slate-700">Level {score}/5</span>
       <div className="flex gap-1">
         {levels.map((lvl) => (
           <div
             key={lvl}
             className={[
-              'h-2 w-2 rounded-full border border-white/35',
-              lvl <= score ? 'bg-white/80' : 'bg-transparent',
+              'h-2 w-2 rounded-full border border-slate-300',
+              lvl <= score ? 'bg-[#2d4bb3]' : 'bg-transparent',
             ].join(' ')}
           />
         ))}
@@ -286,10 +289,6 @@ function QuestionScoreIndicator({ score }: { score: number }) {
 
 function getScoreStorageKey(moduleId: string) {
   return `${moduleId}_questionScores_v2`;
-}
-
-function getCreditsStorageKey(moduleId: string) {
-  return `${moduleId}_examCredits_v1`;
 }
 
 // ✅ novo: histórico local de testes
@@ -371,31 +370,28 @@ function applyAnswerToScore(
   return { ...map, [questionId]: next };
 }
 
-function loadCredits(moduleId: string): number {
-  if (typeof window === 'undefined') return 0;
-  try {
-    const raw = window.localStorage.getItem(getCreditsStorageKey(moduleId));
-    if (!raw) return 0;
-    const num = Number(raw);
-    return Number.isFinite(num) ? num : 0;
-  } catch {
-    return 0;
-  }
-}
-
-function saveCredits(moduleId: string, value: number) {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.setItem(getCreditsStorageKey(moduleId), String(value));
-  } catch {
-    // ignore
-  }
-}
-
 function classifyTopic(percent: number) {
   if (percent >= 80) return 'Strong';
   if (percent >= 60) return 'Borderline';
   return 'Needs Study';
+}
+
+function formatUsageLimit(limit: number | null, remaining: number | null, period: string) {
+  if (limit === null || remaining === null) {
+    return `Unlimited ${period}`;
+  }
+
+  return `${remaining} remaining ${period}`;
+}
+
+function fallbackCaps(plan?: string): LicenseUsageCaps | null {
+  if (!plan) return null;
+  const caps = planCaps(plan as 'basic' | 'standard' | 'premium');
+  return {
+    flashcardsPerDay: Number.isFinite(caps.flashcardsPerDay) ? caps.flashcardsPerDay : null,
+    practicePerDay: Number.isFinite(caps.practicePerDay) ? caps.practicePerDay : null,
+    testsPerWeek: Number.isFinite(caps.testsPerWeek) ? caps.testsPerWeek : null,
+  };
 }
 
 // --------------------------------------------------------
@@ -404,6 +400,7 @@ function classifyTopic(percent: number) {
 
 function AdvancedEngine({
   moduleId,
+  moduleKey,
   moduleTitle,
   moduleDescription,
   sections,
@@ -440,13 +437,18 @@ function AdvancedEngine({
 
   const [questionScores, setQuestionScores] = useState<QuestionScoreMap>({});
   const [credits, setCredits] = useState<number>(0);
+  const [isStartingSession, setIsStartingSession] = useState(false);
+  const [activeStudySessionId, setActiveStudySessionId] = useState<number | null>(null);
+  const [activeSessionStartedAt, setActiveSessionStartedAt] = useState<number | null>(null);
 
   // ----------------------------------------------------
   // Plan-based gating (license plans)
   // ----------------------------------------------------
   const [student, setStudent] = useState<StudentState | null>(null);
-  const plan = student?.licenseEntitlements?.[licenseId ?? '']?.plan;
-  const caps = useMemo(() => (plan ? planCaps(plan) : null), [plan]);
+  const licenseExperience = student?.licenseEntitlements?.[licenseId ?? ''] ?? null;
+  const plan = licenseExperience?.plan;
+  const caps = licenseExperience?.caps ?? fallbackCaps(plan);
+  const usage: LicenseUsageSummary | null = licenseExperience?.usage ?? null;
 
   useEffect(() => {
     if (!licenseId) return;
@@ -455,49 +457,10 @@ function AdvancedEngine({
       const s = await getStudentState({ force: false });
       if (!alive) return;
       setStudent(s);
+      setCredits(s?.credits ?? 0);
     })();
     return () => { alive = false; };
   }, [licenseId]);
-
-  function storageKey(kind: 'flashcards' | 'practice' | 'test') {
-    return `ameone_usage:${licenseId ?? 'unknown'}:${moduleId}:${kind}`;
-  }
-
-  function todayKey() {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  }
-
-  function weekKey() {
-    const d = new Date();
-    const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-    const dayNum = date.getUTCDay() || 7;
-    date.setUTCDate(date.getUTCDate() + 4 - dayNum);
-    const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
-    const weekNo = Math.ceil((((date.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-    return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
-  }
-
-  function readUsage(kind: 'flashcards' | 'practice' | 'test') {
-    if (typeof window === 'undefined') return 0;
-    try {
-      const raw = window.localStorage.getItem(storageKey(kind));
-      if (!raw) return 0;
-      const data = JSON.parse(raw);
-      const key = kind === 'test' ? weekKey() : todayKey();
-      if (data?.key !== key) return 0;
-      const n = Number(data?.count ?? 0);
-      return Number.isFinite(n) ? n : 0;
-    } catch { return 0; }
-  }
-
-  function writeUsage(kind: 'flashcards' | 'practice' | 'test', next: number) {
-    if (typeof window === 'undefined') return;
-    try {
-      const key = kind === 'test' ? weekKey() : todayKey();
-      window.localStorage.setItem(storageKey(kind), JSON.stringify({ key, count: next }));
-    } catch { /* ignore */ }
-  }
 
   const [lockedQuestions, setLockedQuestions] = useState<
     Record<QuestionId, boolean>
@@ -508,6 +471,8 @@ function AdvancedEngine({
 
   // ✅ para evitar auto-finalize rodar 2x
   const autoFinishRef = useRef(false);
+
+  const persistedStudySessionRef = useRef<number | null>(null);
 
   // ----------------------------------------------------
   // Helpers sections
@@ -676,16 +641,11 @@ function AdvancedEngine({
 
   useEffect(() => {
     setQuestionScores(loadQuestionScores(moduleId));
-    setCredits(loadCredits(moduleId));
   }, [moduleId]);
 
   useEffect(() => {
     saveQuestionScores(moduleId, questionScores);
   }, [moduleId, questionScores]);
-
-  useEffect(() => {
-    saveCredits(moduleId, credits);
-  }, [moduleId, credits]);
 
   // timer
   useEffect(() => {
@@ -724,7 +684,97 @@ function AdvancedEngine({
     setIsTimerRunning(false);
   }, []);
 
-  const handleStartQuiz = (modeToUse: 'flashcard' | 'practice' | 'test') => {
+  const syncStudentState = useCallback(async () => {
+    const next = await getStudentState({ force: true });
+    setStudent(next);
+    setCredits(next?.credits ?? 0);
+    return next;
+  }, []);
+
+  const beginStudySession = useCallback(
+    async (
+      modeToUse: 'flashcard' | 'practice' | 'test',
+      requestedQuestionsTotal: number,
+    ) => {
+      if (!licenseId) {
+        return { allowedQuestionsTotal: requestedQuestionsTotal };
+      }
+
+      const res = await fetch('/api/study/session/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          licenseId,
+          moduleKey: moduleKey ?? `${licenseId}.${moduleId}`,
+          mode: modeToUse,
+          requestedQuestionsTotal,
+          examCost: modeToUse === 'test' && enableCredits ? examCost : 0,
+        }),
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || !data?.ok) {
+        throw new Error(data?.error || 'Unable to start the study session.');
+      }
+
+      await syncStudentState();
+      return data as {
+        sessionId?: number;
+        allowedQuestionsTotal: number;
+        credits?: number;
+      };
+    },
+    [enableCredits, examCost, licenseId, moduleId, moduleKey, syncStudentState],
+  );
+
+  const completeStudySession = useCallback(
+    async (modeToUse: 'practice' | 'test') => {
+      if (!activeStudySessionId || persistedStudySessionRef.current === activeStudySessionId) {
+        return;
+      }
+
+      const { total, correct, answered, percentage } = calculateScore();
+      const timeSpentMs = activeSessionStartedAt
+        ? Math.max(Date.now() - activeSessionStartedAt, 0)
+        : 0;
+
+      const details = {
+        selectedSections,
+        userAnswers,
+        topicBreakdown: modeToUse === 'test' ? calculateTopicBreakdown() : null,
+      };
+
+      const res = await fetch('/api/study/session/finish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: activeStudySessionId,
+          questionsTotal: total,
+          questionsAnswered: answered,
+          questionsCorrect: correct,
+          score: total > 0 ? percentage / 100 : 0,
+          timeSpentMs,
+          details,
+        }),
+      });
+
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) {
+        throw new Error(data?.error || 'Unable to save study session results.');
+      }
+
+      persistedStudySessionRef.current = activeStudySessionId;
+    },
+    [
+      activeSessionStartedAt,
+      activeStudySessionId,
+      selectedSections,
+      userAnswers,
+    ],
+  );
+
+  const handleStartQuiz = async (modeToUse: 'flashcard' | 'practice' | 'test') => {
     if (sections.length === 0) {
       alert('This module has no sections configured yet.');
       return;
@@ -738,79 +788,61 @@ function AdvancedEngine({
       return;
     }
 
-    // reset guards
-    savedResultRef.current = false;
-    autoFinishRef.current = false;
+    if (isStartingSession) {
+      return;
+    }
 
-    // ----------------------------------------------------
-    // Experience gating (MVP) — based on license plan
-    // ----------------------------------------------------
-    if (caps) {
-      if (modeToUse === 'flashcard') {
-        const used = readUsage('flashcards');
-        const remaining = caps.flashcardsPerDay - used;
-        if (!Number.isFinite(remaining) || remaining <= 0) {
-          alert('Flashcards limit reached for today. Upgrade your plan to study unlimited.');
-          return;
-        }
-        // Consume by deck size (perceived experience)
-        const consume = Math.max(1, Math.min(totalQuestionsSelected || deck.length, remaining));
-        writeUsage('flashcards', used + consume);
-      }
-      if (modeToUse === 'practice') {
-        const used = readUsage('practice');
-        if (used >= caps.practicePerDay) {
-          alert('Practice limit reached for today. Upgrade your plan for unlimited practice.');
-          return;
-        }
-        writeUsage('practice', used + 1);
-      }
+    setIsStartingSession(true);
+
+    try {
+      const requestedQuestionsTotal =
+        modeToUse === 'test'
+          ? Math.min(defaultTestQuestionCount, deck.length)
+          : Math.max(totalQuestionsSelected || deck.length, 1);
+
+      const session = await beginStudySession(modeToUse, requestedQuestionsTotal);
+      const allowedDeck =
+        modeToUse === 'flashcard'
+          ? deck.slice(0, Math.max(session.allowedQuestionsTotal, 1))
+          : deck;
+
+      // reset guards
+      savedResultRef.current = false;
+      autoFinishRef.current = false;
+      persistedStudySessionRef.current = null;
+
       if (modeToUse === 'test') {
-        const used = readUsage('test');
-        if (used >= caps.testsPerWeek) {
-          alert('Test limit reached for this week. Upgrade your plan for more tests.');
-          return;
-        }
-        writeUsage('test', used + 1);
-      }
-    }
-
-    if (modeToUse === 'test') {
-      if (enableCredits && credits < examCost) {
-        alert(
-          `You do not have enough exam credits to start a test. Required: ${examCost}.`,
+        const testQuestions = buildTestExamQuestions(
+          allowedDeck,
+          selectedSections,
+          defaultTestQuestionCount,
         );
-        return;
+
+        setQuestions(testQuestions);
+        setTimeLeft(testQuestions.length > 25 ? 45 * 60 : 22 * 60);
+        setIsTimerRunning(true);
+      } else {
+        setQuestions(allowedDeck);
+        setTimeLeft(null);
+        setIsTimerRunning(false);
       }
 
-      if (enableCredits) {
-        setCredits((prev) => Math.max(prev - examCost, 0));
-      }
-
-      const testQuestions = buildTestExamQuestions(
-        deck,
-        selectedSections,
-        defaultTestQuestionCount,
-      );
-
-      setQuestions(testQuestions);
-      setTimeLeft(testQuestions.length > 25 ? 45 * 60 : 22 * 60);
-      setIsTimerRunning(true);
-    } else {
-      setQuestions(deck);
-      setTimeLeft(null);
-      setIsTimerRunning(false);
+      setAllQuestions(allowedDeck);
+      setStudyMode(modeToUse);
+      setScreenMode('quiz');
+      setActiveStudySessionId(session.sessionId ?? null);
+      setActiveSessionStartedAt(Date.now());
+      setCurrentQuestionIndex(0);
+      setSelectedAnswer('');
+      setUserAnswers([]);
+      setShowFeedback(false);
+      setIsCorrect(false);
+      setLockedQuestions({});
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Unable to start study mode.');
+    } finally {
+      setIsStartingSession(false);
     }
-
-    setAllQuestions(deck);
-    setStudyMode(modeToUse);
-    setScreenMode('quiz');
-    setCurrentQuestionIndex(0);
-    setSelectedAnswer('');
-    setUserAnswers([]);
-    setShowFeedback(false);
-    setIsCorrect(false);
-    setLockedQuestions({});
   };
 
   const handleGoHome = () => {
@@ -822,10 +854,13 @@ function AdvancedEngine({
     setLockedQuestions({});
     setTimeLeft(null);
     setIsTimerRunning(false);
+    setActiveStudySessionId(null);
+    setActiveSessionStartedAt(null);
 
     // reset guards (pra não carregar “state velho” num novo test)
     savedResultRef.current = false;
     autoFinishRef.current = false;
+    persistedStudySessionRef.current = null;
   };
 
   const handleAnswerSelect = (value: string) => {
@@ -909,45 +944,58 @@ function AdvancedEngine({
     }
   };
 
-  const handleRestartCurrentMode = () => {
-    if (questions.length === 0) return;
+  const handleRestartCurrentMode = async () => {
+    const deck = buildDeckForSections(selectedSections);
+    if (deck.length === 0 || isStartingSession) return;
 
     savedResultRef.current = false;
     autoFinishRef.current = false;
+    persistedStudySessionRef.current = null;
 
-    if (studyMode === 'test') {
-      if (enableCredits && credits < examCost) {
-        alert(
-          'You do not have enough exam credits to start a new test. Add more credits in My account.',
+    setIsStartingSession(true);
+
+    try {
+      const requestedQuestionsTotal =
+        studyMode === 'test'
+          ? Math.min(defaultTestQuestionCount, deck.length)
+          : Math.max(deck.length, 1);
+
+      const session = await beginStudySession(studyMode, requestedQuestionsTotal);
+      const allowedDeck =
+        studyMode === 'flashcard'
+          ? deck.slice(0, Math.max(session.allowedQuestionsTotal, 1))
+          : deck;
+
+      if (studyMode === 'test') {
+        const newTestQuestions = buildTestExamQuestions(
+          allowedDeck,
+          selectedSections,
+          defaultTestQuestionCount,
         );
-        return;
-      }
-      if (enableCredits) {
-        setCredits((prev) => Math.max(prev - examCost, 0));
+
+        setQuestions(newTestQuestions);
+        setTimeLeft(newTestQuestions.length > 25 ? 45 * 60 : 22 * 60);
+        setIsTimerRunning(true);
+      } else {
+        setQuestions(allowedDeck);
+        setTimeLeft(null);
+        setIsTimerRunning(false);
       }
 
-      const newTestQuestions = buildTestExamQuestions(
-        allQuestions,
-        selectedSections,
-        defaultTestQuestionCount,
-      );
-
-      setQuestions(newTestQuestions);
-      setTimeLeft(newTestQuestions.length > 25 ? 45 * 60 : 22 * 60);
-      setIsTimerRunning(true);
-    } else {
-      const deck = buildDeckForSections(selectedSections);
-      setQuestions(deck);
-      setTimeLeft(null);
-      setIsTimerRunning(false);
+      setAllQuestions(allowedDeck);
+      setActiveStudySessionId(session.sessionId ?? null);
+      setActiveSessionStartedAt(Date.now());
+      setCurrentQuestionIndex(0);
+      setSelectedAnswer('');
+      setShowFeedback(false);
+      setUserAnswers([]);
+      setLockedQuestions({});
+      setScreenMode('quiz');
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Unable to restart study mode.');
+    } finally {
+      setIsStartingSession(false);
     }
-
-    setCurrentQuestionIndex(0);
-    setSelectedAnswer('');
-    setShowFeedback(false);
-    setUserAnswers([]);
-    setLockedQuestions({});
-    setScreenMode('quiz');
   };
 
   const handlePracticeOnlyIncorrect = () => {
@@ -971,6 +1019,9 @@ function AdvancedEngine({
     setUserAnswers([]);
     setLockedQuestions({});
     setScreenMode('quiz');
+    setActiveStudySessionId(null);
+    setActiveSessionStartedAt(null);
+    persistedStudySessionRef.current = null;
   };
 
   const calculateScore = () => {
@@ -1108,6 +1159,22 @@ function AdvancedEngine({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [moduleId, studyMode, screenMode]);
 
+  useEffect(() => {
+    if (screenMode !== 'practiceResults' || studyMode !== 'practice') return;
+
+    completeStudySession('practice').catch((error) => {
+      console.error('[PRACTICE_SESSION_FINISH]', error);
+    });
+  }, [completeStudySession, screenMode, studyMode]);
+
+  useEffect(() => {
+    if (screenMode !== 'results' || studyMode !== 'test') return;
+
+    completeStudySession('test').catch((error) => {
+      console.error('[TEST_SESSION_FINISH]', error);
+    });
+  }, [completeStudySession, screenMode, studyMode]);
+
   // ----------------------------------------------------
   // TELAS
   // ----------------------------------------------------
@@ -1115,18 +1182,18 @@ function AdvancedEngine({
   // 1) Minha conta
   if (screenMode === 'account') {
     return (
-      <div className="space-y-6 text-white">
+      <div className="space-y-6 text-slate-900">
         <div className="max-w-3xl mx-auto space-y-6">
           <div className="flex items-center justify-between gap-4">
             <div className="space-y-1">
-              <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white border border-white/15 backdrop-blur-md">
+              <div className="inline-flex items-center gap-2 rounded-full border border-[#c9d4f4] bg-[#eef3ff] px-3 py-1 text-xs font-medium text-[#2d4bb3]">
                 <User className="h-3 w-3" />
                 <span>My account – {moduleTitle}</span>
               </div>
-              <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
+              <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">
                 Exam credits
               </h1>
-              <p className="text-sm text-white/70">
+              <p className="text-sm text-slate-600">
                 Credits for Test mode sessions in this module.
               </p>
             </div>
@@ -1144,30 +1211,30 @@ function AdvancedEngine({
 
           <GlassCard>
             <CardHeader>
-              <CardTitle className="text-white">Available credits</CardTitle>
-              <CardDescription className="text-white/70">
-                Test mode consumes credits; Practice and Flashcards are free.
+              <CardTitle className="text-slate-900">Available credits</CardTitle>
+              <CardDescription className="text-slate-600">
+                Test mode consumes account credits; Practice and Flashcards are free.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between rounded-2xl border border-white/15 bg-white/5 px-4 py-3">
-                <div className="flex items-center gap-2 text-white/90">
+              <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <div className="flex items-center gap-2 text-slate-700">
                   <Coins className="h-4 w-4" />
                   <span className="text-sm font-semibold">
-                    Credits for this module
+                    Credits in your account
                   </span>
                 </div>
-                <span className="font-mono text-lg text-white">{credits}</span>
+                <span className="font-mono text-lg text-slate-900">{credits}</span>
               </div>
 
-              <div className="flex flex-wrap gap-2 text-xs text-white/70">
+              <div className="flex flex-wrap gap-2 text-xs text-slate-600">
                 <span>• 1 Test = {examCost} credit</span>
                 <span>• Practice and Flashcards are always free</span>
               </div>
             </CardContent>
 
             <CardFooter className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <p className="text-xs text-white/60">
+              <p className="text-xs text-slate-500">
                 In the future, credits will be recharged via payment methods.
               </p>
 
@@ -1189,23 +1256,23 @@ function AdvancedEngine({
   // 2) Home
   if (screenMode === 'home') {
     return (
-      <div className="space-y-6 text-white">
+      <div className="space-y-6 text-slate-900">
         <div className="max-w-3xl mx-auto space-y-8">
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-2">
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-white">
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900">
                 {moduleTitle}
               </h1>
-              <p className="text-sm text-white/70">{moduleDescription}</p>
+              <p className="text-sm text-slate-600">{moduleDescription}</p>
             </div>
 
             {enableCredits && (
               <div className="flex flex-col items-end gap-2">
-                <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs backdrop-blur-md">
+                <div className="inline-flex items-center gap-2 rounded-full border border-[#c9d4f4] bg-[#eef3ff] px-3 py-1 text-xs text-[#2d4bb3]">
                   <Coins className="h-3 w-3" />
-                  <span className="font-medium text-white/90">
+                  <span className="font-medium text-[#2d4bb3]">
                     Credits:{' '}
-                    <span className="font-mono text-white">{credits}</span>
+                    <span className="font-mono text-slate-900">{credits}</span>
                   </span>
                 </div>
 
@@ -1224,21 +1291,21 @@ function AdvancedEngine({
 
           <GlassCard>
             <CardHeader>
-              <CardTitle className="text-white">Sections</CardTitle>
-              <CardDescription className="text-white/70">
+              <CardTitle className="text-slate-900">Sections</CardTitle>
+              <CardDescription className="text-slate-600">
                 Select one or more sections to build the study deck.
               </CardDescription>
             </CardHeader>
 
             <CardContent className="space-y-4">
               {sections.length === 0 ? (
-                <p className="text-sm text-white/70">
+                <p className="text-sm text-slate-600">
                   No sections configured for this module yet.
                 </p>
               ) : (
                 <>
                   <div className="flex justify-between items-center gap-4">
-                    <p className="text-xs text-white/60">
+                    <p className="text-xs text-slate-500">
                       Click to toggle each section. You can combine multiple
                       sections in one session.
                     </p>
@@ -1268,8 +1335,8 @@ function AdvancedEngine({
                             className={[
                               'w-full flex items-center justify-between rounded-2xl border px-4 py-3 text-left transition',
                               isActive
-                                ? 'bg-white/15 text-white border-white/20'
-                                : 'bg-white/5 text-white/85 border-white/15 hover:bg-white/10',
+                                ? 'border-[#c9d4f4] bg-[#eef3ff] text-slate-900'
+                                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
                             ].join(' ')}
                           >
                             <div>
@@ -1280,8 +1347,8 @@ function AdvancedEngine({
   <div
     className={
       isActive
-        ? 'text-xs text-white/75 whitespace-pre-line'
-        : 'text-xs text-white/60 whitespace-pre-line'
+        ? 'text-xs text-slate-600 whitespace-pre-line'
+        : 'text-xs text-slate-500 whitespace-pre-line'
     }
   >
     {subtitle}
@@ -1291,8 +1358,8 @@ function AdvancedEngine({
     <ul
       className={
         isActive
-          ? 'mt-2 space-y-1 text-xs text-white/70'
-          : 'mt-2 space-y-1 text-xs text-white/60'
+          ? 'mt-2 space-y-1 text-xs text-slate-600'
+          : 'mt-2 space-y-1 text-xs text-slate-500'
       }
     >
       {section.topics.slice(0, 4).map((t, idx) => (
@@ -1310,8 +1377,8 @@ function AdvancedEngine({
                               className={[
                                 'text-xs px-2 py-1 rounded-full border',
                                 isActive
-                                  ? 'bg-white/10 text-white border-white/20'
-                                  : 'bg-white/5 text-white/70 border-white/15',
+                                  ? 'border-[#c9d4f4] bg-white text-[#2d4bb3]'
+                                  : 'border-slate-200 bg-slate-50 text-slate-600',
                               ].join(' ')}
                             >
                               {count} questions
@@ -1322,13 +1389,13 @@ function AdvancedEngine({
                     })}
                   </ul>
 
-                  <p className="text-xs text-white/70">
+                  <p className="text-xs text-slate-600">
                     Selected sections:{' '}
-                    <span className="font-semibold text-white">
+                    <span className="font-semibold text-slate-900">
                       {selectedSections.length}
                     </span>{' '}
                     · Total questions in deck:{' '}
-                    <span className="font-semibold text-white">
+                    <span className="font-semibold text-slate-900">
                       {totalQuestionsSelected}
                     </span>
                   </p>
@@ -1339,55 +1406,72 @@ function AdvancedEngine({
 
           <GlassCard>
             <CardHeader>
-              <CardTitle className="text-white">Study modes</CardTitle>
-              <CardDescription className="text-white/70">
+              <CardTitle className="text-slate-900">Study modes</CardTitle>
+              <CardDescription className="text-slate-600">
                 Choose how you want to study this deck.
               </CardDescription>
             </CardHeader>
 
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/15 bg-white/5 px-4 py-3">
+              {caps && usage ? (
+                <div className="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600 md:grid-cols-3">
+                  <div>
+                    <p className="font-semibold text-slate-900">Flashcards</p>
+                    <p>{formatUsageLimit(caps.flashcardsPerDay, usage.flashcardsRemaining, 'today')}</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-slate-900">Practice</p>
+                    <p>{formatUsageLimit(caps.practicePerDay, usage.practiceRemaining, 'today')}</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-slate-900">Tests</p>
+                    <p>{formatUsageLimit(caps.testsPerWeek, usage.testsRemaining, 'this week')}</p>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
                 <div>
-                  <p className="font-semibold text-white">Flashcard mode</p>
-                  <p className="text-xs text-white/70">
-                    Shows the correct answer and explanation immediately.
+                  <p className="font-semibold text-slate-900">Flashcard mode</p>
+                  <p className="text-xs text-slate-600">
+                    Self-paced review. Server enforces your daily flashcard quota.
                   </p>
                 </div>
                 <Button
-                  disabled={totalQuestionsSelected === 0}
-                  onClick={() => handleStartQuiz('flashcard')}
+                  disabled={totalQuestionsSelected === 0 || isStartingSession}
+                  onClick={() => void handleStartQuiz('flashcard')}
                   className={primaryBtn}
                 >
-                  Start
+                  {isStartingSession ? 'Starting...' : 'Start'}
                 </Button>
               </div>
 
-              <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/15 bg-white/5 px-4 py-3">
+              <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
                 <div>
-                  <p className="font-semibold text-white">Practice mode</p>
-                  <p className="text-xs text-white/70">
-                    Multiple choice with instant feedback. Free, unlimited.
+                  <p className="font-semibold text-slate-900">Practice mode</p>
+                  <p className="text-xs text-slate-600">
+                    Multiple choice with instant feedback. Server enforces your daily practice quota.
                   </p>
                 </div>
                 <Button
-                  disabled={totalQuestionsSelected === 0}
-                  onClick={() => handleStartQuiz('practice')}
+                  disabled={totalQuestionsSelected === 0 || isStartingSession}
+                  onClick={() => void handleStartQuiz('practice')}
                   className={primaryBtn}
                 >
-                  Start
+                  {isStartingSession ? 'Starting...' : 'Start'}
                 </Button>
               </div>
 
-              <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/15 bg-white/5 px-4 py-3">
+              <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
                 <div>
-                  <p className="font-semibold text-white">Test mode</p>
-                  <p className="text-xs text-white/70">
+                  <p className="font-semibold text-slate-900">Test mode</p>
+                  <p className="text-xs text-slate-600">
                     Timed exam. Unanswered questions count as incorrect.
                     {enableCredits && (
                       <>
                         {' '}
                         Costs{' '}
-                        <span className="font-semibold text-white">
+                        <span className="font-semibold text-slate-900">
                           {examCost} credit{examCost !== 1 && 's'}
                         </span>{' '}
                         per test.
@@ -1396,17 +1480,17 @@ function AdvancedEngine({
                   </p>
                 </div>
                 <Button
-                  disabled={totalQuestionsSelected === 0}
-                  onClick={() => handleStartQuiz('test')}
+                  disabled={totalQuestionsSelected === 0 || isStartingSession}
+                  onClick={() => void handleStartQuiz('test')}
                   className={primaryBtn}
                 >
-                  Start
+                  {isStartingSession ? 'Starting...' : 'Start'}
                 </Button>
               </div>
             </CardContent>
           </GlassCard>
 
-          <div className="flex justify-between items-center gap-3 text-xs text-white/70">
+          <div className="flex justify-between items-center gap-3 text-xs text-slate-600">
             <Button asChild variant="outline" size="sm" className={outlineBtn}>
               <Link href={backHref ?? ROUTES.appHub} className="flex items-center">
                 <ArrowLeft className="mr-2 h-4 w-4" />
@@ -1438,11 +1522,11 @@ function AdvancedEngine({
         : null;
 
     return (
-      <div className="space-y-6 text-white">
+      <div className="space-y-6 text-slate-900">
         <div className="max-w-4xl mx-auto space-y-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="space-y-1">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/15 text-white text-xs font-medium mb-1 backdrop-blur-md">
+              <div className="mb-1 inline-flex items-center gap-2 rounded-full border border-[#c9d4f4] bg-[#eef3ff] px-3 py-1 text-xs font-medium text-[#2d4bb3]">
                 {isFlashcard ? (
                   <>
                     <BookOpen className="w-3 h-3" />
@@ -1461,18 +1545,18 @@ function AdvancedEngine({
                 )}
               </div>
 
-              <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
+              <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">
                 {moduleTitle}
               </h1>
-              <p className="text-sm text-white/70">{deckLabel}</p>
+              <p className="text-sm text-slate-600">{deckLabel}</p>
               {topicBadge && (
-                <p className="text-xs text-white/60">Topic: {topicBadge}</p>
+                <p className="text-xs text-slate-500">Topic: {topicBadge}</p>
               )}
             </div>
 
             <div className="flex flex-col items-end space-y-2">
               {isTest && timeLeft !== null && (
-                <span className="font-mono text-sm px-2 py-1 rounded border border-white/15 bg-white/10 text-white">
+                <span className="rounded border border-[#c9d4f4] bg-[#eef3ff] px-2 py-1 font-mono text-sm text-[#2d4bb3]">
                   Time left: {formatTime(timeLeft)}
                 </span>
               )}
@@ -1490,24 +1574,24 @@ function AdvancedEngine({
           </div>
 
           <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm text-white/70">
+            <div className="flex items-center justify-between text-sm text-slate-600">
               <span>
                 Question {currentQuestionIndex + 1} of {questions.length}
               </span>
               <span>{Math.round(progress)}% completed</span>
             </div>
-            <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden border border-white/10">
+            <div className="h-2 w-full overflow-hidden rounded-full border border-slate-200 bg-slate-100">
               <div
-                className="bg-white/70 h-2 rounded-full transition-all"
+                className="h-2 rounded-full bg-[#2d4bb3] transition-all"
                 style={{ width: `${progress}%` }}
               />
             </div>
           </div>
 
-          <GlassCard className="border-white/15">
+          <GlassCard>
             <CardHeader className="space-y-2">
               <div className="flex items-start justify-between gap-4">
-                <CardTitle className="text-lg md:text-xl text-white">
+                <CardTitle className="text-lg md:text-xl text-slate-900">
                   {currentQuestion.stem}
                 </CardTitle>
                 {!isFlashcard && <QuestionScoreIndicator score={currentScore} />}
@@ -1517,11 +1601,11 @@ function AdvancedEngine({
             <CardContent className="space-y-4">
               {isFlashcard ? (
                 <>
-                  <div className="p-3 rounded-2xl bg-white/10 border border-white/15 text-sm">
-                    <p className="font-semibold mb-1 text-white">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm">
+                    <p className="mb-1 font-semibold text-slate-900">
                       Correct answer
                     </p>
-                    <p className="text-white/90">
+                    <p className="text-slate-700">
                       {currentQuestion.correctAnswer}.{' '}
                       {currentQuestion.options[currentQuestion.correctAnswer]}
                     </p>
@@ -1529,20 +1613,20 @@ function AdvancedEngine({
 
                   {(currentQuestion.explanation?.correct ||
                     currentQuestion.explanation?.whyOthersAreWrong) && (
-                    <div className="p-3 rounded-2xl bg-white/5 border border-white/10 text-sm space-y-2">
-                      <p className="font-semibold mb-1 text-white">
+                    <div className="space-y-2 rounded-2xl border border-slate-200 bg-white p-3 text-sm shadow-sm">
+                      <p className="mb-1 font-semibold text-slate-900">
                         Explanation
                       </p>
 
                       {currentQuestion.explanation?.correct && (
-                        <p className="text-white/80 whitespace-pre-wrap">
+                        <p className="whitespace-pre-wrap text-slate-700">
   {currentQuestion.explanation.correct}
 </p>
                       )}
 
                       {currentQuestion.explanation?.whyOthersAreWrong && (
-  <div className="text-white/75 text-xs space-y-1">
-    <p className="font-semibold text-white/85">
+  <div className="space-y-1 text-xs text-slate-600">
+    <p className="font-semibold text-slate-800">
       Why the other options are incorrect
     </p>
 
@@ -1553,7 +1637,7 @@ function AdvancedEngine({
 
         return (
           <p key={k} className="whitespace-pre-wrap">
-            <span className="font-semibold text-white/85">{k}:</span>{' '}
+            <span className="font-semibold text-slate-800">{k}:</span>{' '}
             {txt && txt.trim().length > 0 ? txt : '—'}
           </p>
         );
@@ -1563,10 +1647,10 @@ function AdvancedEngine({
                     </div>
                   )}
 
-                  <div className="grid gap-2 text-xs text-white/70 md:grid-cols-2">
+                  <div className="grid gap-2 text-xs text-slate-600 md:grid-cols-2">
                     {primaryRef?.locator && (
                       <p>
-                        <span className="font-semibold text-white/90">
+                        <span className="font-semibold text-slate-800">
                           Reference:{' '}
                         </span>
                         {primaryRef.locator}
@@ -1574,7 +1658,7 @@ function AdvancedEngine({
                     )}
                     {currentQuestion.tcTopicCode && (
                       <p>
-                        <span className="font-semibold text-white/90">
+                        <span className="font-semibold text-slate-800">
                           TC Topic:{' '}
                         </span>
                         {currentQuestion.tcTopicCode}
@@ -1595,8 +1679,8 @@ function AdvancedEngine({
                         className={[
                           'flex items-center space-x-3 p-3 border rounded-2xl cursor-pointer transition-all',
                           selectedAnswer === optionKey
-                            ? 'border-white/30 bg-white/10'
-                            : 'border-white/15 bg-white/5 hover:border-white/25 hover:bg-white/10',
+                            ? 'border-[#c9d4f4] bg-[#eef3ff]'
+                            : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50',
                         ].join(' ')}
                       >
                         <RadioGroupItem
@@ -1604,7 +1688,7 @@ function AdvancedEngine({
                           id={`${moduleId}-${currentQuestion.id}-${optionKey}`}
                         />
                         <div className="flex flex-col">
-                          <span className="font-semibold text-sm text-white">
+                          <span className="text-sm font-semibold text-slate-900">
                             {optionKey}. {currentQuestion.options[optionKey]}
                           </span>
                         </div>
@@ -1617,15 +1701,15 @@ function AdvancedEngine({
                       className={[
                         'mt-4 p-3 rounded-2xl text-sm flex items-start space-x-2 border',
                         isCorrect
-                          ? 'bg-emerald-500/15 text-emerald-50 border-emerald-400/20'
-                          : 'bg-red-500/15 text-red-50 border-red-400/20',
+                          ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                          : 'border-red-200 bg-red-50 text-red-800',
                       ].join(' ')}
                     >
                       <div className="mt-0.5">
                         {isCorrect ? (
-                          <Check className="w-4 h-4 text-emerald-300" />
+                          <Check className="w-4 h-4 text-emerald-600" />
                         ) : (
-                          <X className="w-4 h-4 text-red-300" />
+                          <X className="w-4 h-4 text-red-600" />
                         )}
                       </div>
 
@@ -1649,13 +1733,13 @@ function AdvancedEngine({
                             </p>
 
                             {currentQuestion.explanation?.correct && (
-                              <p className="mt-2 text-xs text-white/80">
+                              <p className="mt-2 text-xs text-slate-700">
                                 {currentQuestion.explanation.correct}
                               </p>
                             )}
 
                             {primaryRef?.locator && (
-                              <p className="mt-2 text-xs text-white/80">
+                              <p className="mt-2 text-xs text-slate-700">
                                 <span className="font-semibold">
                                   Reference:{' '}
                                 </span>
@@ -1719,18 +1803,18 @@ function AdvancedEngine({
     }[];
 
     return (
-      <div className="space-y-6 text-white">
+      <div className="space-y-6 text-slate-900">
         <div className="max-w-4xl mx-auto space-y-6">
-          <GlassCard className="border-white/15">
+          <GlassCard>
             <CardHeader className="text-center space-y-4">
-              <div className="mx-auto w-16 h-16 bg-white/10 rounded-full flex items-center justify-center border border-white/15">
-                <Brain className="w-9 h-9 text-white" />
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-[#c9d4f4] bg-[#eef3ff]">
+                <Brain className="h-9 w-9 text-[#2d4bb3]" />
               </div>
               <div className="space-y-2">
-                <CardTitle className="text-2xl font-bold text-white">
+                <CardTitle className="text-2xl font-bold text-slate-900">
                   Practice Summary – {moduleTitle}
                 </CardTitle>
-                <CardDescription className="text-sm text-white/70">
+                <CardDescription className="text-sm text-slate-600">
                   Use this to attack your weak questions.
                 </CardDescription>
               </div>
@@ -1739,47 +1823,47 @@ function AdvancedEngine({
             <CardContent className="space-y-6">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div className="space-y-2">
-                  <p className="text-3xl font-bold tracking-tight text-white">
+                  <p className="text-3xl font-bold tracking-tight text-slate-900">
                     {percentage}%{' '}
-                    <span className="text-sm font-normal text-white/70">
+                    <span className="text-sm font-normal text-slate-600">
                       correct in this practice
                     </span>
                   </p>
-                  <ul className="space-y-1 text-sm text-white/70">
+                  <ul className="space-y-1 text-sm text-slate-600">
                     <li>
                       • Total questions in deck:{' '}
-                      <span className="font-medium text-white">{total}</span>
+                      <span className="font-medium text-slate-900">{total}</span>
                     </li>
                     <li>
                       • Answered:{' '}
-                      <span className="font-medium text-white">{answered}</span>
+                      <span className="font-medium text-slate-900">{answered}</span>
                     </li>
                     <li>
                       • Unanswered:{' '}
-                      <span className="font-medium text-white">{unanswered}</span>
+                      <span className="font-medium text-slate-900">{unanswered}</span>
                     </li>
                     <li>
                       • Correct:{' '}
-                      <span className="font-medium text-white">{correct}</span>
+                      <span className="font-medium text-slate-900">{correct}</span>
                     </li>
                     <li>
                       • Incorrect:{' '}
-                      <span className="font-medium text-white">{incorrect}</span>
+                      <span className="font-medium text-slate-900">{incorrect}</span>
                     </li>
                   </ul>
                 </div>
 
                 <div className="w-full md:w-64">
                   <div className="relative w-32 h-32 mx-auto">
-                    <div className="absolute inset-0 rounded-full bg-white/10 border border-white/10" />
+                    <div className="absolute inset-0 rounded-full border border-slate-200 bg-slate-100" />
                     <div
-                      className="absolute inset-2 rounded-full border-[8px] border-white/70"
+                      className="absolute inset-2 rounded-full border-[8px] border-[#d9e2fb]"
                       style={{
-                        background: `conic-gradient(rgba(255,255,255,0.85) ${percentage}%, rgba(255,255,255,0.08) ${percentage}%)`,
+                        background: `conic-gradient(rgba(45,75,179,0.92) ${percentage}%, rgba(226,232,240,0.85) ${percentage}%)`,
                       }}
                     />
-                    <div className="absolute inset-6 rounded-full bg-black/40 border border-white/10 flex items-center justify-center">
-                      <span className="text-2xl font-bold text-white">
+                    <div className="absolute inset-6 flex items-center justify-center rounded-full border border-slate-200 bg-white">
+                      <span className="text-2xl font-bold text-slate-900">
                         {percentage}%
                       </span>
                     </div>
@@ -1787,12 +1871,12 @@ function AdvancedEngine({
                 </div>
               </div>
 
-              <div className="border-t border-white/10 pt-4 space-y-3">
-                <h3 className="text-sm font-semibold text-white">
+              <div className="space-y-3 border-t border-slate-200 pt-4">
+                <h3 className="text-sm font-semibold text-slate-900">
                   Questions you missed
                 </h3>
                 {incorrectDetails.length === 0 ? (
-                  <p className="text-xs text-white/70">
+                  <p className="text-xs text-slate-600">
                     You didn&apos;t miss any question in this practice. Great
                     job!
                   </p>
@@ -1807,27 +1891,27 @@ function AdvancedEngine({
                       return (
                         <div
                           key={`${question.id}-${idx}`}
-                          className="border border-white/10 rounded-2xl p-3 bg-white/5 text-xs"
+                          className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs"
                         >
-                          <p className="font-semibold mb-1 text-white">
+                          <p className="mb-1 font-semibold text-slate-900">
                             Q{idx + 1}. {question.stem}
                           </p>
-                          <p className="mb-1 text-white/80">
+                          <p className="mb-1 text-slate-700">
                             Your answer:{' '}
-                            <span className="font-semibold text-white">
+                            <span className="font-semibold text-slate-900">
                               {answer.selectedAnswer}.{' '}
                               {question.options[answer.selectedAnswer]}
                             </span>
                           </p>
-                          <p className="mb-1 text-white/80">
+                          <p className="mb-1 text-slate-700">
                             Correct answer:{' '}
-                            <span className="font-semibold text-white">
+                            <span className="font-semibold text-slate-900">
                               {question.correctAnswer}.{' '}
                               {question.options[question.correctAnswer]}
                             </span>
                           </p>
                           {primaryRef?.locator && (
-                            <p className="text-[11px] text-white/60">
+                            <p className="text-[11px] text-slate-500">
                               Reference: {primaryRef.locator}
                             </p>
                           )}
@@ -1908,18 +1992,18 @@ function AdvancedEngine({
     };
 
     return (
-      <div className="space-y-6 text-white">
+      <div className="space-y-6 text-slate-900">
         <div className="max-w-4xl mx-auto space-y-6">
-          <GlassCard className="border-white/15">
+          <GlassCard>
             <CardHeader className="text-center space-y-4">
-              <div className="mx-auto w-20 h-20 bg-white/10 rounded-full flex items-center justify-center border border-white/15">
-                <Trophy className="w-10 h-10 text-white" />
+              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border border-[#c9d4f4] bg-[#eef3ff]">
+                <Trophy className="h-10 w-10 text-[#2d4bb3]" />
               </div>
               <div className="space-y-2">
-                <CardTitle className="text-3xl font-bold text-white">
+                <CardTitle className="text-3xl font-bold text-slate-900">
                   Test Results – {moduleTitle}
                 </CardTitle>
-                <CardDescription className="text-base text-white/70">
+                <CardDescription className="text-base text-slate-600">
                   Unofficial TC-style feedback (for study only).
                 </CardDescription>
               </div>
@@ -1928,9 +2012,9 @@ function AdvancedEngine({
             <CardContent className="space-y-6">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div className="space-y-2">
-                  <p className="text-4xl font-bold tracking-tight text-white">
+                  <p className="text-4xl font-bold tracking-tight text-slate-900">
                     {percentage}%{' '}
-                    <span className="text-base font-normal text-white/70">
+                    <span className="text-base font-normal text-slate-600">
                       score
                     </span>
                   </p>
@@ -1940,49 +2024,49 @@ function AdvancedEngine({
                       className={[
                         'inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold border',
                         pass
-                          ? 'bg-emerald-500/15 text-emerald-50 border-emerald-400/20'
-                          : 'bg-red-500/15 text-red-50 border-red-400/20',
+                          ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                          : 'border-red-200 bg-red-50 text-red-800',
                       ].join(' ')}
                     >
                       {pass ? 'PASS' : 'FAIL'} (pass mark {passMark}%)
                     </span>
-                    <span className="text-xs text-white/60">
+                    <span className="text-xs text-slate-500">
                       Unanswered count as incorrect
                     </span>
                   </div>
 
-                  <p className="text-sm text-white/70">
+                  <p className="text-sm text-slate-600">
                     {correct} of {total} questions correct
                   </p>
-                  <ul className="space-y-1 text-sm text-white/70">
+                  <ul className="space-y-1 text-sm text-slate-600">
                     <li>
                       • Answered:{' '}
-                      <span className="font-medium text-white">{answered}</span>
+                      <span className="font-medium text-slate-900">{answered}</span>
                     </li>
                     <li>
                       • Unanswered:{' '}
-                      <span className="font-medium text-white">
+                      <span className="font-medium text-slate-900">
                         {unanswered}
                       </span>
                     </li>
                     <li>
                       • Incorrect:{' '}
-                      <span className="font-medium text-white">{incorrect}</span>
+                      <span className="font-medium text-slate-900">{incorrect}</span>
                     </li>
                   </ul>
                 </div>
 
                 <div className="w-full md:w-64">
                   <div className="relative w-40 h-40 mx-auto">
-                    <div className="absolute inset-0 rounded-full bg-white/10 border border-white/10" />
+                    <div className="absolute inset-0 rounded-full border border-slate-200 bg-slate-100" />
                     <div
-                      className="absolute inset-3 rounded-full border-[10px] border-white/70"
+                      className="absolute inset-3 rounded-full border-[10px] border-[#d9e2fb]"
                       style={{
-                        background: `conic-gradient(rgba(255,255,255,0.85) ${percentage}%, rgba(255,255,255,0.08) ${percentage}%)`,
+                        background: `conic-gradient(rgba(45,75,179,0.92) ${percentage}%, rgba(226,232,240,0.85) ${percentage}%)`,
                       }}
                     />
-                    <div className="absolute inset-7 rounded-full bg-black/40 border border-white/10 flex items-center justify-center">
-                      <span className="text-3xl font-bold text-white">
+                    <div className="absolute inset-7 flex items-center justify-center rounded-full border border-slate-200 bg-white">
+                      <span className="text-3xl font-bold text-slate-900">
                         {percentage}%
                       </span>
                     </div>
@@ -1992,13 +2076,13 @@ function AdvancedEngine({
 
               {/* ✅ Focus topics (copy) */}
               {hasTopicBreakdown && (
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-sm font-semibold text-white">
+                      <p className="text-sm font-semibold text-slate-900">
                         Study focus
                       </p>
-                      <p className="text-xs text-white/70 mt-1">{focusText}</p>
+                      <p className="mt-1 text-xs text-slate-600">{focusText}</p>
                     </div>
                     <Button
                       variant="outline"
@@ -2013,11 +2097,11 @@ function AdvancedEngine({
               )}
 
               {hasTopicBreakdown && (
-                <div className="border-t border-white/10 pt-4 space-y-3">
-                  <h3 className="text-sm font-semibold text-white">
+                <div className="space-y-3 border-t border-slate-200 pt-4">
+                  <h3 className="text-sm font-semibold text-slate-900">
                     Topic breakdown (TC-style feedback)
                   </h3>
-                  <p className="text-xs text-white/70">
+                  <p className="text-xs text-slate-600">
                     This helps you see which TC topics need more study.
                   </p>
 
@@ -2025,16 +2109,16 @@ function AdvancedEngine({
                     {topicRows.map((r) => (
                       <div
                         key={r.topicCode}
-                        className="rounded-2xl border border-white/10 bg-white/5 p-3"
+                        className="rounded-2xl border border-slate-200 bg-slate-50 p-3"
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="space-y-1">
-                            <p className="text-sm font-semibold text-white">
+                            <p className="text-sm font-semibold text-slate-900">
                               {r.topicCode}
                               {r.topicTitle ? ` – ${r.topicTitle}` : ''}
                             </p>
                             {r.sectionCode && (
-                              <p className="text-xs text-white/60">
+                              <p className="text-xs text-slate-500">
                                 Section {r.sectionCode}
                                 {r.sectionTitle ? ` – ${r.sectionTitle}` : ''}
                               </p>
@@ -2042,10 +2126,10 @@ function AdvancedEngine({
                           </div>
 
                           <div className="text-right">
-                            <p className="text-sm font-semibold text-white">
+                            <p className="text-sm font-semibold text-slate-900">
                               {r.correct}/{r.total} · {r.percent}%
                             </p>
-                            <p className="text-xs text-white/70">
+                            <p className="text-xs text-slate-600">
                               {r.classification}
                             </p>
                           </div>

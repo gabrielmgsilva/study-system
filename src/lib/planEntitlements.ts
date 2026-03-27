@@ -15,6 +15,18 @@ export type LicenseExperience = {
   logbook: boolean;
 };
 
+export type PlanCapOverrides = {
+  flashcardsPerDay?: number | null;
+  practicePerDay?: number | null;
+  testsPerWeek?: number | null;
+};
+
+export type LicensePlanCaps = {
+  flashcardsPerDay: number;
+  practicePerDay: number;
+  testsPerWeek: number;
+};
+
 // Central mapping (no complicated counters in DB)
 export function experienceForPlan(plan: PlanTier): Omit<LicenseExperience, 'plan'> {
   if (plan === 'premium') {
@@ -48,13 +60,26 @@ export function defaultLicenseExperience(plan: PlanTier = 'basic'): LicenseExper
   return { plan, ...experienceForPlan(plan) };
 }
 
-export function planCaps(plan: PlanTier) {
+function resolveOverride(base: number, override?: number | null) {
+  if (typeof override !== 'number' || !Number.isFinite(override) || override < 0) {
+    return base;
+  }
+
+  return override;
+}
+
+export function planCaps(plan: PlanTier, overrides?: PlanCapOverrides): LicensePlanCaps {
   // Client uses this for perceived limits (MVP). Backend keeps only plan + access types.
-  if (plan === 'premium') {
-    return { flashcardsPerDay: Infinity, practicePerDay: Infinity, testsPerWeek: Infinity };
-  }
-  if (plan === 'standard') {
-    return { flashcardsPerDay: Infinity, practicePerDay: Infinity, testsPerWeek: 3 };
-  }
-  return { flashcardsPerDay: 20, practicePerDay: 2, testsPerWeek: 1 };
+  const base: LicensePlanCaps =
+    plan === 'premium'
+      ? { flashcardsPerDay: Infinity, practicePerDay: Infinity, testsPerWeek: Infinity }
+      : plan === 'standard'
+        ? { flashcardsPerDay: Infinity, practicePerDay: Infinity, testsPerWeek: 3 }
+        : { flashcardsPerDay: 20, practicePerDay: 2, testsPerWeek: 1 };
+
+  return {
+    flashcardsPerDay: resolveOverride(base.flashcardsPerDay, overrides?.flashcardsPerDay),
+    practicePerDay: resolveOverride(base.practicePerDay, overrides?.practicePerDay),
+    testsPerWeek: resolveOverride(base.testsPerWeek, overrides?.testsPerWeek),
+  };
 }

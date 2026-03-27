@@ -4,18 +4,23 @@ import { NextResponse } from 'next/server';
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   const body = await req.json();
   const { name, email, licenceOrAuthNo, initials } = body;
+  const signatoryId = Number(params.id);
 
-  const existing = await prisma.signatory.findUnique({ where: { id: params.id } });
+  if (!Number.isInteger(signatoryId) || signatoryId <= 0) {
+    return NextResponse.json({ error: 'Invalid signatory id' }, { status: 400 });
+  }
+
+  const existing = await prisma.signatory.findFirst({ where: { id: signatoryId, deletedAt: null } });
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const signatory = await prisma.signatory.update({
-    where: { id: params.id },
+    where: { id: signatoryId },
     data: {
       name: name ?? existing.name,
       email: email ?? existing.email,
       licenceOrAuthNo: licenceOrAuthNo ?? existing.licenceOrAuthNo,
       initials: initials ?? existing.initials,
-      status: 'NEEDS_REVERIFY',
+      status: 'needs_reverify',
     },
   });
 
@@ -28,5 +33,5 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     },
   });
 
-  return NextResponse.json({ signatory });
+  return NextResponse.json({ signatory: { ...signatory, id: String(signatory.id), logbookId: String(signatory.logbookId) } });
 }

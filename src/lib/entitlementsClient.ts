@@ -2,6 +2,33 @@
 
 import type { LicenseExperience } from '@/lib/planEntitlements';
 
+export type LicenseUsageCaps = {
+  flashcardsPerDay: number | null;
+  practicePerDay: number | null;
+  testsPerWeek: number | null;
+};
+
+export type LicenseUsageSummary = {
+  flashcardsToday: number;
+  flashcardsRemaining: number | null;
+  practiceToday: number;
+  practiceRemaining: number | null;
+  testsThisWeek: number;
+  testsRemaining: number | null;
+};
+
+export type LicensePlanOverrides = {
+  flashcardsPerDay: number | null;
+  practicePerDay: number | null;
+  testsPerWeek: number | null;
+};
+
+export type LicenseExperienceSnapshot = LicenseExperience & {
+  caps?: LicenseUsageCaps;
+  usage?: LicenseUsageSummary;
+  overrides?: LicensePlanOverrides;
+};
+
 /**
  * Client-side student snapshot
  *
@@ -13,7 +40,7 @@ import type { LicenseExperience } from '@/lib/planEntitlements';
 export type StudentState = {
   credits: number;
   entitlements: string[];
-  licenseEntitlements: Record<string, LicenseExperience>;
+  licenseEntitlements: Record<string, LicenseExperienceSnapshot>;
 };
 
 let _cache: StudentState | null = null;
@@ -57,7 +84,7 @@ export async function getStudentState(opts?: { force?: boolean }): Promise<Stude
         : [];
 
       const leRaw = data?.licenseEntitlements;
-      const licenseEntitlements: Record<string, LicenseExperience> =
+      const licenseEntitlements: Record<string, LicenseExperienceSnapshot> =
         leRaw && typeof leRaw === 'object' ? leRaw : {};
 
       const next: StudentState = {
@@ -122,6 +149,11 @@ export async function hasModule(moduleKey: string): Promise<boolean> {
 
 export function clearStudentCache() {
   _cache = null;
+  _inflight = null;
+}
+
+export function primeStudentCache(state: StudentState) {
+  _cache = state;
   _inflight = null;
 }
 

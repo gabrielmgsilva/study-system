@@ -2,6 +2,12 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
+import {
+  getLogbookProfile,
+  type LicenceType,
+  type LogbookProfileId,
+} from './logbookProfiles';
+
 /* ============================
    API helpers
 ============================ */
@@ -38,18 +44,20 @@ async function apiSendVerify(signatoryId: string) {
 }
 
 /* ============================
-   Types
+  Types
 ============================ */
-
-type TaskGroup = {
-  ata: string;
-  title: string;
-  tasks: string[];
-};
 
 type TaskStatus = 'pending' | 'signed' | 'na';
 
-type SignatoryStatus = 'DRAFT' | 'VERIFIED' | 'PENDING';
+type SignatoryStatus = 'draft' | 'verified' | 'pending' | 'needs_reverify';
+
+function normalizeSignatoryStatus(value: unknown): SignatoryStatus {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'verified') return 'verified';
+  if (normalized === 'pending') return 'pending';
+  if (normalized === 'needs_reverify') return 'needs_reverify';
+  return 'draft';
+}
 
 type Signatory = {
   id: string;
@@ -74,49 +82,17 @@ const cx = (...classes: Array<string | false | null | undefined>) =>
 
 const LOGO_SRC = '/ame-one-logo.png'; // put in /public
 
-const TASK_GROUPS: TaskGroup[] = [
-  {
-    ata: '05',
-    title: 'Time limits Mtce Checks',
-    tasks: [
-      '100 hour check (general aviation aircraft)',
-      'Involvement in A,B or C check (transport category aircraft)',
-      'Review records for compliance with airworthiness directives',
-      'Review records for compliance with component life limits',
-      'Inspection following heavy landing',
-      'Inspection following lightning strike',
-    ],
-  },
-  {
-    ata: '06',
-    title: 'Dimensions/Areas',
-    tasks: ['Locate components by station number', 'Perform symmetry check'],
-  },
-  {
-    ata: '07',
-    title: 'Lifting/Shoring',
-    tasks: [
-      'Jack aircraft nose or tail wheel',
-      'Jack complete aircraft',
-      'Sling or trestle major component',
-    ],
-  },
-];
-
-const GROUP_RANGES = (() => {
+function buildGroupRanges(taskGroups: Array<{ tasks: string[] }>) {
   const ranges: { start: number; end: number }[] = [];
   let idx = 0;
-  TASK_GROUPS.forEach((g) => {
+  taskGroups.forEach((g) => {
     const start = idx;
     const end = idx + g.tasks.length - 1;
     ranges.push({ start, end });
     idx = end + 1;
   });
   return ranges;
-})();
-
-const TOTAL_ROWS =
-  GROUP_RANGES.length > 0 ? GROUP_RANGES[GROUP_RANGES.length - 1].end + 1 : 0;
+}
 
 const signatoryRows = Array.from({ length: 15 }, (_, i) => i);
 
@@ -124,14 +100,29 @@ function storageKey(logbookId: string, suffix: string) {
   return `ameone_logbook_${logbookId}_${suffix}`;
 }
 
-export default function LogbookUI({ logbookId }: { logbookId: string }) {
+export default function LogbookUI({
+  logbookId,
+  initialLicenceType = 'M',
+  profileId = 'm',
+}: {
+  logbookId: string;
+  initialLicenceType?: LicenceType;
+  profileId?: LogbookProfileId;
+}) {
   const [applicantName, setApplicantName] = useState('');
   const [fileNumber, setFileNumber] = useState('');
 
   // ✅ normalized licenceType for cover
-  const [licenceType, setLicenceType] = useState<'M' | 'E' | 'S' | 'B'>('M');
+  const [licenceType, setLicenceType] = useState<LicenceType>(
+    initialLicenceType,
+  );
 
   const generatedDate = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const profile = useMemo(() => getLogbookProfile(profileId), [profileId]);
+  const taskGroups = profile.taskGroups;
+  const groupRanges = useMemo(() => buildGroupRanges(taskGroups), [taskGroups]);
+  const totalRows =
+    groupRanges.length > 0 ? groupRanges[groupRanges.length - 1].end + 1 : 0;
 
   const [signatories, setSignatories] = useState<Signatory[]>(
     () =>
@@ -144,37 +135,37 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
         initials: '',
         signatureSvg: '',
         dateSigned: '',
-        status: 'DRAFT' as SignatoryStatus,
+        status: 'draft' as SignatoryStatus,
       })) as Signatory[],
   );
 
   const [copies, setCopies] = useState<SignatoryCopyFile[]>([]);
 
   const [taskStatus, setTaskStatus] = useState<TaskStatus[]>(() =>
-    Array(TOTAL_ROWS).fill('pending'),
+    Array(totalRows).fill('pending'),
   );
   const [dateCompleted, setDateCompleted] = useState<string[]>(() =>
-    Array(TOTAL_ROWS).fill(''),
+    Array(totalRows).fill(''),
   );
   const [aircraftOrComponent, setAircraftOrComponent] = useState<string[]>(() =>
-    Array(TOTAL_ROWS).fill(''),
+    Array(totalRows).fill(''),
   );
   const [regOrSerial, setRegOrSerial] = useState<string[]>(() =>
-    Array(TOTAL_ROWS).fill(''),
+    Array(totalRows).fill(''),
   );
   const [initialsField, setInitialsField] = useState<string[]>(() =>
-    Array(TOTAL_ROWS).fill(''),
+    Array(totalRows).fill(''),
   );
 
   const [selectedSignatoryIndex, setSelectedSignatoryIndex] = useState<
     number[]
-  >(() => Array(TOTAL_ROWS).fill(-1));
+  >(() => Array(totalRows).fill(-1));
   const [signedBySignatoryIndex, setSignedBySignatoryIndex] = useState<
     number[]
-  >(() => Array(TOTAL_ROWS).fill(-1));
+  >(() => Array(totalRows).fill(-1));
 
   const [expandedGroups, setExpandedGroups] = useState<boolean[]>(() =>
-    TASK_GROUPS.map(() => false),
+    taskGroups.map(() => false),
   );
 
   const [signWarningRow, setSignWarningRow] = useState<number | null>(null);
@@ -215,6 +206,8 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
           } else if (t === 'M1/M2' || t === 'M1M2') {
             setLicenceType('M'); // previous value -> new
           }
+        } else {
+          setLicenceType(initialLicenceType);
         }
 
         // compatibility for old shapes ("licence"/"date" etc)
@@ -227,11 +220,11 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
               slotNumber: Number(s.slotNumber || i + 1),
               name: String(s.name || ''),
               email: String(s.email || ''),
-              licenceNumber: String(s.licenceNumber || s.licence || ''),
+              licenceNumber: String(s.licenceNumber || s.licenceOrAuthNo || s.licence || ''),
               initials: String(s.initials || ''),
               signatureSvg: String(s.signatureSvg || ''),
               dateSigned: String(s.dateSigned || s.date || ''),
-              status: (s.status as SignatoryStatus) || 'DRAFT',
+              status: normalizeSignatoryStatus(s.status),
             };
           });
           setSignatories(normalized);
@@ -257,7 +250,7 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
       // ignore
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [logbookId]);
+  }, [initialLicenceType, logbookId]);
 
   useEffect(() => {
     // save
@@ -303,10 +296,10 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
   ]);
 
   useEffect(() => {
-    const onBeforePrint = () => setExpandedGroups(TASK_GROUPS.map(() => true));
+    const onBeforePrint = () => setExpandedGroups(taskGroups.map(() => true));
     window.addEventListener('beforeprint', onBeforePrint);
     return () => window.removeEventListener('beforeprint', onBeforePrint);
-  }, []);
+  }, [taskGroups]);
 
   useEffect(() => {
     return () => {
@@ -332,7 +325,7 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
           initials: '',
           signatureSvg: '',
           dateSigned: '',
-          status: 'DRAFT',
+          status: 'draft',
         }));
 
         for (const s of dbRows || []) {
@@ -343,11 +336,11 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
               slotNumber: Number(s.slotNumber || idx + 1),
               name: String(s.name || ''),
               email: String(s.email || ''),
-              licenceNumber: String(s.licenceNumber || ''),
+              licenceNumber: String(s.licenceNumber || s.licenceOrAuthNo || ''),
               initials: String(s.initials || ''),
               signatureSvg: String(s.signatureSvg || ''),
               dateSigned: String(s.dateSigned || ''),
-              status: (s.status as SignatoryStatus) || 'DRAFT',
+              status: normalizeSignatoryStatus(s.status),
             };
           }
         }
@@ -378,22 +371,22 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
     setExpandedGroups((prev) => prev.map((v, i) => (i === groupIndex ? !v : v)));
   };
 
-  const expandAll = () => setExpandedGroups(TASK_GROUPS.map(() => true));
-  const collapseAll = () => setExpandedGroups(TASK_GROUPS.map(() => false));
+  const expandAll = () => setExpandedGroups(taskGroups.map(() => true));
+  const collapseAll = () => setExpandedGroups(taskGroups.map(() => false));
 
   const setRowStatus = (rowIndex: number, next: TaskStatus) => {
     setTaskStatus((prev) => prev.map((s, i) => (i === rowIndex ? next : s)));
   };
 
   const markGroupNA = (groupIndex: number) => {
-    const { start, end } = GROUP_RANGES[groupIndex];
+    const { start, end } = groupRanges[groupIndex];
     setTaskStatus((prev) =>
       prev.map((s, i) => (i >= start && i <= end ? 'na' : s)),
     );
   };
 
   const undoGroupNA = (groupIndex: number) => {
-    const { start, end } = GROUP_RANGES[groupIndex];
+    const { start, end } = groupRanges[groupIndex];
     setTaskStatus((prev) =>
       prev.map((s, i) =>
         i >= start && i <= end && s === 'na' ? 'pending' : s,
@@ -502,22 +495,20 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
   }, [copies]);
 
   const btnBase = 'px-2 py-[2px] text-[10px] rounded border transition-colors';
-  const btnInactive = 'border-gray-300 bg-white text-gray-700 hover:bg-gray-100';
-  const btnActive = 'border-gray-500 bg-gray-300 text-gray-900';
+  const btnInactive = 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50';
+  const btnActive = 'border-[#c9d4f4] bg-[#eef3ff] text-[#2d4bb3]';
   const btnDisabled =
-    'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed';
+    'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed';
 
   const uploadBtn =
-    'inline-flex items-center gap-2 px-3 py-1 rounded border border-gray-300 bg-white text-gray-800 hover:bg-gray-100 text-[11px] cursor-pointer';
+    'inline-flex items-center gap-2 rounded border border-slate-200 bg-white px-3 py-1 text-[11px] text-slate-700 hover:bg-slate-50 cursor-pointer';
 
-  const licenceSubtitle =
-    licenceType === 'M'
-      ? 'Airplane & Helicopter'
-      : licenceType === 'E'
-        ? 'Avionics'
-        : licenceType === 'S'
-          ? 'Structures'
-          : 'Balloon';
+  const toolbarButton = 'rounded border border-slate-200 bg-white px-3 py-1 text-slate-700 hover:bg-slate-50';
+  const toolbarPrimaryButton = 'rounded border border-[#2d4bb3] bg-[#2d4bb3] px-3 py-1 text-white hover:bg-[#243d99]';
+  const screenInput = 'w-full h-6 rounded border border-slate-200 bg-[#eef3ff] px-2 text-slate-700';
+  const screenInputCompact = 'h-6 rounded border border-slate-200 bg-white px-2 text-[10px] text-slate-700';
+
+  const licenceSubtitle = profile.licenceSubtitle;
 
   // Header for content pages (not shown on covers)
   const PrintContentHeader = () => (
@@ -536,7 +527,7 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
   );
 
   return (
-    <div className="p-4 md:p-8 flex justify-center">
+    <div className="flex justify-center bg-[#f8fafc] p-4 md:p-8">
       <div className="w-full max-w-5xl bg-white text-[11px] leading-snug border border-black">
         <style jsx global>{`
           @media print {
@@ -563,19 +554,19 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
         `}</style>
 
         {/* TOOLBAR (screen-only) */}
-        <div className="screen-only sticky top-0 z-10 bg-white border-b border-gray-200">
+        <div className="screen-only sticky top-0 z-10 border-b border-slate-200 bg-white/95 backdrop-blur">
           <div className="flex items-center justify-between px-3 py-2">
             <button
               type="button"
               onClick={() => window.history.back()}
-              className="px-3 py-1 rounded border border-gray-300 bg-white text-gray-800 hover:bg-gray-100"
+              className={toolbarButton}
             >
               ← Return
             </button>
 
             <div className="flex items-center gap-2">
               <select
-                className="px-2 py-1 rounded border border-gray-300 bg-white text-gray-800"
+                className="rounded border border-slate-200 bg-white px-2 py-1 text-slate-700"
                 value={licenceType}
                 onChange={(e) =>
                   setLicenceType(e.target.value as 'M' | 'E' | 'S' | 'B')
@@ -591,21 +582,21 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
               <button
                 type="button"
                 onClick={expandAll}
-                className="px-3 py-1 rounded border border-gray-300 bg-white text-gray-800 hover:bg-gray-100"
+                className={toolbarButton}
               >
                 Expand all
               </button>
               <button
                 type="button"
                 onClick={collapseAll}
-                className="px-3 py-1 rounded border border-gray-300 bg-white text-gray-800 hover:bg-gray-100"
+                className={toolbarButton}
               >
                 Collapse all
               </button>
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="px-3 py-1 rounded border border-gray-500 bg-gray-800 text-white hover:bg-gray-900"
+                className={toolbarPrimaryButton}
               >
                 Print logbook
               </button>
@@ -614,7 +605,7 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
 
           {/* Progress bar (screen-only) */}
           <div className="px-3 pb-2">
-            <div className="flex items-center justify-between text-[11px] text-gray-700">
+            <div className="flex items-center justify-between text-[11px] text-slate-600">
               <div>
                 Progress: <strong>{signedCount}</strong> signed out of{' '}
                 <strong>{totalApplicable}</strong> applicable
@@ -623,9 +614,9 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
                 <strong>{progressPercent}%</strong>
               </div>
             </div>
-            <div className="mt-1 h-2 w-full rounded bg-gray-200 overflow-hidden">
+            <div className="mt-1 h-2 w-full overflow-hidden rounded bg-slate-200">
               <div
-                className="h-full bg-gray-700"
+                className="h-full bg-[#2d4bb3]"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
@@ -651,7 +642,7 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
               </div>
 
               <div className="text-[14px] font-semibold text-center">
-                Transport Canada – Maintenance Task Log
+                {profile.coverHeading}
               </div>
 
               <div className="text-[42px] font-black mt-3 text-center">
@@ -660,15 +651,15 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
 
               <div className="mt-3 text-[16px] text-center">
                 Licence: <span className="font-semibold">{licenceType}</span>{' '}
-                <span className="text-gray-700">— {licenceSubtitle}</span>
+                <span className="text-slate-600">— {licenceSubtitle}</span>
               </div>
 
-              <div className="mt-10 text-center text-[12px] text-gray-700">
+              <div className="mt-10 text-center text-[12px] text-slate-600">
                 Generated on {generatedDate}
               </div>
 
-              <div className="absolute left-10 right-10 bottom-10 text-[11px] text-gray-700 text-center">
-                AME ONE — Logbook Module (Print edition)
+              <div className="absolute bottom-10 left-10 right-10 text-center text-[11px] text-slate-600">
+                {profile.printFooterLabel}
               </div>
             </div>
           </div>
@@ -688,7 +679,7 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
                     type="text"
                     value={applicantName}
                     onChange={(e) => setApplicantName(e.target.value)}
-                    className="w-full h-6 border border-gray-300 bg-blue-100"
+                    className={screenInput}
                   />
                 </div>
               </td>
@@ -699,7 +690,7 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
                     type="text"
                     value={fileNumber}
                     onChange={(e) => setFileNumber(e.target.value)}
-                    className="w-full h-6 border border-gray-300 bg-blue-100"
+                    className={screenInput}
                   />
                 </div>
               </td>
@@ -711,13 +702,12 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
         <div className="px-2 py-2 border-b border-black">
           <div className="font-semibold mb-1">Instructions</div>
           <p>
-            The Maintenance Task List below is based on paragraph 566.03(4)(e) and
-            Appendix B of Chapter 566 of the Airworthiness. Applicants utilizing
-            this document, including persons authorized to certify the completion
-            of tasks, should be familiar with these requirements to properly
-            complete this document as a means for an applicant to establish proof
-            of skill.
+            {profile.introLead} Applicants utilizing this document, including
+            persons authorized to certify the completion of tasks, should be
+            familiar with these requirements to properly complete this document
+            as a means for an applicant to establish proof of skill.
           </p>
+          <p className="mt-1">{profile.introFocus}</p>
           <p className="mt-1">
             Applicants cannot sign for their own maintenance tasks regardless of
             whether they hold a rating, foreign licence, or authority within an
@@ -804,7 +794,7 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
                           // ignore
                         }
                       }}
-                      className="w-full h-6 border border-gray-300 bg-blue-100"
+                      className={screenInput}
                     />
 
                     {/* UI-only: email + verify */}
@@ -821,7 +811,7 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
                           } catch {}
                         }}
                         placeholder="Email (for verification)"
-                        className="flex-1 h-6 border border-gray-300 rounded px-2 text-[10px]"
+                        className={cx('flex-1', screenInputCompact)}
                       />
 
                       <button
@@ -837,24 +827,24 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
 
                             await apiSendVerify(saved.id);
 
-                            updateSignatory(idx, { status: 'PENDING' });
+                            updateSignatory(idx, { status: 'pending' });
                           } catch (e: any) {
                             alert(e?.message || 'Failed to send email');
                           }
                         }}
                         className={cx(
                           'px-2 py-[2px] rounded border text-[10px]',
-                          s.status === 'VERIFIED'
+                          s.status === 'verified'
                             ? 'border-green-600 bg-green-50 text-green-700'
-                            : s.status === 'PENDING'
+                            : s.status === 'pending'
                               ? 'border-amber-600 bg-amber-50 text-amber-700'
-                              : 'border-gray-300 bg-white hover:bg-gray-100',
+                              : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
                         )}
                         title="Send verification link to signatory"
                       >
-                        {s.status === 'VERIFIED'
+                        {s.status === 'verified'
                           ? 'Verified'
-                          : s.status === 'PENDING'
+                          : s.status === 'pending'
                             ? 'Pending'
                             : 'Verify (email)'}
                       </button>
@@ -862,11 +852,11 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
                       <span
                         className={cx(
                           'text-[10px] px-2 py-[1px] rounded border',
-                          s.status === 'VERIFIED'
+                          s.status === 'verified'
                             ? 'border-green-300 text-green-700 bg-green-50'
-                            : s.status === 'PENDING'
+                            : s.status === 'pending'
                               ? 'border-amber-300 text-amber-700 bg-amber-50'
-                              : 'border-gray-300 text-gray-600 bg-gray-50',
+                              : 'border-slate-200 bg-slate-50 text-slate-600',
                         )}
                         title="Signatory status"
                       >
@@ -881,7 +871,7 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
                         title="Upload supporting documentation (images)"
                       >
                         <span className="font-semibold">Upload</span>
-                        <span className="text-gray-600">(supporting docs)</span>
+                        <span className="text-slate-500">(supporting docs)</span>
                         <input
                           type="file"
                           accept="image/*"
@@ -901,15 +891,15 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
                             return (
                               <div
                                 key={`${c.file.name}-${i}`}
-                                className="flex items-center justify-between gap-2 p-1 border border-gray-200 rounded"
+                                className="flex items-center justify-between gap-2 rounded border border-slate-200 bg-slate-50 p-1"
                               >
-                                <span className="text-[10px] text-gray-700 truncate">
+                                <span className="truncate text-[10px] text-slate-700">
                                   {c.file.name}
                                 </span>
                                 <button
                                   type="button"
                                   onClick={() => removeCopy(globalIndex)}
-                                  className="px-2 py-[1px] rounded border border-gray-300 text-[10px] hover:bg-gray-100"
+                                  className="rounded border border-slate-200 px-2 py-[1px] text-[10px] text-slate-700 hover:bg-slate-100"
                                 >
                                   Remove
                                 </button>
@@ -933,7 +923,7 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
                           await saveSignatoryRow(idx);
                         } catch {}
                       }}
-                      className="w-full h-6 border border-gray-300 bg-blue-100"
+                      className={screenInput}
                     />
                   </td>
 
@@ -949,13 +939,13 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
                           await saveSignatoryRow(idx);
                         } catch {}
                       }}
-                      className="w-full h-6 border border-gray-300 bg-blue-100"
+                      className={screenInput}
                     />
                   </td>
 
                   <td className="border-t border-l border-black px-1 py-1">
                     {/* Signature preview (prints) */}
-                    <div className="w-full min-h-[24px] border border-gray-300 bg-blue-50 flex items-center">
+                    <div className="flex min-h-[24px] w-full items-center border border-slate-200 bg-slate-50">
                       {s.signatureSvg ? (
                         <div
                           className="w-full h-[24px] overflow-hidden"
@@ -967,7 +957,7 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
                       )}
                     </div>
 
-                    <div className="screen-only mt-1 text-[10px] text-gray-500">
+                    <div className="screen-only mt-1 text-[10px] text-slate-500">
                       Signature appears after verification.
                     </div>
                   </td>
@@ -984,7 +974,7 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
                           await saveSignatoryRow(idx);
                         } catch {}
                       }}
-                      className="w-full h-6 border border-gray-300 bg-blue-100 text-[10px]"
+                      className={cx('w-full', screenInputCompact)}
                     />
                   </td>
                 </tr>
@@ -1032,18 +1022,16 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
               <strong>Date completed</strong> – year, month, day, e.g., YYYY-MM-DD.
             </li>
             <li>
-              <strong>Aircraft type</strong> – model based on aircraft Type Certificate
-              Data Sheet (TCDS).
+              <strong>Aircraft type</strong> – {profile.completionExamples.aircraftType}
             </li>
             <li>
-              <strong>Component</strong> – e.g., starter generator.
+              <strong>Component</strong> – e.g., {profile.completionExamples.component}
             </li>
             <li>
-              <strong>Aircraft registration</strong> – aircraft marks e.g., C-GCFJ.
+              <strong>Aircraft registration</strong> – {profile.completionExamples.registration}
             </li>
             <li>
-              <strong>Component serial number</strong> – serial number from the
-              component data plate.
+              <strong>Component serial number</strong> – {profile.completionExamples.serial}
             </li>
             <li>
               <strong>Initials of AME or equivalent person</strong> – initials of a
@@ -1054,7 +1042,7 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
 
         {/* Maintenance Task Log */}
         <div className="px-2 pt-2">
-          <div className="font-semibold mb-1">MAINTENANCE TASK LIST</div>
+          <div className="font-semibold mb-1">{profile.taskListHeading}</div>
         </div>
 
         <table className="w-full border-t border-black border-collapse">
@@ -1080,9 +1068,9 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
           </thead>
 
           <tbody>
-            {TASK_GROUPS.map((group, groupIndex) => {
+            {taskGroups.map((group, groupIndex) => {
               const isExpanded = expandedGroups[groupIndex];
-              const start = GROUP_RANGES[groupIndex]?.start ?? 0;
+              const start = groupRanges[groupIndex]?.start ?? 0;
 
               return (
                 <React.Fragment key={`${group.ata}-${groupIndex}`}>
@@ -1116,7 +1104,7 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
                             e.stopPropagation();
                             toggleGroup(groupIndex);
                           }}
-                          className="screen-only absolute right-0 top-1/2 -translate-y-1/2 w-9 h-8 rounded border border-gray-300 text-lg leading-none hover:bg-gray-100"
+                          className="screen-only absolute right-0 top-1/2 h-8 w-9 -translate-y-1/2 rounded border border-slate-200 bg-white text-lg leading-none text-slate-700 hover:bg-slate-50"
                           aria-label={isExpanded ? 'Collapse ATA' : 'Expand ATA'}
                         >
                           {isExpanded ? '−' : '+'}
@@ -1198,7 +1186,7 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
                           <td className="border-t border-l border-black px-2 py-1">
                             <div className="flex items-start justify-between gap-2">
                               <span>• {task}</span>
-                              <span className="screen-only text-[10px] text-gray-500">
+                              <span className="screen-only text-[10px] text-slate-500">
                                 {getStatusLabel(status)}
                               </span>
                             </div>
@@ -1217,8 +1205,9 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
                               }
                               disabled={locked}
                               className={cx(
-                                'w-full h-6 border border-gray-300 bg-blue-100 text-[10px]',
-                                locked && 'bg-gray-200 text-gray-700',
+                                'w-full',
+                                screenInputCompact,
+                                locked && 'bg-slate-100 text-slate-500',
                               )}
                             />
                           </td>
@@ -1236,8 +1225,9 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
                               }
                               readOnly={locked}
                               className={cx(
-                                'w-full h-6 border border-gray-300 bg-blue-100',
-                                locked && 'bg-gray-200 text-gray-700',
+                                'w-full',
+                                screenInput,
+                                locked && 'bg-slate-100 text-slate-500',
                               )}
                             />
                           </td>
@@ -1255,8 +1245,9 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
                               }
                               readOnly={locked}
                               className={cx(
-                                'w-full h-6 border border-gray-300 bg-blue-100',
-                                locked && 'bg-gray-200 text-gray-700',
+                                'w-full',
+                                screenInput,
+                                locked && 'bg-slate-100 text-slate-500',
                               )}
                             />
                           </td>
@@ -1275,14 +1266,15 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
                               }
                               readOnly={locked}
                               className={cx(
-                                'w-full h-6 border border-gray-300 bg-blue-100',
-                                locked && 'bg-gray-200 text-gray-700',
+                                'w-full',
+                                screenInput,
+                                locked && 'bg-slate-100 text-slate-500',
                               )}
                             />
 
                             {signActive && signedSigSvg && (
                               <div
-                                className="mt-1 border border-gray-300 bg-white h-10 overflow-hidden"
+                                className="mt-1 h-10 overflow-hidden border border-slate-200 bg-white"
                                 style={{ padding: '2px' }}
                               >
                                 <div
@@ -1297,8 +1289,9 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
                                 <select
                                   disabled={locked}
                                   className={cx(
-                                    'flex-1 h-6 border border-gray-300 rounded text-[10px]',
-                                    locked && 'bg-gray-100 text-gray-500',
+                                    'flex-1',
+                                    screenInputCompact,
+                                    locked && 'bg-slate-100 text-slate-500',
                                   )}
                                   value={selectedSignatoryIndex[rowIndex] ?? -1}
                                   onChange={(e) =>
@@ -1330,8 +1323,8 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
 
                                     // Only allow "Sign" if VERIFIED
                                     if (
-                                      (signatories[sigIdx]?.status || 'DRAFT') !==
-                                      'VERIFIED'
+                                      (signatories[sigIdx]?.status || 'draft') !==
+                                      'verified'
                                     ) {
                                       showSignWarning(rowIndex);
                                       return;
@@ -1413,8 +1406,8 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
                                       selectedSignatoryIndex[rowIndex];
                                     if (sigIdx < 0) return 'Choose signatory first.';
                                     if (
-                                      (signatories[sigIdx]?.status || 'DRAFT') !==
-                                      'VERIFIED'
+                                      (signatories[sigIdx]?.status || 'draft') !==
+                                      'verified'
                                     )
                                       return 'Signatory must be VERIFIED first.';
                                     return 'Choose signatory first.';
@@ -1422,7 +1415,7 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
                                 </div>
                               )}
 
-                              <div className="text-[10px] text-gray-500">
+                              <div className="text-[10px] text-slate-500">
                                 Status: {getStatusLabel(status)}
                               </div>
                             </div>
@@ -1444,7 +1437,7 @@ export default function LogbookUI({ logbookId }: { logbookId: string }) {
               <img src={LOGO_SRC} alt="" className="w-80 opacity-90" />
             </div>
 
-            <div className="text-center text-[11px] text-gray-600 mt-6">
+            <div className="mt-6 text-center text-[11px] text-slate-600">
               AME ONE — Aircraft Maintenance Engineer Platform
               <br />
               Logbook module · Generated on {generatedDate}

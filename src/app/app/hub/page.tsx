@@ -1,322 +1,328 @@
-'use client';
-
-import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
-  Plane,
-  Radio,
-  Hammer,
-  Wind,
-  Lock,
-  Unlock,
-  User,
-  RefreshCw,
-  ShieldCheck,
+  BookOpen,
+  CheckCircle2,
+  CirclePlay,
+  Clock3,
+  FileText,
+  Layers3,
+  PencilLine,
 } from 'lucide-react';
 
-import TickerTips from '@/components/TickerTips';
-
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { getCurrentUserServer } from '@/lib/currentUserServer';
+import { getAppDictionary, localizeAppHref } from '@/lib/i18n/app';
+import { getServerAppLocale } from '@/lib/i18n/appServer';
 import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardFooter,
-  CardContent,
-} from '@/components/ui/card';
+  getDefaultStudyModule,
+  getStudyLicense,
+  getStudyModule,
+} from '@/lib/studyNavigation';
 
-import {
-  canAccessModuleFromState,
-  getStudentState,
-  hasModuleFromState,
-  type StudentState,
-} from '@/lib/entitlementsClient';
-import { ROUTES, type LicenseId } from '@/lib/routes';
-
-type Item = {
-  licenseId: LicenseId;
-  name: string;
-  desc: string;
-  href: string;
-  statusKeys: string[];
-  badgeText?: string;
+type StudyModulePageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export default function StudyChooserPage() {
-  const [ready, setReady] = useState(false);
-  const [student, setStudent] = useState<StudentState | null>(null);
+function normalizeParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] ?? '' : value ?? '';
+}
 
-  const [error, setError] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
+export default async function StudyModulePage({
+  searchParams,
+}: StudyModulePageProps) {
+  const locale = await getServerAppLocale();
+  const dictionary = getAppDictionary(locale);
+  const params = await searchParams;
+  const user = await getCurrentUserServer();
 
-  const tips = useMemo(
-    () => [
-      'Bring pencil, eraser and a basic calculator to the exam.',
-      'Read the full question first, then read ALL options.',
-      'Eliminate the most incorrect answers before choosing.',
-      'Study official Transport Canada references for deep understanding.',
-      'Use flashcards for memory + practice mode for speed.',
-    ],
-    []
-  );
+  const selectedLicenseId = normalizeParam(params.license);
+  const selectedModuleId = normalizeParam(params.module);
 
-  const items: Item[] = useMemo(
-    () => [
-      {
-        licenseId: 'regs',
-        name: 'REGS (Global)',
-        desc: 'Unlock once → CARs + Standards (shared across licences).',
-        href: ROUTES.regs,
-        statusKeys: ['regs.core'],
-        badgeText: 'Global',
-      },
-      {
-        licenseId: 'm',
-        name: 'M — Airplane & Helicopter',
-        desc: 'Standard Practices, Airframe, Powerplant and Logbook',
-        href: ROUTES.m,
-        statusKeys: [
-          'm.standard-practices',
-          'm.airframe',
-          'm.powerplant',
-          'm.logbook',
-        ],
-      },
-      {
-        licenseId: 'e',
-        name: 'E — Avionics',
-        desc: 'Standard Practices, Rating (Avionics) and Logbook',
-        href: ROUTES.e,
-        statusKeys: [
-          'e.standard-practices',
-          'e.rating-avionics',
-          'e.logbook',
-        ],
-      },
-      {
-        licenseId: 's',
-        name: 'S — Structures',
-        desc: 'Standard Practices, Rating (Structures) and Logbook',
-        href: ROUTES.s,
-        statusKeys: [
-          's.standard-practices',
-          's.rating-structures',
-          's.logbook',
-        ],
-      },
-      {
-        licenseId: 'balloons',
-        name: 'Balloons',
-        desc: 'BREGS and Logbook',
-        href: ROUTES.balloons,
-        statusKeys: ['balloons.bregs', 'balloons.logbook'],
-      },
-    ],
-    []
-  );
+  const selectedLicense = getStudyLicense(selectedLicenseId, locale);
+  const selectedModule = selectedLicense
+    ? getStudyModule(selectedLicense.licenseId, selectedModuleId, locale)
+    : null;
 
-  async function refreshStudent() {
-    try {
-      setError(null);
-      setRefreshing(true);
-      const s = await getStudentState({ force: true });
-      setStudent(s);
-      setReady(true);
-    } catch {
-      setError('Failed to refresh student state');
-      setReady(true);
-    } finally {
-      setRefreshing(false);
-    }
-  }
-
-  useEffect(() => {
-    let alive = true;
-
-    (async () => {
-      try {
-        const s = await getStudentState();
-        if (!alive) return;
-        setStudent(s);
-        setReady(true);
-      } catch {
-        if (!alive) return;
-        setError('Failed to load student state');
-        setReady(true);
-      }
-    })();
-
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  // Credits system is deprecated in the licence-first model.
-
-  const calcStatus = (keys: string[]) => {
-    if (!ready) return { unlocked: 0, total: keys.length };
-    const unlocked = keys.filter(
-      (k) => canAccessModuleFromState(student, k) || hasModuleFromState(student, k)
-    ).length;
-    return { unlocked, total: keys.length };
-  };
-
-  const iconFor = (licenseId: LicenseId) => {
-    if (licenseId === 'regs') return ShieldCheck;
-    if (licenseId === 'm') return Plane;
-    if (licenseId === 'e') return Radio;
-    if (licenseId === 's') return Hammer;
-    return Wind;
-  };
+  const fallback = getDefaultStudyModule(user?.primaryLicenseId, locale);
+  const activeLicense = selectedLicense && selectedModule ? selectedLicense : fallback.license;
+  const activeModule = selectedModule ?? fallback.module;
 
   return (
     <div className="space-y-6">
-      {/* Top actions + status */}
-      <div className="flex items-center justify-between">
-        <div className="text-xs text-white/80">
-          {ready ? (
-            <>
-              Plans are per licence. Manage access in <span className="text-white">Student Area</span>.
-              {error ? <span className="ml-3 text-red-200">{error}</span> : null}
-            </>
-          ) : (
-            'Loading…'
-          )}
+      <div className="flex flex-col gap-3 border-b border-slate-200 pb-5 md:flex-row md:items-end md:justify-between">
+        <div className="space-y-2">
+          <div className="text-xs font-medium text-slate-400">{activeModule.breadcrumb}</div>
+          <div>
+            <h1 className="text-[2rem] font-semibold tracking-tight text-slate-900">
+              {activeModule.title}
+            </h1>
+            <p className="mt-1 max-w-3xl text-sm text-slate-500">
+              {activeModule.description}
+            </p>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={refreshStudent}
-            variant="outline"
-            size="sm"
-            className="border-white/15 bg-white/10 text-white hover:bg-white/15"
-            disabled={!ready || refreshing}
-          >
-            <RefreshCw
-              className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`}
+        <div className="flex items-center gap-8">
+          <div className="text-right">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+              {dictionary.study.progress}
+            </div>
+            <div className="text-[2rem] font-semibold leading-none text-[#2d4bb3]">
+              {activeModule.progressPercent}%
+            </div>
+          </div>
+
+          <div className="text-right">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+              {dictionary.study.difficulty}
+            </div>
+            <div className="text-sm font-semibold text-[#ff8a1f]">{activeModule.difficulty}</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="h-2.5 overflow-hidden rounded-full bg-slate-200">
+        <div
+          className="h-full rounded-full bg-[#2d4bb3]"
+          style={{ width: `${activeModule.progressPercent}%` }}
+        />
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-3">
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_14px_32px_rgba(15,23,42,0.06)]">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#eef3ff] text-[#2d4bb3]">
+              <Layers3 className="h-5 w-5" />
+            </div>
+            <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">
+              {activeModule.flashcards.status}
+            </span>
+          </div>
+
+          <div className="mt-5">
+            <h2 className="text-lg font-semibold text-slate-900">{dictionary.study.flashcards}</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {dictionary.study.spacedRepetition}
+            </p>
+          </div>
+
+          <div className="mt-5 flex items-end justify-between text-sm">
+            <span className="text-slate-500">{dictionary.study.cardsMastered}</span>
+            <span className="font-semibold text-slate-900">
+              {activeModule.flashcards.mastered}/{activeModule.flashcards.total}
+            </span>
+          </div>
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
+            <div
+              className="h-full rounded-full bg-[#2d4bb3]"
+              style={{
+                width: `${Math.min(
+                  100,
+                  Math.round(
+                    (Number(activeModule.flashcards.mastered) /
+                      Number(activeModule.flashcards.total)) *
+                      100,
+                  ),
+                )}%`,
+              }}
             />
-            Refresh
-          </Button>
+          </div>
+          <div className="mt-3 flex items-center justify-between text-[11px] text-slate-400">
+            <span>{activeModule.flashcards.lastSession}</span>
+            <span>{activeModule.flashcards.completion}</span>
+          </div>
 
-          <Button
-            asChild
-            variant="outline"
-            size="sm"
-            className="border-white/15 bg-white/10 text-white hover:bg-white/15"
+          <Link
+            href={localizeAppHref(activeModule.studyHref, locale)}
+            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#2d4bb3] px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(45,75,179,0.2)] transition hover:bg-[#243d99]"
           >
-            <Link href={ROUTES.student} className="flex items-center gap-2">
-              <User className="h-4 w-4" />
-              Student Area
-            </Link>
-          </Button>
+            <CirclePlay className="h-4 w-4" />
+            {dictionary.study.continueStudying}
+          </Link>
+        </section>
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_14px_32px_rgba(15,23,42,0.06)]">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+              <PencilLine className="h-5 w-5" />
+            </div>
+            <span className="rounded-full bg-[#eef3ff] px-2 py-1 text-[10px] font-semibold text-[#2d4bb3]">
+              {activeModule.practice.status}
+            </span>
+          </div>
+
+          <div className="mt-5">
+            <h2 className="text-lg font-semibold text-slate-900">{dictionary.study.practice}</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {dictionary.study.interactiveQa}
+            </p>
+          </div>
+
+          <dl className="mt-5 space-y-3 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-slate-500">{dictionary.study.lastPracticeScore}</dt>
+              <dd className="font-semibold text-emerald-600">{activeModule.practice.lastScore}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-slate-500">{dictionary.study.questionsAnswered}</dt>
+              <dd className="font-semibold text-slate-900">
+                {activeModule.practice.questionsAnswered}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-slate-500">{dictionary.study.avgAccuracy}</dt>
+              <dd className="font-semibold text-slate-900">{activeModule.practice.accuracy}</dd>
+            </div>
+          </dl>
+          <div className="mt-4 text-[11px] text-slate-400">
+            {dictionary.study.streak}: {activeModule.practice.streak}
+          </div>
+
+          <Link
+            href={localizeAppHref(activeModule.studyHref, locale)}
+            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#16a34a] px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(22,163,74,0.18)] transition hover:bg-[#15803d]"
+          >
+            <CirclePlay className="h-4 w-4" />
+            {dictionary.study.startPractice}
+          </Link>
+        </section>
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_14px_32px_rgba(15,23,42,0.06)]">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-50 text-[#f97316]">
+              <Clock3 className="h-5 w-5" />
+            </div>
+            <span className="rounded-full bg-orange-50 px-2 py-1 text-[10px] font-semibold text-[#f97316]">
+              {activeModule.test.status}
+            </span>
+          </div>
+
+          <div className="mt-5">
+            <h2 className="text-lg font-semibold text-slate-900">{dictionary.study.test}</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {dictionary.study.timedAssessment}
+            </p>
+          </div>
+
+          <dl className="mt-5 space-y-3 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-slate-500">{dictionary.study.mockTestAverage}</dt>
+              <dd className="font-semibold text-[#f97316]">{activeModule.test.averageScore}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-slate-500">{dictionary.study.testsCompleted}</dt>
+              <dd className="font-semibold text-slate-900">{activeModule.test.testsCompleted}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-slate-500">{dictionary.study.bestScore}</dt>
+              <dd className="font-semibold text-slate-900">{activeModule.test.bestScore}</dd>
+            </div>
+          </dl>
+          <div className="mt-4 flex items-center justify-between text-[11px] text-slate-400">
+            <span>{dictionary.study.time}: {activeModule.test.time}</span>
+            <span>{activeModule.test.readiness} {dictionary.study.readiness.toLowerCase()}</span>
+          </div>
+
+          <Link
+            href={localizeAppHref(activeModule.studyHref, locale)}
+            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#f97316] px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(249,115,22,0.2)] transition hover:bg-[#ea580c]"
+          >
+            <CirclePlay className="h-4 w-4" />
+            {dictionary.study.startTest}
+          </Link>
+        </section>
+      </div>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_14px_32px_rgba(15,23,42,0.06)]">
+        <h3 className="text-lg font-semibold text-slate-900">{dictionary.study.detailedTracking}</h3>
+
+        <div className="mt-6 grid gap-6 lg:grid-cols-3">
+          <div className="flex gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#eef3ff] text-[#2d4bb3]">
+              <Layers3 className="h-5 w-5" />
+            </div>
+            <div className="space-y-2">
+              <div className="font-semibold text-slate-900">{dictionary.study.flashcardMastery}</div>
+              <div className="grid grid-cols-[auto_auto] gap-x-5 gap-y-1 text-sm">
+                <span className="text-emerald-600">{dictionary.study.easy}</span>
+                <span className="text-slate-900">18 cards</span>
+                <span className="text-amber-500">{dictionary.study.medium}</span>
+                <span className="text-slate-900">6 cards</span>
+                <span className="text-red-500">{dictionary.study.hard}</span>
+                <span className="text-slate-900">26 cards</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+              <PencilLine className="h-5 w-5" />
+            </div>
+            <div className="space-y-2">
+              <div className="font-semibold text-slate-900">{dictionary.study.practicePerformance}</div>
+              <div className="grid grid-cols-[auto_auto] gap-x-5 gap-y-1 text-sm">
+                <span className="text-slate-500">{dictionary.study.correct}</span>
+                <span className="text-emerald-600">104/127</span>
+                <span className="text-slate-500">{dictionary.study.avgAccuracy}</span>
+                <span className="text-slate-900">{activeModule.practice.accuracy}</span>
+                <span className="text-slate-500">{dictionary.study.avgTime}</span>
+                <span className="text-slate-900">1.2 min</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-orange-50 text-[#f97316]">
+              <Clock3 className="h-5 w-5" />
+            </div>
+            <div className="space-y-2">
+              <div className="font-semibold text-slate-900">{dictionary.study.testReadiness}</div>
+              <div className="grid grid-cols-[auto_auto] gap-x-5 gap-y-1 text-sm">
+                <span className="text-slate-500">{dictionary.study.bestScore}</span>
+                <span className="text-slate-900">{activeModule.test.bestScore}</span>
+                <span className="text-slate-500">{dictionary.study.average}</span>
+                <span className="text-slate-900">{activeModule.test.averageScore}</span>
+                <span className="text-slate-500">{dictionary.study.readiness}</span>
+                <span className="font-semibold text-emerald-600">
+                  {activeModule.test.readiness}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
 
-      {/* Ticker */}
-      <div className="rounded-[22px] border border-white/15 bg-black/35 backdrop-blur-md p-2 shadow-sm">
-        <TickerTips tips={tips} />
-      </div>
+      <section className="rounded-2xl border border-[#d8e0fb] bg-[linear-gradient(90deg,rgba(238,243,255,0.95),rgba(255,248,245,0.9))] p-6 shadow-[0_14px_32px_rgba(15,23,42,0.04)]">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#2d4bb3] text-white">
+            <FileText className="h-5 w-5" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-slate-900">{dictionary.study.studyRecommendations}</h3>
+            <p className="text-sm text-slate-500">
+              {dictionary.study.recommendationsTuned} {activeLicense.label} / {activeModule.shortLabel}.
+            </p>
+          </div>
+        </div>
 
-      {/* Licence cards */}
-      <div className="grid gap-4 md:grid-cols-2">
-        {items.map((it) => {
-          const { unlocked, total } = calcStatus(it.statusKeys);
-          const allUnlocked = ready && unlocked === total;
+        <ul className="mt-5 space-y-3 text-sm text-slate-600">
+          {activeModule.recommendations.map((item) => (
+            <li key={item} className="flex items-start gap-3">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
 
-          const Icon = iconFor(it.licenseId);
-
-          return (
-            <Link key={it.href} href={it.href} className="block">
-              <Card
-                className="
-                  relative h-full cursor-pointer overflow-hidden rounded-[30px]
-                  border-white/15 bg-black/35 backdrop-blur-md
-                  transition-all hover:bg-black/45 hover:shadow-md
-                "
-              >
-                {/* Stronger readability overlay inside each card */}
-                <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-black/25 to-black/55 pointer-events-none" />
-                <div className="absolute inset-0 bg-[radial-gradient(700px_320px_at_20%_10%,rgba(255,255,255,0.07),transparent_60%)] pointer-events-none" />
-
-                <div className="relative">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="flex items-center justify-between gap-2 text-sm text-white">
-                      <span className="flex items-center gap-2">
-                        <span className="h-8 w-8 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center">
-                          <Icon className="h-4 w-4 text-white" />
-                        </span>
-                        <span className="leading-tight">{it.name}</span>
-                      </span>
-
-                      {!ready ? (
-                        <Badge
-                          className="border-white/20 bg-black/40 text-white"
-                          variant="outline"
-                        >
-                          …
-                        </Badge>
-                      ) : allUnlocked ? (
-                        <Badge
-                          className="gap-1 bg-white/15 text-white border border-white/15"
-                          variant="secondary"
-                        >
-                          <Unlock className="h-3 w-3" />
-                          Unlocked
-                        </Badge>
-                      ) : (
-                        <Badge
-                          className="gap-1 border-white/20 bg-black/40 text-white"
-                          variant="outline"
-                        >
-                          <Lock className="h-3 w-3" />
-                          {unlocked}/{total}
-                        </Badge>
-                      )}
-                    </CardTitle>
-
-                    <CardDescription className="text-xs text-white/85">
-                      {it.desc}
-                    </CardDescription>
-                  </CardHeader>
-
-                  {it.badgeText ? (
-                    <div className="px-6 -mt-1">
-                      <Badge
-                        className="border-white/20 bg-black/45 text-white"
-                        variant="outline"
-                      >
-                        {it.badgeText}
-                      </Badge>
-                    </div>
-                  ) : null}
-
-                  <CardFooter className="pt-0">
-                    {/* Button is visual; Link already wraps the card */}
-                    <div className="w-full rounded-xl border border-white/15 bg-white/10 text-white text-sm py-2 text-center">
-                      Open
-                    </div>
-                  </CardFooter>
-
-                  <CardContent className="pt-0 text-[12px] text-white/80 space-y-2">
-                    <p>
-                      Some questions are inspired by real exam style. For best
-                      results, always study the official Transport Canada
-                      materials for deeper understanding.
-                    </p>
-                    <p>
-                      Strategy: read the full question, read all options,
-                      eliminate the most incorrect answers, then choose the best
-                      remaining option.
-                    </p>
-                  </CardContent>
-                </div>
-              </Card>
-            </Link>
-          );
-        })}
-      </div>
+        <div className="mt-5">
+          <Link
+            href={localizeAppHref(activeModule.studyHref, locale)}
+            className="inline-flex items-center gap-2 rounded-lg bg-[#2d4bb3] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#243d99]"
+          >
+            <BookOpen className="h-4 w-4" />
+            {dictionary.study.viewFullModule}
+          </Link>
+        </div>
+      </section>
     </div>
   );
 }

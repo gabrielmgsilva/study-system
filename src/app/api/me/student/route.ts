@@ -1,9 +1,8 @@
-// src/app/api/me/student/route.ts
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 
 import { prisma } from '@/lib/prisma';
-import { verifySignedSession } from '@/lib/auth';
+import { getCurrentSessionServer } from '@/lib/currentUserServer';
+import { getLicenseEntitlementSnapshots } from '@/lib/studyAccess';
 
 function norm(s: string) {
   return String(s ?? '').trim().toLowerCase().replace(/_/g, '-');
@@ -17,28 +16,20 @@ function normalizeModuleKey(moduleKey: string): string {
 }
 
 export async function GET() {
-  const cookieStore = await cookies();
-  const raw = cookieStore.get('ameone_session')?.value;
-
-  const sessionId = verifySignedSession(raw);
-  if (!sessionId) {
-    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const session = await prisma.session.findUnique({ where: { id: sessionId } });
-  if (!session || session.expiresAt.getTime() < Date.now()) {
+  const session = await getCurrentSessionServer();
+  if (!session) {
     return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
   }
 
   const userId = session.userId;
 
-  const acct = await prisma.creditAccount.findUnique({
-    where: { userId },
+  const acct = await prisma.creditAccount.findFirst({
+    where: { userId, deletedAt: null },
     select: { balance: true },
   });
 
   const entRows = await prisma.entitlement.findMany({
-    where: { userId, granted: true },
+    where: { userId, granted: true, deletedAt: null },
     select: { moduleKey: true },
   });
 
@@ -46,38 +37,7 @@ export async function GET() {
     .map((r) => normalizeModuleKey(r.moduleKey))
     .filter(Boolean);
 
-  const licRows = await prisma.licenseEntitlement.findMany({
-    where: { userId },
-    select: {
-      licenseId: true,
-      plan: true,
-      flashcards: true,
-      practice: true,
-      test: true,
-      logbook: true,
-    },
-  });
-
-  const licenseEntitlements: Record<
-    string,
-    {
-      plan: string;
-      flashcards: string;
-      practice: string;
-      test: string;
-      logbook: boolean;
-    }
-  > = {};
-
-  for (const r of licRows) {
-    licenseEntitlements[norm(r.licenseId)] = {
-      plan: r.plan,
-      flashcards: r.flashcards,
-      practice: r.practice,
-      test: r.test,
-      logbook: !!r.logbook,
-    };
-  }
+  const licenseEntitlements = await getLicenseEntitlementSnapshots(prisma, userId);
 
   // IMPORTANT: do NOT auto-grant default access.
   // Missing licenseEntitlements means the user has not purchased that license/plan yet.

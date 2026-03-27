@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -50,56 +50,84 @@ enum TestStatus {
   expired
 }
 
+enum QuestionType {
+  single_choice
+}
+
+enum QuestionStatus {
+  draft
+  review
+  published
+  archived
+}
+
+enum ContentLocale {
+  en
+  pt
+}
+
 // ---------------------------------------------------------------------------
 // User & Auth
 // ---------------------------------------------------------------------------
 
 model User {
-  id                     String    @id @default(cuid())
-  email                  String    @unique
-  username               String?
+  id                     Int       @id @default(autoincrement()) @map("id")
+  email                  String    @unique @map("email")
+  name                   String?   @map("name")
+  username               String?   @map("username")
+  primaryLicenseId       String?   @map("primary_license_id")
+  studyLevel             String?   @map("study_level")
+  studyGoal              String?   @map("study_goal")
+  onboardingCompletedAt  DateTime? @map("onboarding_completed_at")
   passwordHash           String    @map("password_hash")
-  role                   UserRole  @default(user)
+  role                   UserRole  @default(user) @map("role")
   lastPasswordChangeAt   DateTime? @map("last_password_change_at")
   createdAt              DateTime  @default(now()) @map("created_at")
-  updatedAt              DateTime  @updatedAt @map("updated_at")
+  updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at")
+  deletedAt              DateTime? @map("deleted_at")
 
-  sessions            Session[]
   creditAccount       CreditAccount?
   creditLedger        CreditLedger[]
   entitlements        Entitlement[]
   licenseEntitlements LicenseEntitlement[]
   passwordResetTokens PasswordResetToken[]
+  sessions            Session[]
   studyProgress       StudyProgress[]
   studySessions       StudySession[]
   userStreak          UserStreak?
   practiceStates      PracticeState[]
   testAttempts        TestAttempt[]
+  createdQuestions    Question[]          @relation("QuestionCreatedBy")
+  reviewedQuestions   Question[]          @relation("QuestionReviewedBy")
 
   @@map("users")
 }
 
 model Session {
-  id        String   @id @default(cuid())
-  userId    String   @map("user_id")
-  createdAt DateTime @default(now()) @map("created_at")
-  expiresAt DateTime @map("expires_at")
+  id        Int       @id @default(autoincrement()) @map("id")
+  userId    Int       @map("user_id")
+  createdAt DateTime  @default(now()) @map("created_at")
+  expiresAt DateTime  @map("expires_at")
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@map("sessions")
 }
 
 model PasswordResetToken {
-  id        String    @id @default(cuid())
-  userId    String    @map("user_id")
-  token     String    @unique
+  id        Int       @id @default(autoincrement()) @map("id")
+  userId    Int       @map("user_id")
+  token     String    @unique @map("token")
   expiresAt DateTime  @map("expires_at")
   usedAt    DateTime? @map("used_at")
   createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@map("password_reset_tokens")
@@ -110,25 +138,28 @@ model PasswordResetToken {
 // ---------------------------------------------------------------------------
 
 model CreditAccount {
-  id        String   @id @default(cuid())
-  userId    String   @unique @map("user_id")
-  balance   Int      @default(0)
+  id        Int      @id @default(autoincrement()) @map("id")
+  userId    Int      @unique @map("user_id")
+  balance   Int      @default(0) @map("balance")
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
 
   @@map("credit_accounts")
 }
 
 model CreditLedger {
-  id        String   @id @default(cuid())
-  userId    String   @map("user_id")
-  delta     Int
-  reason    String
+  id        Int      @id @default(autoincrement()) @map("id")
+  userId    Int      @map("user_id")
+  delta     Int      @map("delta")
+  reason    String   @map("reason")
   createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@map("credit_ledger")
@@ -139,13 +170,16 @@ model CreditLedger {
 // ---------------------------------------------------------------------------
 
 model Entitlement {
-  id        String   @id @default(cuid())
-  userId    String   @map("user_id")
+  id        Int      @id @default(autoincrement()) @map("id")
+  userId    Int      @map("user_id")
   moduleKey String   @map("module_key") // ex: "regs.core", "m.powerplant"
-  granted   Boolean  @default(true)
+  granted   Boolean  @default(true) @map("granted")
   grantedAt DateTime @default(now()) @map("granted_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
 
   @@unique([userId, moduleKey])
   @@index([userId])
@@ -153,20 +187,25 @@ model Entitlement {
 }
 
 model LicenseEntitlement {
-  id        String           @id @default(cuid())
-  userId    String           @map("user_id")
+  id        Int              @id @default(autoincrement()) @map("id")
+  userId    Int              @map("user_id")
   licenseId String           @map("license_id") // "m" | "e" | "s" | "balloons" | "regs"
 
-  plan       PlanTier         @default(basic)
-  flashcards FlashcardsAccess @default(daily_limit)
-  practice   PracticeAccess   @default(cooldown)
-  test       TestAccess       @default(weekly_limit)
-  logbook    Boolean          @default(false)
+  plan       PlanTier         @default(basic) @map("plan")
+  flashcards FlashcardsAccess @default(daily_limit) @map("flashcards")
+  practice   PracticeAccess   @default(cooldown) @map("practice")
+  test       TestAccess       @default(weekly_limit) @map("test")
+  logbook    Boolean          @default(false) @map("logbook")
+  flashcardsPerDayOverride Int? @map("flashcards_per_day_override")
+  practicePerDayOverride   Int? @map("practice_per_day_override")
+  testsPerWeekOverride     Int? @map("tests_per_week_override")
 
   grantedAt DateTime         @default(now()) @map("granted_at")
-  updatedAt DateTime         @updatedAt @map("updated_at")
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @default(now()) @updatedAt @map("updated_at")
+  deletedAt DateTime?        @map("deleted_at")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
 
   @@unique([userId, licenseId])
   @@index([userId])
@@ -178,11 +217,11 @@ model LicenseEntitlement {
 // ---------------------------------------------------------------------------
 
 model StudyProgress {
-  id         String    @id @default(cuid())
-  userId     String    @map("user_id")
+  id         Int       @id @default(autoincrement()) @map("id")
+  userId     Int       @map("user_id")
   licenseId  String    @map("license_id")
   moduleKey  String    @map("module_key")
-  mode       StudyMode
+  mode       StudyMode @map("mode")
 
   questionsTotal     Int @default(0) @map("questions_total")
   questionsCorrect   Int @default(0) @map("questions_correct")
@@ -192,9 +231,10 @@ model StudyProgress {
   totalTimeSpentMs Int       @default(0) @map("total_time_spent_ms")
 
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
 
   @@unique([userId, moduleKey, mode])
   @@index([userId])
@@ -203,23 +243,26 @@ model StudyProgress {
 }
 
 model StudySession {
-  id         String    @id @default(cuid())
-  userId     String    @map("user_id")
+  id         Int       @id @default(autoincrement()) @map("id")
+  userId     Int       @map("user_id")
   licenseId  String    @map("license_id")
   moduleKey  String    @map("module_key")
-  mode       StudyMode
+  mode       StudyMode @map("mode")
 
+  createdAt  DateTime  @default(now()) @map("created_at")
   startedAt  DateTime  @default(now()) @map("started_at")
   finishedAt DateTime? @map("finished_at")
 
   questionsAnswered Int   @default(0) @map("questions_answered")
   questionsCorrect  Int   @default(0) @map("questions_correct")
-  score             Float?
+  score             Float?  @map("score")
   timeSpentMs       Int   @default(0) @map("time_spent_ms")
 
-  details String? // JSON stringified (individual answers)
+  details   String?   @map("details") // JSON stringified (individual answers)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([userId, moduleKey])
@@ -227,17 +270,18 @@ model StudySession {
 }
 
 model UserStreak {
-  id             String @id @default(cuid())
-  userId         String @unique @map("user_id")
+  id             Int    @id @default(autoincrement()) @map("id")
+  userId         Int    @unique @map("user_id")
   currentStreak  Int    @default(0) @map("current_streak")
   longestStreak  Int    @default(0) @map("longest_streak")
   lastActiveDate String @map("last_active_date") // "2026-03-24"
   totalXp        Int    @default(0) @map("total_xp")
 
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
 
   @@map("user_streaks")
 }
@@ -247,21 +291,23 @@ model UserStreak {
 // ---------------------------------------------------------------------------
 
 model PracticeState {
-  id             String @id @default(cuid())
-  userId         String @map("user_id")
-  moduleKey      String @map("module_key")
+  id             Int      @id @default(autoincrement()) @map("id")
+  userId         Int      @map("user_id")
+  moduleKey      String   @map("module_key")
 
-  currentIndex   Int    @default(0) @map("current_index")
-  questionIds    String @map("question_ids")    // JSON: ["q1","q2",...]
-  answers        String @default("{}") @map("answers") // JSON: {"q1":"A","q2":"C"}
-  correctCount   Int    @default(0) @map("correct_count")
-  incorrectCount Int    @default(0) @map("incorrect_count")
+  currentIndex   Int      @default(0) @map("current_index")
+  questionIds    String   @map("question_ids")    // JSON: ["q1","q2",...]
+  answers        String   @default("{}") @map("answers") // JSON: {"q1":"A","q2":"C"}
+  correctCount   Int      @default(0) @map("correct_count")
+  incorrectCount Int      @default(0) @map("incorrect_count")
 
-  startedAt DateTime @default(now()) @map("started_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  expiresAt DateTime @map("expires_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  startedAt DateTime  @default(now()) @map("started_at")
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at")
+  expiresAt DateTime  @map("expires_at")
+  deletedAt DateTime? @map("deleted_at")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
 
   @@unique([userId, moduleKey])
   @@index([userId])
@@ -269,29 +315,359 @@ model PracticeState {
 }
 
 model TestAttempt {
-  id         String     @id @default(cuid())
-  userId     String     @map("user_id")
+  id         Int        @id @default(autoincrement()) @map("id")
+  userId     Int        @map("user_id")
   moduleKey  String     @map("module_key")
 
-  status     TestStatus @default(in_progress)
+  status     TestStatus @default(in_progress) @map("status")
 
-  questionIds  String @map("question_ids")    // JSON
-  answers      String @default("{}") @map("answers") // JSON
-  currentIndex Int    @default(0) @map("current_index")
+  questionIds  String    @map("question_ids")    // JSON
+  answers      String    @default("{}") @map("answers") // JSON
+  currentIndex Int       @default(0) @map("current_index")
 
+  createdAt  DateTime  @default(now()) @map("created_at")
   startedAt  DateTime  @default(now()) @map("started_at")
   finishedAt DateTime? @map("finished_at")
   canceledAt DateTime? @map("canceled_at")
-  updatedAt  DateTime  @updatedAt @map("updated_at")
+  updatedAt  DateTime  @default(now()) @updatedAt @map("updated_at")
+  deletedAt  DateTime? @map("deleted_at")
 
-  score            Float?
+  score            Float? @map("score")
   questionsCorrect Int? @map("questions_correct")
   questionsTotal   Int? @map("questions_total")
   timeSpentMs      Int? @map("time_spent_ms")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([userId, moduleKey, status])
   @@map("test_attempts")
+}
+
+// ---------------------------------------------------------------------------
+// Logbook & Signature Flows
+// ---------------------------------------------------------------------------
+
+enum SignatoryStatus {
+  draft
+  pending
+  verified
+  needs_reverify
+}
+
+model Logbook {
+  id        Int       @id @default(autoincrement()) @map("id")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  signatories            Signatory[]
+  taskSignatureRequests  TaskSignatureRequest[]
+  auditEvents            AuditEvent[]
+
+  @@map("logbooks")
+}
+
+model Signatory {
+  id                 Int             @id @default(autoincrement()) @map("id")
+  logbookId          Int             @map("logbook_id")
+  slotNumber         Int?            @map("slot_number")
+  name               String          @map("name")
+  email              String          @map("email")
+  licenceOrAuthNo    String?         @map("licence_or_auth_no")
+  initials           String?         @map("initials")
+  signatureSvg       String?         @map("signature_svg")
+  signatureUpdatedAt DateTime?       @map("signature_updated_at")
+  status             SignatoryStatus @default(draft) @map("status")
+  createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime        @default(now()) @updatedAt @map("updated_at")
+  deletedAt          DateTime?       @map("deleted_at")
+
+  logbook                      Logbook                       @relation(fields: [logbookId], references: [id])
+  verificationRequests         SignatoryVerificationRequest[]
+  taskSignatureRequests        TaskSignatureRequest[]
+
+  @@unique([logbookId, slotNumber])
+  @@index([logbookId])
+  @@index([email])
+  @@map("signatories")
+}
+
+model SignatoryVerificationRequest {
+  id          Int       @id @default(autoincrement()) @map("id")
+  signatoryId Int       @map("signatory_id")
+  tokenHash   String    @unique @map("token_hash")
+  expiresAt   DateTime  @map("expires_at")
+  usedAt      DateTime? @map("used_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  signatory Signatory @relation(fields: [signatoryId], references: [id])
+
+  @@index([signatoryId])
+  @@map("signatory_verification_requests")
+}
+
+model TaskSignatureRequest {
+  id          Int       @id @default(autoincrement()) @map("id")
+  logbookId   Int       @map("logbook_id")
+  signatoryId Int       @map("signatory_id")
+  tokenHash   String    @unique @map("token_hash")
+  expiresAt   DateTime  @map("expires_at")
+  usedAt      DateTime? @map("used_at")
+  payloadJson String    @map("payload_json")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  logbook   Logbook   @relation(fields: [logbookId], references: [id])
+  signatory Signatory @relation(fields: [signatoryId], references: [id])
+
+  @@index([logbookId])
+  @@index([signatoryId])
+  @@map("task_signature_requests")
+}
+
+model AuditEvent {
+  id        Int       @id @default(autoincrement()) @map("id")
+  logbookId Int?      @map("logbook_id")
+  actorType String?   @map("actor_type")
+  actorId   Int?      @map("actor_id")
+  action    String    @map("action")
+  metaJson  String?   @map("meta_json")
+  ip        String?   @map("ip")
+  userAgent String?   @map("user_agent")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  logbook Logbook? @relation(fields: [logbookId], references: [id])
+
+  @@index([logbookId])
+  @@index([action])
+  @@map("audit_events")
+}
+
+// ---------------------------------------------------------------------------
+// Normalized Content & Admin Data
+// ---------------------------------------------------------------------------
+
+model License {
+  id           String    @id @map("id")
+  name         String    @map("name")
+  description  String?   @map("description")
+  displayOrder Int       @default(0) @map("display_order")
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  plans            Plan[]
+  modules          Module[]
+  planModuleLimits PlanModuleLimit[]
+
+  @@map("licenses")
+}
+
+model Plan {
+  id           Int       @id @default(autoincrement()) @map("id")
+  tier         PlanTier  @unique @map("tier")
+  licenseId    String?   @map("license_id")
+  slug         String    @unique @map("slug")
+  name         String    @map("name")
+  description  String?   @map("description")
+  displayOrder Int       @default(0) @map("display_order")
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  license          License?           @relation(fields: [licenseId], references: [id])
+  planModuleLimits PlanModuleLimit[]
+
+  @@index([licenseId])
+  @@map("plans")
+}
+
+model Module {
+  id           Int       @id @default(autoincrement()) @map("id")
+  licenseId    String    @map("license_id")
+  slug         String    @map("slug")
+  moduleKey    String    @unique @map("module_key")
+  name         String    @map("name")
+  description  String?   @map("description")
+  displayOrder Int       @default(0) @map("display_order")
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  license          License           @relation(fields: [licenseId], references: [id])
+  subjects         Subject[]
+  planModuleLimits PlanModuleLimit[]
+
+  @@unique([licenseId, slug])
+  @@index([licenseId])
+  @@map("modules")
+}
+
+model Subject {
+  id           Int       @id @default(autoincrement()) @map("id")
+  moduleId     Int       @map("module_id")
+  code         String    @map("code")
+  name         String    @map("name")
+  shortTitle   String?   @map("short_title")
+  subtitle     String?   @map("subtitle")
+  weight       Int       @default(1) @map("weight")
+  displayOrder Int       @default(0) @map("display_order")
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  module Module  @relation(fields: [moduleId], references: [id])
+  topics Topic[]
+
+  @@unique([moduleId, code])
+  @@index([moduleId])
+  @@map("subjects")
+}
+
+model Topic {
+  id           Int       @id @default(autoincrement()) @map("id")
+  subjectId    Int       @map("subject_id")
+  code         String    @map("code")
+  name         String    @map("name")
+  displayOrder Int       @default(0) @map("display_order")
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  subject   Subject     @relation(fields: [subjectId], references: [id])
+  questions Question[]
+
+  @@unique([subjectId, code])
+  @@index([subjectId])
+  @@map("topics")
+}
+
+model Question {
+  id           Int            @id @default(autoincrement()) @map("id")
+  externalId   String         @map("external_id")
+  topicId      Int            @map("topic_id")
+  locale       ContentLocale  @map("locale")
+  questionType QuestionType   @default(single_choice) @map("question_type")
+  stem         String         @map("stem")
+  difficulty   Int?           @map("difficulty")
+  status       QuestionStatus @default(draft) @map("status")
+  version      Int            @default(1) @map("version")
+  tags         String[]       @default([]) @map("tags")
+  sourceFile   String?        @map("source_file")
+  createdById  Int?           @map("created_by_id")
+  reviewedById Int?           @map("reviewed_by_id")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @default(now()) @updatedAt @map("updated_at")
+  deletedAt    DateTime?      @map("deleted_at")
+
+  topic        Topic                       @relation(fields: [topicId], references: [id])
+  createdBy    User?                       @relation("QuestionCreatedBy", fields: [createdById], references: [id])
+  reviewedBy   User?                       @relation("QuestionReviewedBy", fields: [reviewedById], references: [id])
+  options      QuestionOption[]
+  explanation  QuestionExplanation?
+  references   QuestionReference[]
+
+  @@unique([externalId, locale])
+  @@index([topicId])
+  @@index([createdById])
+  @@index([reviewedById])
+  @@map("questions")
+}
+
+model QuestionOption {
+  id           Int       @id @default(autoincrement()) @map("id")
+  questionId   Int       @map("question_id")
+  optionKey    String    @map("option_key")
+  text         String    @map("text")
+  isCorrect    Boolean   @default(false) @map("is_correct")
+  displayOrder Int       @default(0) @map("display_order")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  question    Question                    @relation(fields: [questionId], references: [id])
+  explanation QuestionOptionExplanation?
+
+  @@unique([questionId, optionKey])
+  @@index([questionId])
+  @@map("question_options")
+}
+
+model QuestionExplanation {
+  id                 Int       @id @default(autoincrement()) @map("id")
+  questionId         Int       @unique @map("question_id")
+  correctExplanation String?   @map("correct_explanation")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at")
+  deletedAt          DateTime? @map("deleted_at")
+
+  question Question @relation(fields: [questionId], references: [id])
+
+  @@map("question_explanations")
+}
+
+model QuestionOptionExplanation {
+  id               Int       @id @default(autoincrement()) @map("id")
+  questionOptionId Int       @unique @map("question_option_id")
+  explanation      String    @map("explanation")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at")
+  deletedAt        DateTime? @map("deleted_at")
+
+  questionOption QuestionOption @relation(fields: [questionOptionId], references: [id])
+
+  @@map("question_option_explanations")
+}
+
+model QuestionReference {
+  id           Int       @id @default(autoincrement()) @map("id")
+  questionId   Int       @map("question_id")
+  document     String?   @map("document")
+  area         String?   @map("area")
+  topicRef     String?   @map("topic_ref")
+  locator      String?   @map("locator")
+  note         String?   @map("note")
+  displayOrder Int       @default(0) @map("display_order")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  question Question @relation(fields: [questionId], references: [id])
+
+  @@index([questionId])
+  @@map("question_references")
+}
+
+model PlanModuleLimit {
+  id                  Int       @id @default(autoincrement()) @map("id")
+  planId              Int       @map("plan_id")
+  licenseId           String    @map("license_id")
+  moduleId            Int?      @map("module_id")
+  flashcardsPerDay    Int?      @map("flashcards_per_day")
+  practicePerDay      Int?      @map("practice_per_day")
+  testsPerWeek        Int?      @map("tests_per_week")
+  maxQuestionsPerSession Int?   @map("max_questions_per_session")
+  logbookAccess       Boolean?  @map("logbook_access")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at")
+  deletedAt           DateTime? @map("deleted_at")
+
+  plan    Plan    @relation(fields: [planId], references: [id])
+  license License @relation(fields: [licenseId], references: [id])
+  module  Module? @relation(fields: [moduleId], references: [id])
+
+  @@index([planId, licenseId])
+  @@index([moduleId])
+  @@map("plan_module_limits")
 }

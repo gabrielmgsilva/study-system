@@ -92,6 +92,7 @@ export default function StandardPracticesPage() {
       <AdvancedEngine
         licenseId="m"
         moduleId="standard-practices"
+        moduleKey="m.standard-practices"
         moduleTitle={title}
         moduleDescription={desc}
         sections={sections}

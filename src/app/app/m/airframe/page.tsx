@@ -105,6 +105,7 @@ export default function AirframePage() {
       <AdvancedEngine
         licenseId="m"
         moduleId="airframe"
+        moduleKey="m.airframe"
         moduleTitle={title}
         moduleDescription={desc}
         sections={sections}

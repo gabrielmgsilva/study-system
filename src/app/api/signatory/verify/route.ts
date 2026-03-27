@@ -16,8 +16,8 @@ export async function POST(req: Request) {
 
   const tokenHash = hashToken(token);
 
-  const vr = await prisma.signatoryVerificationRequest.findUnique({
-    where: { tokenHash },
+  const vr = await prisma.signatoryVerificationRequest.findFirst({
+    where: { tokenHash, deletedAt: null, signatory: { deletedAt: null } },
     include: { signatory: true },
   });
 
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
       data: {
         signatureSvg,
         signatureUpdatedAt: new Date(),
-        status: 'VERIFIED',
+        status: 'verified',
       },
     });
 

@@ -2,10 +2,10 @@
 
 import React from 'react';
 
-import BalloonsHubPage from '../hub/page';
+import BalloonsMenuPage from '../page';
 
 // Legacy route kept for backward compatibility.
 // This page simply renders the new Balloons Hub.
 export default function BalloonsStudyLegacyPage() {
-  return <BalloonsHubPage />;
+  return <BalloonsMenuPage />;
 }

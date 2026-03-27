@@ -60,35 +60,3 @@ function verifyPbkdf2Password(password: string, stored: string): boolean {
 
   return crypto.timingSafeEqual(a, b);
 }
-
-// ---------------------------------------------------------------------------
-// Session signing (HMAC-SHA256)
-// ---------------------------------------------------------------------------
-
-export function requireAuthSecret(): string {
-  const s = process.env.AUTH_SECRET;
-  if (!s) throw new Error('Missing AUTH_SECRET in environment.');
-  return s;
-}
-
-export function signSessionId(sessionId: string): string {
-  const secret = requireAuthSecret();
-  const sig = crypto.createHmac('sha256', secret).update(sessionId).digest('hex');
-  return `${sessionId}.${sig}`;
-}
-
-export function verifySignedSession(cookieValue: string | undefined | null): string | null {
-  if (!cookieValue) return null;
-  const [sessionId, sig] = cookieValue.split('.');
-  if (!sessionId || !sig) return null;
-
-  const secret = requireAuthSecret();
-  const expected = crypto.createHmac('sha256', secret).update(sessionId).digest('hex');
-
-  const a = Buffer.from(sig, 'hex');
-  const b = Buffer.from(expected, 'hex');
-  if (a.length !== b.length) return null;
-  if (!crypto.timingSafeEqual(a, b)) return null;
-
-  return sessionId;
-}

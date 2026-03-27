@@ -18,10 +18,18 @@ export async function POST(req: Request) {
 
   const row = await prisma.passwordResetToken.findUnique({
     where: { token: t },
-    select: { id: true, userId: true, expiresAt: true, usedAt: true },
+    select: { id: true, userId: true, expiresAt: true, usedAt: true, deletedAt: true },
   });
 
-  if (!row || row.usedAt || row.expiresAt.getTime() < Date.now()) {
+  if (!row || row.deletedAt || row.usedAt || row.expiresAt.getTime() < Date.now()) {
+    return NextResponse.json({ message: 'Invalid or expired token.' }, { status: 400 });
+  }
+
+  const user = await prisma.user.findFirst({
+    where: { id: row.userId, deletedAt: null },
+    select: { id: true },
+  });
+  if (!user) {
     return NextResponse.json({ message: 'Invalid or expired token.' }, { status: 400 });
   }
 

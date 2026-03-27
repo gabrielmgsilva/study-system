@@ -4,15 +4,14 @@ import 'server-only';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
-import { verifySignedSession } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { AUTH_COOKIE_NAME, getUserIdFromToken, verifyJWT } from '@/lib/jwt';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
 export type AuthContext = {
-  userId: string;
+  userId: number;
   email: string;
   role: 'user' | 'admin';
 };
@@ -22,29 +21,21 @@ export type AuthContext = {
 // ---------------------------------------------------------------------------
 
 /**
- * Resolve the current user from the session cookie.
+ * Resolve the current user from the auth token cookie.
  * Returns `null` when the request is not authenticated.
  */
 async function resolveUser(): Promise<AuthContext | null> {
   const cookieStore = await cookies();
-  const raw = cookieStore.get('ameone_session')?.value;
-  const sessionId = verifySignedSession(raw);
-  if (!sessionId) return null;
+  const token = await verifyJWT(cookieStore.get(AUTH_COOKIE_NAME)?.value);
+  if (!token) return null;
 
-  const session = await prisma.session.findUnique({
-    where: { id: sessionId },
-    select: {
-      expiresAt: true,
-      user: { select: { id: true, email: true, role: true } },
-    },
-  });
-
-  if (!session || session.expiresAt.getTime() < Date.now()) return null;
+  const userId = getUserIdFromToken(token);
+  if (!userId) return null;
 
   return {
-    userId: session.user.id,
-    email: session.user.email,
-    role: session.user.role,
+    userId,
+    email: token.email,
+    role: token.role,
   };
 }
 

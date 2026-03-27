@@ -60,17 +60,23 @@ export const ROUTES = {
   // -----------------------------
   // Auth (public)
   // -----------------------------
-  login: '/auth/login',
-  register: '/auth/register',
+  login: '/en/auth/login',
+  register: '/en/auth/register',
   forgotPassword: '/auth/forgot-password',
 
   // -----------------------------
   // App core (logged)
   // -----------------------------
   appHome: '/app',
+  appOnboarding: '/app/onboarding',
   appHub: '/app/hub',
   student: '/app/student',
   account: '/app/account',
+  adminHome: '/admin/users',
+  adminUsers: '/admin/users',
+  adminModules: '/admin/modules',
+  adminPlans: '/admin/plans',
+  adminContent: '/admin/content',
 
   // -----------------------------
   // TC-like — logged
@@ -134,4 +140,7 @@ export const ROUTES = {
 
   licenseLogbook: (licenseId: LicenseWithModules) =>
     `/app/${licenseId}/logbook` as const,
+
+  localizedLogin: (locale: string) => `/${locale}/auth/login` as const,
+  localizedRegister: (locale: string) => `/${locale}/auth/register` as const,
 } as const;

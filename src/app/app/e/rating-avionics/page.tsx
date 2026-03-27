@@ -8,12 +8,12 @@ import AdvancedEngine, {
   RawQuestion,
 } from '@/components/study/AdvancedEngine';
 
-// ✅ IMPORTS ALINHADOS COM A PASTA data/avionics/systems (GUIA TC)
-import sec24 from '../../../../../data/avionics/systems/24.json';
-import sec25 from '../../../../../data/avionics/systems/25.json';
-import sec26 from '../../../../../data/avionics/systems/26.json';
-import sec27 from '../../../../../data/avionics/systems/27.json';
-import sec28 from '../../../../../data/avionics/systems/28.json';
+// ✅ IMPORTS ALINHADOS COM A PASTA data/e/e-rating (GUIA TC)
+import sec24 from '../../../../../data/e/e-rating/24.json';
+import sec25 from '../../../../../data/e/e-rating/25.json';
+import sec26 from '../../../../../data/e/e-rating/26.json';
+import sec27 from '../../../../../data/e/e-rating/27.json';
+import sec28 from '../../../../../data/e/e-rating/28.json';
 
 // ✅ SECTIONS PARA O ADVANCEDENGINE (GUIA OFICIAL TC)
 const sections: DeckSection[] = [
@@ -73,6 +73,7 @@ export default function ERatingAvionicsPage() {
       <AdvancedEngine
         licenseId="e"
         moduleId="rating-avionics"
+        moduleKey="e.rating-avionics"
         moduleTitle="E Rating – Avionics (Systems & Theory)"
         moduleDescription="Select one or more TC sections (24–28) and study them in Flashcard, Practice, or Test mode."
         sections={sections}

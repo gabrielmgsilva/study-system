@@ -1,15 +1,5 @@
-import "server-only";
-import ModuleGate from "@/lib/ModuleGate";
+import 'server-only';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return (
-    <ModuleGate
-      licenseId="avionics"
-      moduleId="logbook" // 🔁 AJUSTE CONFORME A PASTA
-      title="Avionics"
-      backHref="/avionics"
-    >
-      {children}
-    </ModuleGate>
-  );
+  return children;
 }

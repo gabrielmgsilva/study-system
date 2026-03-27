@@ -102,6 +102,7 @@ export default function PowerplantPage() {
       <AdvancedEngine
         licenseId="m"
         moduleId="powerplant"
+        moduleKey="m.powerplant"
         moduleTitle={title}
         moduleDescription={desc}
         sections={sections}

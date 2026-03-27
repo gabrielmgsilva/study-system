@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { Suspense, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Plane, KeyRound, ArrowLeft } from 'lucide-react';
+import { Plane, KeyRound, ArrowLeft, Loader2 } from 'lucide-react';
 
 import { ROUTES } from '@/lib/routes';
 
@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
-export default function ResetPasswordPage() {
+function ResetPasswordPageContent() {
   const router = useRouter();
   const params = useSearchParams();
 
@@ -85,6 +85,7 @@ export default function ResetPasswordPage() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  disabled={loading}
                   autoComplete="new-password"
                   placeholder="••••••••"
                 />
@@ -96,6 +97,7 @@ export default function ResetPasswordPage() {
                   type="password"
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
+                  disabled={loading}
                   autoComplete="new-password"
                   placeholder="••••••••"
                 />
@@ -103,9 +105,15 @@ export default function ResetPasswordPage() {
 
               {error && <p className="text-sm text-red-600">{error}</p>}
 
-              <Button className="w-full" disabled={loading}>
-                <KeyRound className="h-4 w-4 mr-2" />
-                {loading ? 'Updating...' : 'Reset password'}
+              <Button className="w-full" disabled={loading} aria-label={loading ? 'Updating password' : 'Reset password'}>
+                {loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <KeyRound className="h-4 w-4 mr-2" />
+                    Reset password
+                  </>
+                )}
               </Button>
             </form>
           )}
@@ -119,5 +127,13 @@ export default function ResetPasswordPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={null}>
+      <ResetPasswordPageContent />
+    </Suspense>
   );
 }

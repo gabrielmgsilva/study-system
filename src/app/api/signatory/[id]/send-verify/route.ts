@@ -4,7 +4,14 @@ import { addDays, generateRawToken, hashToken } from '@/lib/token';
 import { sendEmailDev } from '@/lib/email-dev';
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
-  const signatory = await prisma.signatory.findUnique({ where: { id: params.id } });
+  const signatoryId = Number(params.id);
+  if (!Number.isInteger(signatoryId) || signatoryId <= 0) {
+    return NextResponse.json({ error: 'Invalid signatory id' }, { status: 400 });
+  }
+
+  const signatory = await prisma.signatory.findFirst({
+    where: { id: signatoryId, deletedAt: null },
+  });
   if (!signatory) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const raw = generateRawToken();
@@ -33,6 +40,11 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       action: 'SIGNATORY_VERIFY_SENT',
       metaJson: JSON.stringify({ signatoryId: signatory.id, verifyRequestId: verify.id }),
     },
+  });
+
+  await prisma.signatory.update({
+    where: { id: signatory.id },
+    data: { status: 'pending' },
   });
 
   return NextResponse.json({ ok: true });

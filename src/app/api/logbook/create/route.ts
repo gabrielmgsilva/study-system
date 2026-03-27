@@ -6,5 +6,5 @@ export async function POST() {
     data: {},
   });
 
-  return NextResponse.json({ logbookId: logbook.id });
+  return NextResponse.json({ logbookId: String(logbook.id) });
 }

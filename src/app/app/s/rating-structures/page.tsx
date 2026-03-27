@@ -9,17 +9,17 @@ import AdvancedEngine, {
 } from '@/components/study/AdvancedEngine';
 
 // metadata do módulo Structures
-import metadata from '../../../../../data/structures/metadata.json';
+import metadata from '../../../../../data/s/metadata.json';
 
 // imports estáticos dos JSONs (necessário pro bundler do Next)
-import st13 from '../../../../../data/structures/systems/13_sheet_metal.json';
-import st14 from '../../../../../data/structures/systems/14_tubular.json';
-import st15 from '../../../../../data/structures/systems/15_wood_fabric.json';
-import st16 from '../../../../../data/structures/systems/16_composites.json';
-import st17 from '../../../../../data/structures/systems/17_corrosion.json';
-import st18 from '../../../../../data/structures/systems/18_ndt.json';
-import st19 from '../../../../../data/structures/systems/19_fluid_lines.json';
-import st20 from '../../../../../data/structures/systems/20_thermoplastics.json';
+import st13 from '../../../../../data/s/s-rating/13_sheet_metal.json';
+import st14 from '../../../../../data/s/s-rating/14_tubular.json';
+import st15 from '../../../../../data/s/s-rating/15_wood_fabric.json';
+import st16 from '../../../../../data/s/s-rating/16_composites.json';
+import st17 from '../../../../../data/s/s-rating/17_corrosion.json';
+import st18 from '../../../../../data/s/s-rating/18_ndt.json';
+import st19 from '../../../../../data/s/s-rating/19_fluid_lines.json';
+import st20 from '../../../../../data/s/s-rating/20_thermoplastics.json';
 
 // Tipos para o metadata
 type StructuresSetMeta = {
@@ -81,6 +81,7 @@ export default function SRatingStructuresPage() {
       <AdvancedEngine
         licenseId="s"
         moduleId="rating-structures"
+        moduleKey="s.rating-structures"
         moduleTitle={title}
         moduleDescription="Select one or more Structures rating sections (13–20) and study them in Flashcard, Practice, or Test mode."
         sections={sections}

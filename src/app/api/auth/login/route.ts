@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { verifyPassword, signSessionId, hashPassword, needsRehash } from '@/lib/auth';
+import { hashPassword, needsRehash, verifyPassword } from '@/lib/auth';
+import { setAuthCookie, signJWT } from '@/lib/jwt';
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({} as any));
@@ -15,12 +16,12 @@ export async function POST(req: Request) {
     );
   }
 
-  const user = await prisma.user.findUnique({
-    where: { email: normalizedEmail },
+  const user = await prisma.user.findFirst({
+    where: { email: normalizedEmail, deletedAt: null },
   });
 
   // Não revelar se user existe ou não
-  if (!user || !user.passwordHash) {
+  if (!user || user.deletedAt || !user.passwordHash) {
     return NextResponse.json({ message: 'Invalid credentials.' }, { status: 401 });
   }
 
@@ -38,24 +39,20 @@ export async function POST(req: Request) {
     });
   }
 
-  const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 12);
-
-  const session = await prisma.session.create({
-    data: { userId: user.id, expiresAt },
+  const cookieValue = await signJWT({
+    userId: user.id,
+    email: user.email,
+    role: user.role,
   });
 
-  const cookieValue = signSessionId(session.id);
-
-  const res = NextResponse.json({ ok: true });
-
-  res.cookies.set('ameone_session', cookieValue, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    expires: expiresAt,
-    maxAge: 60 * 60 * 12, // 12h
+  const res = NextResponse.json({
+    ok: true,
+    user: {
+      id: user.id,
+      role: user.role,
+    },
   });
+  setAuthCookie(res, cookieValue);
 
   return res;
 }

@@ -6,7 +6,7 @@ import LogbookClientWrapper from './LogbookClientWrapper';
 export default function Page() {
   return (
     <EntitlementGuard moduleKey="m.logbook" title="M Logbook">
-      <LogbookClientWrapper />
+      <LogbookClientWrapper licenceKey="m" initialLicenceType="M" />
     </EntitlementGuard>
   );
 }

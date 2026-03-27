@@ -9,21 +9,21 @@ import AdvancedEngine, {
 } from '@/components/study/AdvancedEngine';
 
 // metadata do módulo Structures
-import metadata from '../../../../../data/structures/metadata.json';
+import metadata from '../../../../../data/s/metadata.json';
 
 // imports estáticos dos JSONs (necessário pro bundler do Next)
-import st01 from '../../../../../data/structures/standardPractices/01_standard_practices.json';
-import st02 from '../../../../../data/structures/standardPractices/02_aerodynamics_structures.json';
-import st03 from '../../../../../data/structures/standardPractices/03_math_physics.json';
-import st04 from '../../../../../data/structures/standardPractices/04_hardware.json';
-import st05 from '../../../../../data/structures/standardPractices/05_drawings.json';
-import st06 from '../../../../../data/structures/standardPractices/06_weight_balance.json';
-import st07 from '../../../../../data/structures/standardPractices/07_corrosion_metalurgy.json';
-import st08 from '../../../../../data/structures/standardPractices/08_ndt.json';
-import st09 from '../../../../../data/structures/standardPractices/09_servicing.json';
-import st10 from '../../../../../data/structures/standardPractices/10_tools.json';
-import st11 from '../../../../../data/structures/standardPractices/11_basic_structures.json';
-import st12 from '../../../../../data/structures/standardPractices/12_maintenance_procedures.json';
+import st01 from '../../../../../data/s/standardpractices/1.json';
+import st02 from '../../../../../data/s/standardpractices/2.json';
+import st03 from '../../../../../data/s/standardpractices/3.json';
+import st04 from '../../../../../data/s/standardpractices/4.json';
+import st05 from '../../../../../data/s/standardpractices/5.json';
+import st06 from '../../../../../data/s/standardpractices/6.json';
+import st07 from '../../../../../data/s/standardpractices/7.json';
+import st08 from '../../../../../data/s/standardpractices/8.json';
+import st09 from '../../../../../data/s/standardpractices/9.json';
+import st10 from '../../../../../data/s/standardpractices/10.json';
+import st11 from '../../../../../data/s/standardpractices/11.json';
+import st12 from '../../../../../data/s/standardpractices/12.json';
 
 // Tipos para o metadata
 type StructuresSetMeta = {
@@ -89,6 +89,7 @@ export default function SStandardPracticesPage() {
       <AdvancedEngine
         licenseId="s"
         moduleId="standard-practices-structures"
+        moduleKey="s.standard-practices"
         moduleTitle={title}
         moduleDescription="Select one or more Standard Practices sections (01–12) and study them in Flashcard, Practice, or Test mode."
         sections={sections}

@@ -10,6 +10,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       backHref="/avionics"
       backLabel="Back to Avionics"
       maxWidthClass="max-w-6xl"
+      showHeader={false}
     >
       <ModuleGate
         licenseId="avionics"

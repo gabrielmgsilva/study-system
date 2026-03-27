@@ -72,8 +72,9 @@ export default function RegsPage() {
   return (
     <EntitlementGuard moduleKey="regs.core" title={title}>
       <AdvancedEngine
-        licenseId="m"
+        licenseId="regs"
         moduleId="regs"
+        moduleKey="regs.core"
         moduleTitle={title}
         moduleDescription={desc}
         sections={sections}

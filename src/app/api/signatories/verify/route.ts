@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { hashToken } from '@/lib/token';
 
 function isProbablySvg(svg: string) {
   const s = svg.trim();
@@ -21,36 +22,34 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'signatureSvg must be SVG' }, { status: 400 });
   }
 
-  const reqRow = await prisma.signatoryVerificationRequest.findUnique({
-    where: { token },
+  const reqRow = await prisma.signatoryVerificationRequest.findFirst({
+    where: { tokenHash: hashToken(token), deletedAt: null, signatory: { deletedAt: null } },
     include: { signatory: true },
   });
 
   if (!reqRow) return NextResponse.json({ error: 'Invalid token' }, { status: 404 });
-  if (reqRow.status !== 'SENT') return NextResponse.json({ error: 'Token already used/expired' }, { status: 400 });
+  if (reqRow.usedAt) return NextResponse.json({ error: 'Token already used/expired' }, { status: 400 });
   if (reqRow.expiresAt.getTime() < Date.now()) {
-    await prisma.signatoryVerificationRequest.update({
-      where: { id: reqRow.id },
-      data: { status: 'EXPIRED' },
-    });
     return NextResponse.json({ error: 'Token expired' }, { status: 400 });
   }
 
   await prisma.signatory.update({
     where: { id: reqRow.signatoryId },
-    data: { signatureSvg, status: 'VERIFIED' },
+    data: { signatureSvg, signatureUpdatedAt: new Date(), status: 'verified' },
   });
 
   await prisma.signatoryVerificationRequest.update({
     where: { id: reqRow.id },
-    data: { status: 'USED' },
+    data: { usedAt: new Date() },
   });
 
   await prisma.auditEvent.create({
     data: {
       logbookId: reqRow.signatory.logbookId,
-      type: 'SIGNATORY_VERIFIED',
-      message: `Signatory slot ${reqRow.signatory.slotNumber} verified`,
+      actorType: 'SIGNATORY',
+      actorId: reqRow.signatoryId,
+      action: 'SIGNATORY_VERIFIED',
+      metaJson: JSON.stringify({ signatoryId: reqRow.signatoryId, slotNumber: reqRow.signatory.slotNumber }),
     },
   });
 

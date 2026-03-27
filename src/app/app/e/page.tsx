@@ -2,8 +2,10 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Radio, BookOpen, ClipboardList, FileText } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { Radio, BookOpen, ClipboardList, FileText } from 'lucide-react';
 
+import { getAppLocaleFromPathname, localizeAppHref } from '@/lib/i18n/app';
 import { ROUTES } from '@/lib/routes';
 
 import {
@@ -17,74 +19,82 @@ import {
 import { Button } from '@/components/ui/button';
 
 export default function EMenuPage() {
-  const glassCard =
-    'relative overflow-hidden rounded-[30px] border-white/15 bg-white/10 backdrop-blur-md';
-  const outlineBtn =
-    'border-white/15 bg-white/10 text-white hover:bg-white/15';
-  const glassOverlays = (
-    <>
-      <div className="absolute inset-0 bg-black/25 pointer-events-none" />
-      <div className="absolute inset-0 bg-gradient-to-br from-black/10 via-transparent to-black/25 pointer-events-none" />
-    </>
-  );
+  const pathname = usePathname();
+  const locale = getAppLocaleFromPathname(pathname);
+  const isPt = locale === 'pt';
+
+  const surfaceCard =
+    'rounded-[30px] border border-slate-200 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.08)]';
+  const outlineBtn = 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50';
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-3 border-b border-slate-200 pb-5 md:flex-row md:items-end md:justify-between">
         <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-medium text-white">
-            <Radio className="h-3 w-3 text-white/90" />
-            <span>Licence E – Avionics</span>
+          <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600">
+            <Radio className="h-3 w-3 text-[#2d4bb3]" />
+            <span>{isPt ? 'Licença E — Aviônicos' : 'Licence E – Avionics'}</span>
           </div>
 
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
-            E – Licence Home
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">
+            {isPt ? 'E — Início da licença' : 'E – Licence Home'}
           </h1>
 
-          <p className="text-sm text-white/75 max-w-2xl">
-            Access your E-rating study modules or open the TC-style avionics
-            logbook.
+          <p className="max-w-2xl text-sm text-slate-500">
+            {isPt
+              ? 'Acesse seus módulos de estudo da habilitação E ou abra o logbook de aviônicos no estilo TC.'
+              : 'Access your E-rating study modules or open the TC-style avionics logbook.'}
           </p>
         </div>
 
-        <Button asChild variant="outline" size="sm" className={outlineBtn}>
-          <Link href={ROUTES.appHome} className="flex items-center gap-2">
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </Link>
-        </Button>
+        <div className="text-right">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+            {isPt ? 'Trilhas de estudo' : 'Study Tracks'}
+          </div>
+          <div className="text-3xl font-semibold leading-none text-[#2d4bb3]">2</div>
+        </div>
       </div>
 
       {/* Top cards */}
       <div className="grid gap-4 md:grid-cols-2">
         {/* E Hub */}
-        <Link href={ROUTES.eHub} className="block">
+        <Link href={localizeAppHref(ROUTES.eHub, locale)} className="block">
           <Card
             className={[
-              glassCard,
-              'h-full transition-all hover:bg-white/15 hover:shadow-md cursor-pointer',
+              surfaceCard,
+              'h-full cursor-pointer transition-all hover:border-slate-300 hover:bg-slate-50 hover:shadow-[0_20px_46px_rgba(15,23,42,0.10)]',
             ].join(' ')}
           >
-            {glassOverlays}
-            <div className="relative">
+            <div>
               <CardHeader>
-                <CardTitle className="text-base md:text-lg flex items-center gap-2 text-white">
-                  <span className="h-8 w-8 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center">
-                    <BookOpen className="h-4 w-4 text-white" />
+                <CardTitle className="flex items-center gap-2 text-base text-slate-900 md:text-lg">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-2xl border border-slate-200 bg-[#eef3ff]">
+                    <BookOpen className="h-4 w-4 text-[#2d4bb3]" />
                   </span>
-                  E Hub (Module chooser)
+                  {isPt ? 'Hub E (seletor de módulos)' : 'E Hub (Module chooser)'}
                 </CardTitle>
-                <CardDescription className="text-xs md:text-sm text-white/75">
-                  Choose between Standard Practices and Avionics Systems.
+                <CardDescription className="text-xs text-slate-500 md:text-sm">
+                  {isPt
+                    ? 'Escolha entre Práticas Padrão e Sistemas Aviônicos.'
+                    : 'Choose between Standard Practices and Avionics Systems.'}
                 </CardDescription>
               </CardHeader>
 
-              <CardContent className="text-xs text-white/75">
+              <CardContent className="text-xs text-slate-500">
                 <ul className="list-disc pl-4 space-y-1">
-                  <li>Standard Practices – Avionics</li>
-                  <li>E Rating – Avionics Systems &amp; Theory</li>
-                  <li>Flashcards, Practice, and Test mode</li>
+                  {isPt ? (
+                    <>
+                      <li>Práticas Padrão — Aviônicos</li>
+                      <li>Habilitação E — Sistemas aviônicos e teoria</li>
+                      <li>Flashcards, prática e modo prova</li>
+                    </>
+                  ) : (
+                    <>
+                      <li>Standard Practices – Avionics</li>
+                      <li>E Rating – Avionics Systems &amp; Theory</li>
+                      <li>Flashcards, Practice, and Test mode</li>
+                    </>
+                  )}
                 </ul>
               </CardContent>
 
@@ -94,7 +104,7 @@ export default function EMenuPage() {
                   size="sm"
                   className={'w-full ' + outlineBtn}
                 >
-                  Open E Hub
+                  {isPt ? 'Abrir Hub E' : 'Open E Hub'}
                 </Button>
               </CardFooter>
             </div>
@@ -102,32 +112,41 @@ export default function EMenuPage() {
         </Link>
 
         {/* Logbook */}
-        <Link href={ROUTES.eLogbook} className="block">
+        <Link href={localizeAppHref(ROUTES.eLogbook, locale)} className="block">
           <Card
             className={[
-              glassCard,
-              'h-full transition-all hover:bg-white/15 hover:shadow-md cursor-pointer',
+              surfaceCard,
+              'h-full cursor-pointer transition-all hover:border-slate-300 hover:bg-slate-50 hover:shadow-[0_20px_46px_rgba(15,23,42,0.10)]',
             ].join(' ')}
           >
-            {glassOverlays}
-            <div className="relative">
+            <div>
               <CardHeader>
-                <CardTitle className="text-base md:text-lg flex items-center gap-2 text-white">
-                  <span className="h-8 w-8 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center">
-                    <ClipboardList className="h-4 w-4 text-white" />
+                <CardTitle className="flex items-center gap-2 text-base text-slate-900 md:text-lg">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-2xl border border-slate-200 bg-[#eef3ff]">
+                    <ClipboardList className="h-4 w-4 text-[#2d4bb3]" />
                   </span>
-                  E Logbook
+                  {isPt ? 'Logbook E' : 'E Logbook'}
                 </CardTitle>
-                <CardDescription className="text-xs md:text-sm text-white/75">
-                  TC-style experience logbook for the E rating.
+                <CardDescription className="text-xs text-slate-500 md:text-sm">
+                  {isPt ? 'Logbook de experiência no estilo TC para a habilitação E.' : 'TC-style experience logbook for the E rating.'}
                 </CardDescription>
               </CardHeader>
 
-              <CardContent className="text-xs text-white/75">
+              <CardContent className="text-xs text-slate-500">
                 <ul className="list-disc pl-4 space-y-1">
-                  <li>Official TC sample tasks</li>
-                  <li>Signatory management</li>
-                  <li>Print / export ready</li>
+                  {isPt ? (
+                    <>
+                      <li>Tarefas modelo oficiais do TC</li>
+                      <li>Gestão de signatários</li>
+                      <li>Pronto para impressão e exportação</li>
+                    </>
+                  ) : (
+                    <>
+                      <li>Official TC sample tasks</li>
+                      <li>Signatory management</li>
+                      <li>Print / export ready</li>
+                    </>
+                  )}
                 </ul>
               </CardContent>
 
@@ -137,7 +156,7 @@ export default function EMenuPage() {
                   size="sm"
                   className={'w-full ' + outlineBtn}
                 >
-                  Open Logbook
+                  {isPt ? 'Abrir logbook' : 'Open Logbook'}
                 </Button>
               </CardFooter>
             </div>
@@ -145,35 +164,34 @@ export default function EMenuPage() {
         </Link>
       </div>
 
-      {/* Study note */}
-      <Card className={glassCard}>
-        {glassOverlays}
-        <div className="relative">
+      <Card className="rounded-[30px] border-[#d8e0fb] bg-[linear-gradient(90deg,rgba(238,243,255,0.95),rgba(255,248,245,0.9))] shadow-[0_14px_32px_rgba(15,23,42,0.04)]">
+        <div>
           <CardHeader>
-            <CardTitle className="text-sm flex items-center gap-2 text-white">
-              <span className="h-8 w-8 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center">
-                <FileText className="h-4 w-4 text-white" />
+            <CardTitle className="flex items-center gap-2 text-sm text-slate-900">
+              <span className="flex h-8 w-8 items-center justify-center rounded-2xl border border-slate-200 bg-[#eef3ff]">
+                <FileText className="h-4 w-4 text-[#2d4bb3]" />
               </span>
-              Study note
+              {isPt ? 'Recomendações de estudo' : 'Study Recommendations'}
             </CardTitle>
-            <CardDescription className="text-xs text-white/75">
-              Always rely on official Transport Canada references.
+            <CardDescription className="text-xs text-slate-500">
+              {isPt ? 'Mantenha a revisão de aviônicos focada e modular.' : 'Keep avionics review focused and modular.'}
             </CardDescription>
           </CardHeader>
 
-          <CardContent className="space-y-4 text-sm text-white/75">
-            <p>
-              AME ONE is a supplement—not a replacement—for official material.
-              Use it to reinforce concepts and exam technique.
-            </p>
-
-            <div className="rounded-2xl border border-white/15 bg-white/5 p-4">
-              <p className="font-semibold text-white/90 mb-1">Exam strategy</p>
-              <p className="text-white/75">
-                Read carefully, eliminate wrong answers, then select the best
-                remaining option.
-              </p>
-            </div>
+          <CardContent className="space-y-4 text-sm text-slate-500">
+            {isPt ? (
+              <>
+                <p>Use Práticas Padrão para consolidar fundamentos antes de avançar para a revisão mais densa da habilitação E.</p>
+                <p>Alterne sessões de prática com testes cronometrados para equilibrar troubleshooting e teoria.</p>
+                <p>Mantenha o logbook disponível na mesma estrutura de rotas, em vez de um fluxo separado.</p>
+              </>
+            ) : (
+              <>
+                <p>Use Standard Practices to stabilize fundamentals before moving to systems-heavy E Rating review.</p>
+                <p>Alternate practice sessions with timed tests so troubleshooting and theory stay balanced.</p>
+                <p>Keep the logbook available as part of the same route structure instead of a separate flow.</p>
+              </>
+            )}
           </CardContent>
         </div>
       </Card>

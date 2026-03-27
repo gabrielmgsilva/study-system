@@ -10,13 +10,17 @@ export async function POST(req: Request) {
   const { licenseId, plan, userId: targetUserId } = await req.json().catch(() => ({}));
 
   // Admin can change any user's plan; defaults to their own for backward compat
-  const effectiveUserId = targetUserId ? String(targetUserId).trim() : auth.userId;
+  const effectiveUserId = targetUserId ? Number(targetUserId) : auth.userId;
 
   const lid = String(licenseId || '').trim();
   const tier = String(plan || '').trim();
 
   const allowedLicenses = new Set(['m', 'e', 's', 'balloons', 'regs']);
   const allowedPlans = new Set(['basic', 'standard', 'premium']);
+
+  if (!Number.isInteger(effectiveUserId) || effectiveUserId <= 0) {
+    return NextResponse.json({ message: 'Invalid userId' }, { status: 400 });
+  }
 
   if (!allowedLicenses.has(lid) || !allowedPlans.has(tier)) {
     return NextResponse.json({ message: 'Invalid payload' }, { status: 400 });

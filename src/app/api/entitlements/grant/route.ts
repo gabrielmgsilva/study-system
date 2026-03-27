@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 
 import { prisma } from '@/lib/prisma';
-import { verifySignedSession } from '@/lib/auth';
+import { getCurrentSessionServer } from '@/lib/currentUserServer';
 
 function norm(s: string) {
   return String(s ?? '').trim().toLowerCase().replace(/_/g, '-');
@@ -17,16 +16,8 @@ function normalizeModuleKey(moduleKey: string): string | null {
 
 export async function POST(req: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const raw = cookieStore.get('ameone_session')?.value;
-
-    const sessionId = verifySignedSession(raw);
-    if (!sessionId) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const session = await prisma.session.findUnique({ where: { id: sessionId } });
-    if (!session || session.expiresAt.getTime() < Date.now()) {
+    const session = await getCurrentSessionServer();
+    if (!session) {
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -40,8 +31,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Credits
-    const acct = await prisma.creditAccount.findUnique({
-      where: { userId },
+    const acct = await prisma.creditAccount.findFirst({
+      where: { userId, deletedAt: null },
       select: { balance: true },
     });
 
@@ -57,10 +48,10 @@ export async function POST(req: NextRequest) {
           moduleKey: normalizedKey,
         },
       },
-      select: { id: true, granted: true },
+      select: { id: true, granted: true, deletedAt: true },
     });
 
-    if (existing?.granted) {
+    if (existing?.granted && !existing.deletedAt) {
       return NextResponse.json({ ok: false, error: 'Module already unlocked' }, { status: 409 });
     }
 
@@ -69,7 +60,7 @@ export async function POST(req: NextRequest) {
       if (existing) {
         await tx.entitlement.update({
           where: { id: existing.id },
-          data: { granted: true, grantedAt: new Date() },
+          data: { granted: true, grantedAt: new Date(), deletedAt: null },
         });
       } else {
         await tx.entitlement.create({
@@ -87,13 +78,13 @@ export async function POST(req: NextRequest) {
       });
     });
 
-    const updatedAcct = await prisma.creditAccount.findUnique({
-      where: { userId },
+    const updatedAcct = await prisma.creditAccount.findFirst({
+      where: { userId, deletedAt: null },
       select: { balance: true },
     });
 
     const entRows = await prisma.entitlement.findMany({
-      where: { userId, granted: true },
+      where: { userId, granted: true, deletedAt: null },
       select: { moduleKey: true },
     });
 

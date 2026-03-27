@@ -5,8 +5,8 @@ import VerifyClient from './verify-client';
 export default async function Page({ params }: { params: { token: string } }) {
   const tokenHash = hashToken(params.token);
 
-  const req = await prisma.signatoryVerificationRequest.findUnique({
-    where: { tokenHash },
+  const req = await prisma.signatoryVerificationRequest.findFirst({
+    where: { tokenHash, deletedAt: null, signatory: { deletedAt: null } },
     include: { signatory: true },
   });
 
@@ -18,13 +18,13 @@ export default async function Page({ params }: { params: { token: string } }) {
     <VerifyClient
       rawToken={params.token}
       signatory={{
-        id: req.signatory.id,
+        id: String(req.signatory.id),
         name: req.signatory.name,
         email: req.signatory.email,
         licenceOrAuthNo: req.signatory.licenceOrAuthNo ?? '',
         initials: req.signatory.initials ?? '',
         signatureSvg: req.signatory.signatureSvg ?? null,
-        status: req.signatory.status,
+        status: String(req.signatory.status),
       }}
     />
   );

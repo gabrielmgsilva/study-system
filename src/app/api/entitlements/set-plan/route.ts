@@ -1,52 +1,62 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { defaultLicenseExperience } from '@/lib/planEntitlements';
-import { requireAdmin, isAuthError } from '@/lib/guards';
+import { getCurrentSessionServer } from '@/lib/currentUserServer';
 
 export async function POST(req: Request) {
-  const auth = await requireAdmin();
-  if (isAuthError(auth)) return auth;
+  const session = await getCurrentSessionServer();
+  if (!session) {
+    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+  }
 
-  const { licenseId, plan, userId: targetUserId } = await req.json().catch(() => ({}));
+  const { planId, userId: targetUserId } = await req.json().catch(() => ({}));
 
-  // Admin can change any user's plan; defaults to their own for backward compat
-  const effectiveUserId = targetUserId ? Number(targetUserId) : auth.userId;
-
-  const lid = String(licenseId || '').trim();
-  const tier = String(plan || '').trim();
-
-  const allowedLicenses = new Set(['m', 'e', 's', 'balloons', 'regs']);
-  const allowedPlans = new Set(['basic', 'standard', 'premium']);
+  const effectiveUserId = targetUserId ? Number(targetUserId) : session.userId;
+  const normalizedPlanId = Number(planId);
 
   if (!Number.isInteger(effectiveUserId) || effectiveUserId <= 0) {
-    return NextResponse.json({ message: 'Invalid userId' }, { status: 400 });
+    return NextResponse.json({ ok: false, error: 'Invalid userId' }, { status: 400 });
   }
 
-  if (!allowedLicenses.has(lid) || !allowedPlans.has(tier)) {
-    return NextResponse.json({ message: 'Invalid payload' }, { status: 400 });
+  if (effectiveUserId !== session.userId && session.role !== 'admin') {
+    return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
   }
 
-  const exp = defaultLicenseExperience(tier as any);
+  if (!Number.isInteger(normalizedPlanId) || normalizedPlanId <= 0) {
+    return NextResponse.json({ ok: false, error: 'Invalid planId' }, { status: 400 });
+  }
 
-  await prisma.licenseEntitlement.upsert({
-    where: { userId_licenseId: { userId: effectiveUserId, licenseId: lid } },
-    update: {
-      plan: exp.plan,
-      flashcards: exp.flashcards,
-      practice: exp.practice,
-      test: exp.test,
-      logbook: exp.logbook,
+  const plan = await prisma.plan.findFirst({
+    where: {
+      id: normalizedPlanId,
+      deletedAt: null,
+      ...(session.role === 'admin' ? {} : { isActive: true }),
     },
-    create: {
-      userId: effectiveUserId,
-      licenseId: lid,
-      plan: exp.plan,
-      flashcards: exp.flashcards,
-      practice: exp.practice,
-      test: exp.test,
-      logbook: exp.logbook,
-    },
+    select: { id: true, slug: true, name: true, isActive: true, maxLicenses: true },
   });
 
-  return NextResponse.json({ ok: true });
+  if (!plan) {
+    return NextResponse.json({ ok: false, error: 'Plan not found' }, { status: 404 });
+  }
+
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: effectiveUserId },
+      data: { planId: plan.id },
+    }),
+    prisma.licenseEntitlement.upsert({
+      where: { userId_licenseId: { userId: effectiveUserId, licenseId: 'regs' } },
+      update: {
+        isActive: true,
+        enrolledAt: new Date(),
+        deletedAt: null,
+      },
+      create: {
+        userId: effectiveUserId,
+        licenseId: 'regs',
+        isActive: true,
+      },
+    }),
+  ]);
+
+  return NextResponse.json({ ok: true, plan });
 }

@@ -1,12 +1,10 @@
-import type { ContentLocale, Prisma, QuestionStatus } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import { NextRequest, NextResponse } from 'next/server';
 
+import { createQuestionFromParsed } from '@/lib/adminQuestionMutations';
+import { parseLocale, parseQuestionPayload, parseStatus } from '@/lib/adminQuestionPayload';
 import { prisma } from '@/lib/prisma';
 import { isAuthError, requireAdmin } from '@/lib/guards';
-
-const CONTENT_LOCALES = ['en', 'pt'] as const satisfies readonly ContentLocale[];
-const QUESTION_STATUSES = ['draft', 'review', 'published', 'archived'] as const satisfies readonly QuestionStatus[];
-const OPTION_KEYS = ['A', 'B', 'C', 'D'] as const;
 
 function parsePage(value: string | null) {
   const parsed = Number(value);
@@ -25,124 +23,6 @@ function parseOptionalId(value: string | null) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
-function parseLocale(value: string | null): ContentLocale | null {
-  if (!value) return null;
-  return CONTENT_LOCALES.includes(value as ContentLocale) ? (value as ContentLocale) : null;
-}
-
-function parseStatus(value: string | null): QuestionStatus | null {
-  if (!value) return null;
-  return QUESTION_STATUSES.includes(value as QuestionStatus) ? (value as QuestionStatus) : null;
-}
-
-function parseNullableInt(value: unknown) {
-  if (value === '' || value === null || value === undefined) return null;
-  const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed >= 0 ? parsed : undefined;
-}
-
-function normalizeTags(value: unknown) {
-  if (Array.isArray(value)) {
-    return value
-      .map((item) => String(item).trim())
-      .filter(Boolean)
-      .slice(0, 30);
-  }
-
-  return String(value ?? '')
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean)
-    .slice(0, 30);
-}
-
-function normalizeReference(value: unknown) {
-  if (!value || typeof value !== 'object') return null;
-
-  const ref = {
-    document: String((value as Record<string, unknown>).document ?? '').trim() || null,
-    area: String((value as Record<string, unknown>).area ?? '').trim() || null,
-    topicRef: String((value as Record<string, unknown>).topicRef ?? '').trim() || null,
-    locator: String((value as Record<string, unknown>).locator ?? '').trim() || null,
-    note: String((value as Record<string, unknown>).note ?? '').trim() || null,
-  };
-
-  return Object.values(ref).some(Boolean) ? ref : null;
-}
-
-function parseQuestionPayload(body: Record<string, unknown>) {
-  const externalId = String(body.externalId ?? '').trim();
-  const topicId = Number(body.topicId);
-  const locale = parseLocale(String(body.locale ?? ''));
-  const status = parseStatus(String(body.status ?? ''));
-  const stem = String(body.stem ?? '').trim();
-  const difficulty = parseNullableInt(body.difficulty);
-  const sourceFile = String(body.sourceFile ?? '').trim() || null;
-  const correctExplanation = String(body.correctExplanation ?? '').trim() || null;
-  const correctOptionKey = String(body.correctOptionKey ?? '').trim().toUpperCase();
-  const rawOptions = Array.isArray(body.options) ? body.options : [];
-
-  if (!externalId || !Number.isInteger(topicId) || topicId <= 0 || !locale || !status || !stem) {
-    return { error: 'Missing required question fields.' } as const;
-  }
-
-  if (difficulty === undefined) {
-    return { error: 'Difficulty must be empty or a non-negative integer.' } as const;
-  }
-
-  if (!OPTION_KEYS.includes(correctOptionKey as (typeof OPTION_KEYS)[number])) {
-    return { error: 'Select a valid correct option.' } as const;
-  }
-
-  const options = OPTION_KEYS.map((key, index) => {
-    const match = rawOptions.find(
-      (option) =>
-        option &&
-        typeof option === 'object' &&
-        String((option as Record<string, unknown>).key ?? '')
-          .trim()
-          .toUpperCase() === key,
-    ) as Record<string, unknown> | undefined;
-
-    const text = String(match?.text ?? '').trim();
-    return {
-      key,
-      text,
-      isCorrect: key === correctOptionKey,
-      displayOrder: index,
-    };
-  });
-
-  if (options.some((option) => !option.text)) {
-    return { error: 'All option texts are required.' } as const;
-  }
-
-  const references = (Array.isArray(body.references) ? body.references : [])
-    .map(normalizeReference)
-    .filter(Boolean) as Array<{
-      document: string | null;
-      area: string | null;
-      topicRef: string | null;
-      locator: string | null;
-      note: string | null;
-    }>;
-
-  return {
-    data: {
-      externalId,
-      topicId,
-      locale,
-      status,
-      stem,
-      difficulty,
-      sourceFile,
-      tags: normalizeTags(body.tags),
-      correctExplanation,
-      options,
-      references,
-    },
-  } as const;
-}
 
 export async function GET(req: NextRequest) {
   const auth = await requireAdmin();
@@ -194,6 +74,7 @@ export async function GET(req: NextRequest) {
         locale: true,
         stem: true,
         difficulty: true,
+        version: true,
         status: true,
         tags: true,
         updatedAt: true,
@@ -222,14 +103,6 @@ export async function GET(req: NextRequest) {
                 },
               },
             },
-          },
-        },
-        options: {
-          where: { deletedAt: null },
-          orderBy: { displayOrder: 'asc' },
-          select: {
-            optionKey: true,
-            isCorrect: true,
           },
         },
       },
@@ -281,56 +154,10 @@ export async function POST(req: NextRequest) {
   }
 
   const created = await prisma.$transaction(async (tx) => {
-    const question = await tx.question.create({
-      data: {
-        externalId: parsed.data.externalId,
-        topicId: parsed.data.topicId,
-        locale: parsed.data.locale,
-        stem: parsed.data.stem,
-        difficulty: parsed.data.difficulty,
-        status: parsed.data.status,
-        tags: parsed.data.tags,
-        sourceFile: parsed.data.sourceFile,
-        createdById: auth.userId,
-      },
-      select: { id: true },
-    });
-
-    await tx.questionOption.createMany({
-      data: parsed.data.options.map((option) => ({
-        questionId: question.id,
-        optionKey: option.key,
-        text: option.text,
-        isCorrect: option.isCorrect,
-        displayOrder: option.displayOrder,
-      })),
-    });
-
-    if (parsed.data.correctExplanation) {
-      await tx.questionExplanation.create({
-        data: {
-          questionId: question.id,
-          correctExplanation: parsed.data.correctExplanation,
-        },
-      });
-    }
-
-    if (parsed.data.references.length > 0) {
-      await tx.questionReference.createMany({
-        data: parsed.data.references.map((reference, index) => ({
-          questionId: question.id,
-          document: reference.document,
-          area: reference.area,
-          topicRef: reference.topicRef,
-          locator: reference.locator,
-          note: reference.note,
-          displayOrder: index,
-        })),
-      });
-    }
+    const questionId = await createQuestionFromParsed(tx, parsed.data, auth.userId);
 
     return tx.question.findFirst({
-      where: { id: question.id },
+      where: { id: questionId },
       include: {
         topic: {
           include: {
@@ -348,6 +175,9 @@ export async function POST(req: NextRequest) {
         options: {
           where: { deletedAt: null },
           orderBy: { displayOrder: 'asc' },
+          include: {
+            explanation: true,
+          },
         },
         explanation: true,
         references: {

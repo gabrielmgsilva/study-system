@@ -381,16 +381,32 @@ function formatUsageLimit(limit: number | null, remaining: number | null, period
     return `Unlimited ${period}`;
   }
 
+  if (limit <= 0) {
+    return `Not available ${period}`;
+  }
+
   return `${remaining} remaining ${period}`;
 }
 
-function fallbackCaps(plan?: string): LicenseUsageCaps | null {
+function fallbackCaps(plan?: StudentState['plan'] | null): LicenseUsageCaps | null {
   if (!plan) return null;
-  const caps = planCaps(plan as 'basic' | 'standard' | 'premium');
+  const caps = planCaps({
+    ...plan,
+    description: null,
+    flashcardsLimit: -1,
+    flashcardsUnit: 'day',
+    practiceLimit: -1,
+    practiceUnit: 'day',
+    testsLimit: -1,
+    testsUnit: 'week',
+    maxQuestionsPerSession: null,
+    logbookAccess: false,
+  });
   return {
-    flashcardsPerDay: Number.isFinite(caps.flashcardsPerDay) ? caps.flashcardsPerDay : null,
-    practicePerDay: Number.isFinite(caps.practicePerDay) ? caps.practicePerDay : null,
-    testsPerWeek: Number.isFinite(caps.testsPerWeek) ? caps.testsPerWeek : null,
+    flashcards: caps.flashcards,
+    practice: caps.practice,
+    test: caps.test,
+    maxQuestionsPerSession: caps.maxQuestionsPerSession,
   };
 }
 
@@ -715,6 +731,9 @@ function AdvancedEngine({
       const data = await res.json().catch(() => null);
 
       if (!res.ok || !data?.ok) {
+        if (data?.error === 'subscription_expired') {
+          throw new Error('Your subscription has expired. Please subscribe or renew your plan to continue studying.');
+        }
         throw new Error(data?.error || 'Unable to start the study session.');
       }
 
@@ -1417,15 +1436,15 @@ function AdvancedEngine({
                 <div className="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600 md:grid-cols-3">
                   <div>
                     <p className="font-semibold text-slate-900">Flashcards</p>
-                    <p>{formatUsageLimit(caps.flashcardsPerDay, usage.flashcardsRemaining, 'today')}</p>
+                    <p>{formatUsageLimit(caps.flashcards.limit, usage.flashcardsRemaining, caps.flashcards.unit)}</p>
                   </div>
                   <div>
                     <p className="font-semibold text-slate-900">Practice</p>
-                    <p>{formatUsageLimit(caps.practicePerDay, usage.practiceRemaining, 'today')}</p>
+                    <p>{formatUsageLimit(caps.practice.limit, usage.practiceRemaining, caps.practice.unit)}</p>
                   </div>
                   <div>
                     <p className="font-semibold text-slate-900">Tests</p>
-                    <p>{formatUsageLimit(caps.testsPerWeek, usage.testsRemaining, 'this week')}</p>
+                    <p>{formatUsageLimit(caps.test.limit, usage.testsRemaining, caps.test.unit)}</p>
                   </div>
                 </div>
               ) : null}

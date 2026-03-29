@@ -17,6 +17,11 @@ function parsePageSize(value: string | null) {
   return Math.min(parsed, 50);
 }
 
+function parseStatus(value: string | null) {
+  if (!value) return 'active';
+  return ['all', 'active', 'inactive'].includes(value) ? value : 'active';
+}
+
 function parseRole(value: string | null): UserRole | null {
   if (!value) return null;
   return USER_ROLES.includes(value as UserRole) ? (value as UserRole) : null;
@@ -29,11 +34,6 @@ function normalizeSearch(value: string | null) {
 function parseActivityStatus(value: string | null) {
   if (!value) return null;
   return ['all', 'active', 'inactive', 'onboarding'].includes(value) ? value : null;
-}
-
-function parseRiskLevel(value: string | null) {
-  if (!value) return null;
-  return ['all', 'low', 'medium', 'high'].includes(value) ? value : null;
 }
 
 function parseLastLoginWindow(value: string | null) {
@@ -78,63 +78,38 @@ function getActivityWhere(activityStatus: string | null): Prisma.UserWhereInput 
   return {};
 }
 
-function getRiskWhere(riskLevel: string | null): Prisma.UserWhereInput {
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-
-  if (riskLevel === 'low') {
-    return {
-      onboardingCompletedAt: { not: null },
-      updatedAt: { gte: sevenDaysAgo },
-    };
-  }
-
-  if (riskLevel === 'medium') {
-    return {
-      onboardingCompletedAt: { not: null },
-      updatedAt: { gte: thirtyDaysAgo, lt: sevenDaysAgo },
-    };
-  }
-
-  if (riskLevel === 'high') {
-    return {
-      OR: [{ onboardingCompletedAt: null }, { updatedAt: { lt: thirtyDaysAgo } }],
-    };
-  }
-
-  return {};
-}
-
 export async function GET(req: NextRequest) {
   const auth = await requireAdmin();
   if (isAuthError(auth)) return auth;
 
   const search = normalizeSearch(req.nextUrl.searchParams.get('q'));
+  const status = parseStatus(req.nextUrl.searchParams.get('status'));
   const role = parseRole(req.nextUrl.searchParams.get('role'));
   const planTier = req.nextUrl.searchParams.get('planTier');
   const primaryLicenseId = String(req.nextUrl.searchParams.get('primaryLicenseId') ?? '').trim().toLowerCase();
   const activityStatus = parseActivityStatus(req.nextUrl.searchParams.get('activityStatus'));
-  const riskLevel = parseRiskLevel(req.nextUrl.searchParams.get('riskLevel'));
   const lastLoginWindow = parseLastLoginWindow(req.nextUrl.searchParams.get('lastLoginWindow'));
+  const subscriptionFilter = req.nextUrl.searchParams.get('subscription') || 'all';
   const page = parsePage(req.nextUrl.searchParams.get('page'));
   const pageSize = parsePageSize(req.nextUrl.searchParams.get('pageSize'));
 
   const where: Prisma.UserWhereInput = {
-    deletedAt: null,
+    ...(status === 'active' ? { deletedAt: null } : {}),
+    ...(status === 'inactive' ? { deletedAt: { not: null } } : {}),
     ...(role ? { role } : {}),
     ...(planTier && planTier !== 'all'
       ? {
-          licenseEntitlements: {
-            some: {
+          plan: {
+            is: {
               deletedAt: null,
-              plan: planTier as 'basic' | 'standard' | 'premium',
+              slug: planTier,
             },
           },
         }
       : {}),
     ...(primaryLicenseId && primaryLicenseId !== 'all' ? { primaryLicenseId } : {}),
+    ...(subscriptionFilter !== 'all' ? { subscriptionStatus: subscriptionFilter === 'none' ? null : subscriptionFilter } : {}),
     ...getActivityWhere(activityStatus),
-    ...getRiskWhere(riskLevel),
     ...getLastLoginWhere(lastLoginWindow),
     ...(search
       ? {
@@ -159,7 +134,11 @@ export async function GET(req: NextRequest) {
         email: true,
         name: true,
         username: true,
+        deletedAt: true,
         role: true,
+        subscriptionStatus: true,
+        subscriptionExpiresAt: true,
+        stripeCustomerId: true,
         primaryLicenseId: true,
         studyLevel: true,
         studyGoal: true,
@@ -171,20 +150,19 @@ export async function GET(req: NextRequest) {
             balance: true,
           },
         },
-        studyProgress: {
-          where: { deletedAt: null },
+        plan: {
           select: {
-            questionsTotal: true,
-            questionsCorrect: true,
-            lastStudiedAt: true,
+            id: true,
+            slug: true,
+            name: true,
+            isActive: true,
           },
         },
         licenseEntitlements: {
-          where: { deletedAt: null },
+          where: { deletedAt: null, isActive: true },
           orderBy: { licenseId: 'asc' },
           select: {
             licenseId: true,
-            plan: true,
           },
         },
       },
@@ -195,16 +173,11 @@ export async function GET(req: NextRequest) {
     ok: true,
     items: users.map((user) => ({
       ...user,
+      status: user.deletedAt ? 'inactive' : 'active',
       creditBalance: user.creditAccount?.balance ?? 0,
-      studySnapshot: {
-        questionsTotal: user.studyProgress.reduce((acc, item) => acc + item.questionsTotal, 0),
-        questionsCorrect: user.studyProgress.reduce((acc, item) => acc + item.questionsCorrect, 0),
-        lastStudiedAt:
-          user.studyProgress
-            .map((item) => item.lastStudiedAt)
-            .filter(Boolean)
-            .sort((a, b) => new Date(b as Date).getTime() - new Date(a as Date).getTime())[0] ?? null,
-      },
+      subscriptionStatus: user.subscriptionStatus ?? null,
+      subscriptionExpiresAt: user.subscriptionExpiresAt?.toISOString() ?? null,
+      stripeCustomerId: user.stripeCustomerId ?? null,
     })),
     pagination: {
       page,

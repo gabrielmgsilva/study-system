@@ -3,7 +3,7 @@
 import React, { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Eye, Mail, Plane, User, ArrowRight, Loader2 } from 'lucide-react';
+import { Mail, Plane, User, ArrowRight, Loader2, Lock } from 'lucide-react';
 import { Sora } from 'next/font/google';
 
 import type { LandingLocale } from '@/lib/i18n/landing';
@@ -14,7 +14,6 @@ import { getDefaultPrivateRouteForRole, isRoleCompatibleRedirect } from '@/lib/a
 import { ROUTES } from '@/lib/routes';
 
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -37,7 +36,7 @@ function LoginPageContent({ locale }: { locale: LandingLocale }) {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -77,12 +76,6 @@ function LoginPageContent({ locale }: { locale: LandingLocale }) {
     }
 
     const data = await res.json().catch(() => null);
-
-    if (rememberMe) {
-      window.localStorage.setItem('ameone.rememberEmail', cleanEmail);
-    } else {
-      window.localStorage.removeItem('ameone.rememberEmail');
-    }
 
     const next = searchParams?.get('next');
     const role = data?.user?.role === 'admin' ? 'admin' : 'user';
@@ -134,7 +127,7 @@ function LoginPageContent({ locale }: { locale: LandingLocale }) {
                 <Label className="text-[12px] font-semibold text-slate-600">{dictionary.login.passwordLabel}</Label>
                 <div className="relative">
                   <Input
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={loading}
@@ -143,21 +136,23 @@ function LoginPageContent({ locale }: { locale: LandingLocale }) {
                     className="h-10 rounded-lg border-slate-200 bg-white pr-10 text-sm text-slate-700 placeholder:text-slate-400"
                   />
                   <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-400">
-                    <Eye className="h-4 w-4" />
+                    <Lock className="h-4 w-4" />
                   </div>
                 </div>
-              </div>
 
-              <div className="flex items-center justify-between gap-3 pt-1">
-                <label className="flex items-center gap-2 text-[12px] text-slate-600">
-                  <Checkbox
-                    checked={rememberMe}
-                    onCheckedChange={(checked) => setRememberMe(checked === true)}
-                    disabled={loading}
-                    className="border-slate-300 data-[state=checked]:bg-[#2d4bb3] data-[state=checked]:border-[#2d4bb3]"
-                  />
-                  <span>{dictionary.login.rememberMe}</span>
-                </label>
+                <div className="space-y-1 pt-1">
+                  <label className="flex items-center gap-2 text-[12px] text-slate-600">
+                    <input
+                      type="checkbox"
+                      checked={showPassword}
+                      onChange={(event) => setShowPassword(event.target.checked)}
+                      disabled={loading}
+                      className="h-4 w-4 rounded border-slate-300 text-[#2d4bb3] focus:ring-[#2d4bb3]"
+                    />
+                    <span>{dictionary.login.showPassword}</span>
+                  </label>
+                  <p className="text-[11px] text-slate-400">{dictionary.login.passwordCaseSensitive}</p>
+                </div>
               </div>
 
               {error ? <p className="text-sm text-red-600">{error}</p> : null}

@@ -77,6 +77,8 @@ export const ROUTES = {
   adminModules: '/admin/modules',
   adminPlans: '/admin/plans',
   adminContent: '/admin/content',
+  adminContentQuestions: '/admin/content/questions',
+  adminCoupons: '/admin/coupons',
 
   // -----------------------------
   // TC-like — logged
@@ -143,4 +145,6 @@ export const ROUTES = {
 
   localizedLogin: (locale: string) => `/${locale}/auth/login` as const,
   localizedRegister: (locale: string) => `/${locale}/auth/register` as const,
+  adminContentLicense: (licenseId: string) => `/admin/content/${licenseId}` as const,
+  adminContentTopic: (licenseId: string, topicId: string) => `/admin/content/${licenseId}/topic/${topicId}` as const,
 } as const;

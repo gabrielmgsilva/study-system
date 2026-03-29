@@ -17,6 +17,8 @@ export type AuthDictionary = {
     emailPlaceholder: string;
     passwordLabel: string;
     passwordPlaceholder: string;
+    showPassword: string;
+    passwordCaseSensitive: string;
     rememberMe: string;
     submit: string;
     submitting: string;
@@ -74,6 +76,8 @@ const en: AuthDictionary = {
     emailPlaceholder: 'Enter your email or username',
     passwordLabel: 'Password',
     passwordPlaceholder: 'Enter your password',
+    showPassword: 'Show password',
+    passwordCaseSensitive: 'Passwords are case-sensitive.',
     rememberMe: 'Remember me',
     submit: 'Sign In',
     submitting: 'Signing in...',

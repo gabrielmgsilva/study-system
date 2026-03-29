@@ -3,12 +3,17 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight, Download, MoreVertical, RotateCcw, Search, SlidersHorizontal } from 'lucide-react';
 
+import {
+  AdminDialogBody,
+  AdminDialogContent,
+  AdminDialogFooter,
+  AdminDialogHeader,
+} from '@/components/admin/AdminDialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { LandingLocale } from '@/lib/i18n/landing';
@@ -18,6 +23,7 @@ type AdminUser = {
   email: string;
   name: string | null;
   username: string | null;
+  status: 'active' | 'inactive';
   role: 'user' | 'admin';
   primaryLicenseId: string | null;
   studyLevel: string | null;
@@ -26,12 +32,11 @@ type AdminUser = {
   createdAt: string;
   updatedAt: string;
   creditBalance: number;
-  licenseEntitlements: Array<{ licenseId: string; plan: 'basic' | 'standard' | 'premium' }>;
-  studySnapshot: {
-    questionsTotal: number;
-    questionsCorrect: number;
-    lastStudiedAt: string | null;
-  };
+  subscriptionStatus: string | null;
+  subscriptionExpiresAt: string | null;
+  stripeCustomerId: string | null;
+  plan: { id: number; slug: string; name: string; isActive: boolean } | null;
+  licenseEntitlements: Array<{ licenseId: string }>;
 };
 
 type UsersResponse = {
@@ -46,22 +51,26 @@ type UsersResponse = {
 };
 
 type Filters = {
+  status: string;
   planTier: string;
   activityStatus: string;
   primaryLicenseId: string;
-  riskLevel: string;
+  subscription: string;
   q: string;
   lastLoginWindow: string;
+  pageSize: number;
   page: number;
 };
 
 const DEFAULT_FILTERS: Filters = {
+  status: 'active',
   planTier: 'all',
   activityStatus: 'all',
   primaryLicenseId: 'all',
-  riskLevel: 'all',
+  subscription: 'all',
   q: '',
   lastLoginWindow: 'any',
+  pageSize: 5,
   page: 1,
 };
 
@@ -107,44 +116,20 @@ function getUserInitials(user: AdminUser) {
     .join('');
 }
 
-function getHighestPlan(user: AdminUser) {
-  const order = { basic: 1, standard: 2, premium: 3 } as const;
-  return user.licenseEntitlements.reduce<'basic' | 'standard' | 'premium'>(
-    (best, current) => (order[current.plan] > order[best] ? current.plan : best),
-    'basic',
-  );
+function getPlanLabel(user: AdminUser) {
+  return user.plan?.name ?? 'No plan';
 }
 
-function getPlanBadgeClass(plan: 'basic' | 'standard' | 'premium') {
-  if (plan === 'premium') return 'bg-[#f3e8ff] text-[#9333ea]';
-  if (plan === 'standard') return 'bg-[#dbeafe] text-[#2563eb]';
-  return 'bg-slate-100 text-slate-600';
+function getPlanBadgeClass(plan: AdminUser['plan']) {
+  if (!plan) return 'bg-slate-100 text-slate-500';
+  if (!plan.isActive) return 'bg-amber-50 text-amber-700';
+  return 'bg-[#dbeafe] text-[#2563eb]';
 }
 
-function getProgress(user: AdminUser) {
-  const total = user.studySnapshot.questionsTotal;
-  const correct = user.studySnapshot.questionsCorrect;
-
-  if (total <= 0) {
-    return user.onboardingCompletedAt ? 24 : 12;
-  }
-
-  return Math.max(Math.min(Math.round((correct / Math.max(total, 1)) * 100), 100), 1);
-}
-
-function getRisk(user: AdminUser) {
-  const updatedAt = new Date(user.updatedAt).getTime();
-  const diffDays = (Date.now() - updatedAt) / (24 * 60 * 60 * 1000);
-
-  if (!user.onboardingCompletedAt || diffDays > 30) {
-    return { label: 'High', className: 'bg-[#fee2e2] text-[#dc2626]' };
-  }
-
-  if (diffDays > 7) {
-    return { label: 'Medium', className: 'bg-[#fef3c7] text-[#b45309]' };
-  }
-
-  return { label: 'Low', className: 'bg-[#dcfce7] text-[#16a34a]' };
+function getStatusBadgeClass(status: AdminUser['status']) {
+  return status === 'active'
+    ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
+    : 'bg-slate-100 text-slate-600 ring-1 ring-slate-200';
 }
 
 function getAvatarTint(index: number) {
@@ -156,6 +141,21 @@ function getAvatarTint(index: number) {
     'from-[#bfdbfe] to-[#a5f3fc]',
   ];
   return palette[index % palette.length];
+}
+
+function getSubscriptionBadge(status: string | null) {
+  switch (status) {
+    case 'active':
+      return { label: 'Active', className: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' };
+    case 'trialing':
+      return { label: 'Trialing', className: 'bg-blue-50 text-blue-700 ring-1 ring-blue-200' };
+    case 'past_due':
+      return { label: 'Past Due', className: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200' };
+    case 'canceled':
+      return { label: 'Canceled', className: 'bg-red-50 text-red-600 ring-1 ring-red-200' };
+    default:
+      return { label: 'None', className: 'bg-slate-100 text-slate-500 ring-1 ring-slate-200' };
+  }
 }
 
 export default function AdminUsersClient({ locale }: { locale: LandingLocale }) {
@@ -184,13 +184,14 @@ export default function AdminUsersClient({ locale }: { locale: LandingLocale }) 
     try {
       const params = new URLSearchParams({
         page: String(filters.page),
-        pageSize: '5',
+        pageSize: String(filters.pageSize),
       });
 
+      if (filters.status !== 'all') params.set('status', filters.status);
       if (filters.planTier !== 'all') params.set('planTier', filters.planTier);
       if (filters.activityStatus !== 'all') params.set('activityStatus', filters.activityStatus);
       if (filters.primaryLicenseId !== 'all') params.set('primaryLicenseId', filters.primaryLicenseId);
-      if (filters.riskLevel !== 'all') params.set('riskLevel', filters.riskLevel);
+      if (filters.subscription !== 'all') params.set('subscription', filters.subscription);
       if (filters.lastLoginWindow !== 'any') params.set('lastLoginWindow', filters.lastLoginWindow);
       if (filters.q.trim()) params.set('q', filters.q.trim());
 
@@ -235,6 +236,38 @@ export default function AdminUsersClient({ locale }: { locale: LandingLocale }) 
     });
   }
 
+  async function toggleUserStatus(user: AdminUser) {
+    const nextStatus = user.status === 'active' ? 'inactive' : 'active';
+    const actionLabel = nextStatus === 'inactive' ? 'deactivate' : 'reactivate';
+    if (!window.confirm(`Are you sure you want to ${actionLabel} ${getUserName(user)}?`)) return;
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/admin/users/${user.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.ok) {
+        throw new Error(data?.error || `Unable to ${actionLabel} user.`);
+      }
+
+      if (editingUser?.id === user.id && nextStatus === 'inactive') {
+        setEditingUser(null);
+      }
+
+      await fetchUsers();
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : `Unable to ${actionLabel} user.`);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function saveUser() {
     if (!editingUser) return;
 
@@ -269,6 +302,44 @@ export default function AdminUsersClient({ locale }: { locale: LandingLocale }) 
     }
   }
 
+  async function cancelSubscription(user: AdminUser) {
+    if (!window.confirm(`Cancel the subscription for ${getUserName(user)}?`)) return;
+    setError(null);
+    try {
+      const response = await fetch(`/api/admin/users/${user.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscriptionAction: 'cancel' }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.ok) throw new Error(data?.error || 'Unable to cancel subscription.');
+      await fetchUsers();
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : 'Unable to cancel subscription.');
+    }
+  }
+
+  async function extendTrial(user: AdminUser) {
+    const daysStr = window.prompt('How many days to extend the trial?', '7');
+    if (!daysStr) return;
+    const days = Number(daysStr);
+    if (!Number.isFinite(days) || days < 1) return;
+
+    setError(null);
+    try {
+      const response = await fetch(`/api/admin/users/${user.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscriptionAction: 'extend_trial', trialDays: days }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.ok) throw new Error(data?.error || 'Unable to extend trial.');
+      await fetchUsers();
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : 'Unable to extend trial.');
+    }
+  }
+
   const showingFrom = pagination.total === 0 ? 0 : (pagination.page - 1) * pagination.pageSize + 1;
   const showingTo = Math.min(pagination.page * pagination.pageSize, pagination.total);
 
@@ -298,7 +369,21 @@ export default function AdminUsersClient({ locale }: { locale: LandingLocale }) 
           </button>
         </div>
 
-        <div className="mt-5 grid gap-4 md:grid-cols-4">
+        <div className="mt-5 grid gap-4 md:grid-cols-5">
+          <div className="space-y-1.5">
+            <label className="text-[12px] font-medium text-slate-600">Status</label>
+            <Select value={filters.status} onValueChange={(value) => updateFilter('status', value)}>
+              <SelectTrigger className="h-11 w-full rounded-xl border-slate-200 bg-white text-left text-[13px]">
+                <SelectValue placeholder="Active" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="space-y-1.5">
             <label className="text-[12px] font-medium text-slate-600">Plan Tier</label>
             <Select value={filters.planTier} onValueChange={(value) => updateFilter('planTier', value)}>
@@ -315,15 +400,15 @@ export default function AdminUsersClient({ locale }: { locale: LandingLocale }) 
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-slate-600">Activity Status</label>
+            <label className="text-[12px] font-medium text-slate-600">Engagement</label>
             <Select value={filters.activityStatus} onValueChange={(value) => updateFilter('activityStatus', value)}>
               <SelectTrigger className="h-11 w-full rounded-xl border-slate-200 bg-white text-left text-[13px]">
                 <SelectValue placeholder="All Users" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Users</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
+                <SelectItem value="active">Active recently</SelectItem>
+                <SelectItem value="inactive">Inactive recently</SelectItem>
                 <SelectItem value="onboarding">Onboarding</SelectItem>
               </SelectContent>
             </Select>
@@ -347,16 +432,18 @@ export default function AdminUsersClient({ locale }: { locale: LandingLocale }) 
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-slate-600">Churn Risk</label>
-            <Select value={filters.riskLevel} onValueChange={(value) => updateFilter('riskLevel', value)}>
+            <label className="text-[12px] font-medium text-slate-600">Subscription</label>
+            <Select value={filters.subscription} onValueChange={(value) => updateFilter('subscription', value)}>
               <SelectTrigger className="h-11 w-full rounded-xl border-slate-200 bg-white text-left text-[13px]">
-                <SelectValue placeholder="All Levels" />
+                <SelectValue placeholder="All" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Levels</SelectItem>
-                <SelectItem value="low">Low</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="high">High</SelectItem>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="trialing">Trialing</SelectItem>
+                <SelectItem value="past_due">Past Due</SelectItem>
+                <SelectItem value="canceled">Canceled</SelectItem>
+                <SelectItem value="none">None</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -423,17 +510,17 @@ export default function AdminUsersClient({ locale }: { locale: LandingLocale }) 
               <TableRow className="bg-slate-50 hover:bg-slate-50">
                 <TableHead className="w-10 px-4"><Checkbox /></TableHead>
                 <TableHead className="text-[11px] uppercase tracking-[0.08em] text-slate-500">User</TableHead>
+                <TableHead className="text-[11px] uppercase tracking-[0.08em] text-slate-500">Status</TableHead>
                 <TableHead className="text-[11px] uppercase tracking-[0.08em] text-slate-500">Plan</TableHead>
+                <TableHead className="text-[11px] uppercase tracking-[0.08em] text-slate-500">Subscription</TableHead>
                 <TableHead className="text-[11px] uppercase tracking-[0.08em] text-slate-500">Course</TableHead>
-                <TableHead className="text-[11px] uppercase tracking-[0.08em] text-slate-500">Progress</TableHead>
                 <TableHead className="text-[11px] uppercase tracking-[0.08em] text-slate-500">Last Login</TableHead>
-                <TableHead className="text-[11px] uppercase tracking-[0.08em] text-slate-500">Risk</TableHead>
                 <TableHead className="text-right text-[11px] uppercase tracking-[0.08em] text-slate-500">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
-                Array.from({ length: 5 }).map((_, index) => (
+                Array.from({ length: filters.pageSize }).map((_, index) => (
                   <TableRow key={index}>
                     <TableCell className="px-4"><Checkbox disabled /></TableCell>
                     <TableCell colSpan={7} className="py-5 text-sm text-slate-400">Loading user records...</TableCell>
@@ -446,9 +533,7 @@ export default function AdminUsersClient({ locale }: { locale: LandingLocale }) 
                 </TableRow>
               ) : (
                 rows.map((user, index) => {
-                  const plan = getHighestPlan(user);
-                  const progress = getProgress(user);
-                  const risk = getRisk(user);
+                  const planLabel = getPlanLabel(user);
 
                   return (
                     <TableRow key={user.id} className="bg-white hover:bg-slate-50/80">
@@ -465,25 +550,22 @@ export default function AdminUsersClient({ locale }: { locale: LandingLocale }) 
                         </div>
                       </TableCell>
                       <TableCell>
-                        <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${getPlanBadgeClass(plan)}`}>
-                          {plan[0].toUpperCase() + plan.slice(1)}
+                        <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${getStatusBadgeClass(user.status)}`}>
+                          {user.status === 'active' ? 'Active' : 'Inactive'}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${getPlanBadgeClass(user.plan)}`}>
+                          {planLabel}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${getSubscriptionBadge(user.subscriptionStatus).className}`}>
+                          {getSubscriptionBadge(user.subscriptionStatus).label}
                         </span>
                       </TableCell>
                       <TableCell className="text-[13px] text-slate-700">{LICENSE_LABELS[user.primaryLicenseId || 'regs'] || 'Not set'}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="w-[82px]">
-                            <Progress value={progress} className="h-1.5 bg-slate-100 [&_[data-slot=progress-indicator]]:bg-[#22c55e]" />
-                          </div>
-                          <span className="text-[12px] font-medium text-slate-600">{progress}%</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-[13px] text-slate-600">{formatTimeAgo(user.studySnapshot.lastStudiedAt || user.updatedAt)}</TableCell>
-                      <TableCell>
-                        <span className={`inline-flex rounded-md px-2 py-1 text-[11px] font-semibold ${risk.className}`}>
-                          {risk.label}
-                        </span>
-                      </TableCell>
+                      <TableCell className="text-[13px] text-slate-600">{formatTimeAgo(user.updatedAt)}</TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -493,7 +575,21 @@ export default function AdminUsersClient({ locale }: { locale: LandingLocale }) 
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="border-slate-200 bg-white">
                             <DropdownMenuItem onSelect={() => openEdit(user)}>Edit user</DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => updateFilter('q', user.email)}>Filter by email</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => void extendTrial(user)}>Extend trial</DropdownMenuItem>
+                            {user.subscriptionStatus === 'active' || user.subscriptionStatus === 'trialing' ? (
+                              <DropdownMenuItem
+                                onSelect={() => void cancelSubscription(user)}
+                                className="text-red-600 focus:text-red-600"
+                              >
+                                Cancel subscription
+                              </DropdownMenuItem>
+                            ) : null}
+                            <DropdownMenuItem
+                              onSelect={() => void toggleUserStatus(user)}
+                              className={user.status === 'active' ? 'text-red-600 focus:text-red-600' : ''}
+                            >
+                              {user.status === 'active' ? 'Deactivate user' : 'Reactivate user'}
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -510,7 +606,22 @@ export default function AdminUsersClient({ locale }: { locale: LandingLocale }) 
             Showing {showingFrom}-{showingTo} of {pagination.total.toLocaleString()} users
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
+              <label className="text-[12px] font-medium text-slate-600">Rows</label>
+              <Select value={String(filters.pageSize)} onValueChange={(value) => updateFilter('pageSize', Number(value))}>
+                <SelectTrigger className="h-9 w-[110px] rounded-xl border-slate-200 bg-white text-[13px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">5</SelectItem>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="20">20</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center gap-1.5">
             <button
               type="button"
               disabled={pagination.page <= 1}
@@ -547,18 +658,19 @@ export default function AdminUsersClient({ locale }: { locale: LandingLocale }) 
             >
               <ChevronRight className="h-4 w-4" />
             </button>
+            </div>
           </div>
         </div>
       </div>
 
       <Dialog open={Boolean(editingUser)} onOpenChange={(open) => !open && setEditingUser(null)}>
-        <DialogContent className="max-w-xl rounded-2xl border-slate-200 bg-white p-0">
-          <DialogHeader className="border-b border-slate-200 px-6 py-5">
+        <AdminDialogContent size="narrow">
+          <AdminDialogHeader>
             <DialogTitle className="text-xl font-semibold text-slate-900">Edit User</DialogTitle>
             <DialogDescription className="text-sm text-slate-500">Update admin-facing profile fields and role assignment.</DialogDescription>
-          </DialogHeader>
+          </AdminDialogHeader>
 
-          <div className="grid gap-4 px-6 py-5 md:grid-cols-2">
+          <AdminDialogBody className="grid gap-4 md:grid-cols-2">
             <div className="space-y-1.5">
               <label className="text-[12px] font-medium text-slate-600">Name</label>
               <Input value={formState.name} onChange={(event) => setFormState((current) => ({ ...current, name: event.target.value }))} className="h-11 rounded-xl border-slate-200" />
@@ -599,16 +711,16 @@ export default function AdminUsersClient({ locale }: { locale: LandingLocale }) 
               <label className="text-[12px] font-medium text-slate-600">Study Goal</label>
               <Input value={formState.studyGoal} onChange={(event) => setFormState((current) => ({ ...current, studyGoal: event.target.value }))} className="h-11 rounded-xl border-slate-200" />
             </div>
-          </div>
+          </AdminDialogBody>
 
-          <DialogFooter className="border-t border-slate-200 px-6 py-4 sm:justify-between">
+          <AdminDialogFooter className="sm:justify-between">
             <div className="text-xs text-slate-500">User ID {editingUser?.id}</div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setEditingUser(null)} className="rounded-xl border-slate-200 bg-white text-slate-700 hover:bg-slate-50">Cancel</Button>
               <Button onClick={() => void saveUser()} disabled={saving} className="rounded-xl bg-[#2f55d4] text-white hover:bg-[#2448be]">{saving ? 'Saving...' : 'Save Changes'}</Button>
             </div>
-          </DialogFooter>
-        </DialogContent>
+          </AdminDialogFooter>
+        </AdminDialogContent>
       </Dialog>
     </div>
   );

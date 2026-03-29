@@ -65,17 +65,41 @@ export type LandingDictionary = {
     eyebrow: string;
     title: string;
     description: string;
+    regsEyebrow: string;
+    regsTitle: string;
+    regsDescription: string;
+    licensesEyebrow: string;
+    licensesTitle: string;
+    licensesDescription: string;
+    logbookEyebrow: string;
+    logbookTitle: string;
+    logbookDescription: string;
     popular: string;
-    plans: Array<{
-      name: string;
-      subtitle: string;
-      price: string;
-      period: string;
-      cta: string;
-      features: string[];
-      mutedFeatures?: string[];
-      highlighted?: boolean;
-    }>;
+    planCta: string;
+    noPlansTitle: string;
+    noPlansDescription: string;
+    customPrice: string;
+    activePlanSingular: string;
+    activePlanPlural: string;
+    unlimited: string;
+    notIncluded: string;
+    noCertificationTracks: string;
+    logbookOnlyDescription: string;
+    perLabel: string;
+    flashcardsLabel: string;
+    practiceLabel: string;
+    testsLabel: string;
+    sessionCapLabel: string;
+    sessionUnlimited: string;
+    logbookIncluded: string;
+    logbookUnavailable: string;
+    certificationTrack: string;
+    certificationTracks: string;
+    monthlyLabel: string;
+    annualLabel: string;
+    perMonth: string;
+    perYear: string;
+    annualSavePercent: string;
   };
   security: {
     title: string;
@@ -214,49 +238,42 @@ const en: LandingDictionary = {
     eyebrow: 'Plans and Pricing',
     title: 'Plans and Pricing',
     description: 'Choose the ideal plan for your preparation',
+    regsEyebrow: 'Regulatory access',
+    regsTitle: 'REGS',
+    regsDescription: 'Standalone regulatory study plans for CARs and Standards. These plans do not open certification tracks.',
+    licensesEyebrow: 'Certification study',
+    licensesTitle: 'Licences',
+    licensesDescription: 'Study plans for M, E, S, and Balloons with clear caps for certification enrollment and usage.',
+    logbookEyebrow: 'Professional records',
+    logbookTitle: 'Logbook',
+    logbookDescription: 'Professional logbook access for one enrolled certification track without study volume included.',
     popular: 'Most Popular',
-    plans: [
-      {
-        name: 'Basic',
-        subtitle: 'To get started',
-        price: 'Free',
-        period: '',
-        cta: 'Start Free',
-        features: ['1 license', '100 questions', 'Practice mode', 'Basic statistics'],
-        mutedFeatures: ['Test mode', 'Flashcards'],
-      },
-      {
-        name: 'Standard',
-        subtitle: 'Most chosen',
-        price: '$49',
-        period: '/month',
-        cta: 'Subscribe Now',
-        highlighted: true,
-        features: [
-          '3 licenses',
-          '500 questions',
-          'All study modes',
-          'Full analytics',
-          'Priority support',
-          'Mobile access',
-        ],
-      },
-      {
-        name: 'Premium',
-        subtitle: 'Complete access',
-        price: '$99',
-        period: '/month',
-        cta: 'Get Premium',
-        features: [
-          'All licenses',
-          'Unlimited questions',
-          'All Standard resources',
-          'Personalized simulations',
-          'Individual mentorship',
-          'Additional study material',
-        ],
-      },
-    ],
+    planCta: 'Get Started',
+    noPlansTitle: 'No plans published yet',
+    noPlansDescription: 'There are no active plans available right now. Please check back later.',
+    customPrice: 'Custom',
+    activePlanSingular: 'active plan',
+    activePlanPlural: 'active plans',
+    unlimited: 'Unlimited',
+    notIncluded: 'Not included',
+    noCertificationTracks: 'No certification tracks',
+    logbookOnlyDescription:
+      '1 certification track for logbook access only. Flashcards, practice, and tests are not included.',
+    perLabel: 'per',
+    flashcardsLabel: 'Flashcards',
+    practiceLabel: 'Practice',
+    testsLabel: 'Tests',
+    sessionCapLabel: 'Session cap',
+    sessionUnlimited: 'No per-session limit',
+    logbookIncluded: 'Logbook included',
+    logbookUnavailable: 'Logbook unavailable',
+    certificationTrack: 'certification track',
+    certificationTracks: 'certification tracks',
+    monthlyLabel: 'Monthly',
+    annualLabel: 'Annual',
+    perMonth: '/month',
+    perYear: '/year',
+    annualSavePercent: 'Save 15%',
   },
   security: {
     title: 'Secure and Cross-Platform Learning',

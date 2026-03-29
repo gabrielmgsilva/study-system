@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 
 import {
   getAppDictionary,
@@ -22,8 +22,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
+type StudentDictionary = ReturnType<typeof getAppDictionary>['student'];
+
 type LicenseId = 'regs' | 'm' | 'e' | 's' | 'balloons';
-type PlanTier = 'basic' | 'standard' | 'premium';
 
 const LICENSES: {
   id: LicenseId;
@@ -63,39 +64,64 @@ const LICENSES: {
   },
 ];
 
-function PlanPill({ tier }: { tier: PlanTier }) {
-  const pathname = usePathname();
-  const locale = getAppLocaleFromPathname(pathname);
-  const dictionary = getAppDictionary(locale);
-  const label = tier.toUpperCase();
-  const cls =
-    tier === 'basic'
-      ? 'border-slate-200 bg-slate-50 text-slate-700'
-      : tier === 'standard'
-        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-        : 'border-amber-200 bg-amber-50 text-amber-700';
-
-  const translatedLabel =
-    tier === 'basic'
-      ? dictionary.student.basic.toUpperCase()
-      : tier === 'standard'
-        ? dictionary.student.standard.toUpperCase()
-        : dictionary.student.premium.toUpperCase();
-
-  return <Badge className={`rounded-full border ${cls}`}>{translatedLabel || label}</Badge>;
+function PlanPill({ label }: { label: string }) {
+  return <Badge className="rounded-full border border-slate-200 bg-slate-50 text-slate-700">{label}</Badge>;
 }
 
-function ChoosePlan({
+function formatLimit(
+  limit: number | null | undefined,
+  unit: 'day' | 'week' | 'month' | undefined,
+  dictionary: StudentDictionary,
+) {
+  if (limit === null || limit === undefined || !unit) {
+    return dictionary.unlimited;
+  }
+
+  if (limit === 0) {
+    return dictionary.notAvailable;
+  }
+
+  const suffixMap = {
+    day: limit === 1 ? dictionary.day : dictionary.days,
+    week: limit === 1 ? dictionary.week : dictionary.weeks,
+    month: limit === 1 ? dictionary.month : dictionary.months,
+  } as const;
+  const suffix = suffixMap[unit];
+  return `${limit}/${suffix}`;
+}
+
+function formatCertificationLimit(limit: number, dictionary: StudentDictionary) {
+  if (limit < 0) return dictionary.unlimited;
+  if (limit === 0) return dictionary.none;
+  return String(limit);
+}
+
+function formatAccessStatus(status: 'blocked' | 'limited' | 'unlimited', dictionary: StudentDictionary) {
+  if (status === 'blocked') return dictionary.blocked;
+  if (status === 'limited') return dictionary.limited;
+  return dictionary.unlimited;
+}
+
+function isGuidedLicenseId(value: string | null): value is LicenseId {
+  return value === 'regs' || value === 'm' || value === 'e' || value === 's' || value === 'balloons';
+}
+
+function EnrollLicense({
   licenseId,
+  canEnroll,
+  helperText,
+  disabledReason,
   onDone,
 }: {
   licenseId: LicenseId;
+  canEnroll: boolean;
+  helperText: string;
+  disabledReason: string;
   onDone: () => void;
 }) {
   const pathname = usePathname();
   const locale = getAppLocaleFromPathname(pathname);
   const dictionary = getAppDictionary(locale);
-  const [tier, setTier] = useState<PlanTier>('basic');
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -103,14 +129,14 @@ function ChoosePlan({
     setLoading(true);
     setErr(null);
     try {
-      const res = await fetch('/api/entitlements/set-plan', {
+      const res = await fetch('/api/entitlements/enroll-license', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ licenseId, plan: tier }),
+        body: JSON.stringify({ licenseId }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.ok) {
-        throw new Error(data?.error || 'Failed to set plan');
+        throw new Error(data?.error || dictionary.student.failedToEnrollLicense);
       }
 
       clearStudentCache();
@@ -125,39 +151,19 @@ function ChoosePlan({
   return (
     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
       <div className="mb-2 text-xs text-slate-500">
-        {dictionary.student.choosePlan}
+        {canEnroll ? helperText : disabledReason}
       </div>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <div className="flex gap-2">
-          {(['basic', 'standard', 'premium'] as PlanTier[]).map((t) => (
-            <Button
-              key={t}
-              type="button"
-              size="sm"
-              variant={tier === t ? 'secondary' : 'outline'}
-              className={
-                tier === t
-                  ? 'border-[#c9d4f4] bg-[#eef3ff] text-[#2d4bb3] hover:bg-[#e4ecff]'
-                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-              }
-              onClick={() => setTier(t)}
-              disabled={loading}
-            >
-              {t.toUpperCase()}
-            </Button>
-          ))}
-        </div>
-
         <div className="flex-1" />
 
         <Button
           size="sm"
           className="border border-[#2d4bb3] bg-[#2d4bb3] text-white hover:bg-[#243d99]"
           onClick={submit}
-          disabled={loading}
+          disabled={loading || !canEnroll}
         >
-          {loading ? dictionary.student.saving : dictionary.student.confirm}
+          {loading ? dictionary.student.saving : dictionary.student.enroll}
         </Button>
       </div>
 
@@ -166,13 +172,51 @@ function ChoosePlan({
   );
 }
 
+function ManageBillingButton() {
+  const [loading, setLoading] = useState(false);
+
+  async function handleClick() {
+    if (loading) return;
+    setLoading(true);
+    try {
+      const res = await fetch('/api/me/billing-portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data.url) {
+        window.location.href = data.url;
+        return;
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+      onClick={handleClick}
+      disabled={loading}
+    >
+      {loading ? 'Loading...' : 'Manage Billing'}
+    </Button>
+  );
+}
+
 export default function StudentPage() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const locale = getAppLocaleFromPathname(pathname);
   const dictionary = getAppDictionary(locale);
   const [ready, setReady] = useState(false);
   const [student, setStudent] = useState<StudentState | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const studentDictionary = dictionary.student;
 
   async function refresh(force = false) {
     setRefreshing(true);
@@ -191,9 +235,55 @@ export default function StudentPage() {
   }, []);
 
   const ownedCount = useMemo(() => {
-    if (!student) return 0;
-    return LICENSES.filter((l) => hasLicenseFromState(student, l.id)).length;
+    return student?.enrollmentSummary.count ?? 0;
   }, [student]);
+
+  const maxLicenses = student?.enrollmentSummary.max ?? 0;
+  const planSlug = student?.plan?.slug ?? null;
+  const guidedIntent = searchParams.get('intent');
+  const guidedLicenseId = isGuidedLicenseId(searchParams.get('license')) ? searchParams.get('license') : null;
+  const guidedLicense = guidedLicenseId ? LICENSES.find((license) => license.id === guidedLicenseId) ?? null : null;
+  const hasGuidedEnrollment = guidedLicenseId ? Boolean(getLicenseExperience(student, guidedLicenseId)) : false;
+  const isLogbookOnlyPlan = planSlug === 'logbook-pro';
+
+  const guidanceCard = useMemo(() => {
+    if (guidedIntent === 'choose-plan') {
+      return {
+        title: studentDictionary.planRequiredTitle,
+        body: studentDictionary.planRequiredBody,
+      };
+    }
+
+    if (guidedIntent === 'enroll' && guidedLicense && !hasGuidedEnrollment) {
+      if (guidedLicense.id === 'regs') {
+        return {
+          title: studentDictionary.nextStepEnrollRegsTitle,
+          body: studentDictionary.nextStepEnrollRegsBody,
+        };
+      }
+
+      if (isLogbookOnlyPlan) {
+        return {
+          title: `${studentDictionary.nextStepEnrollPrefix} ${guidedLicense.title}`,
+          body: studentDictionary.nextStepEnrollLogbookBody,
+        };
+      }
+
+      return {
+        title: `${studentDictionary.nextStepEnrollPrefix} ${guidedLicense.title}`,
+        body: studentDictionary.nextStepEnrollDefaultBody,
+      };
+    }
+
+    if (isLogbookOnlyPlan) {
+      return {
+        title: studentDictionary.logbookPlanTitle,
+        body: studentDictionary.logbookPlanBody,
+      };
+    }
+
+    return null;
+  }, [guidedIntent, guidedLicense, hasGuidedEnrollment, isLogbookOnlyPlan, studentDictionary]);
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-4">
@@ -208,48 +298,131 @@ export default function StudentPage() {
             </p>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
             <Button
               variant="outline"
-              className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+              className="w-full border-slate-200 bg-white text-slate-700 hover:bg-slate-50 sm:w-auto"
               onClick={() => refresh(true)}
               disabled={refreshing}
             >
-              {refreshing ? dictionary.student.refreshing : dictionary.student.refresh}
+              {refreshing ? studentDictionary.refreshing : studentDictionary.refresh}
             </Button>
 
             <Button
               asChild
-              className="border border-[#2d4bb3] bg-[#2d4bb3] text-white hover:bg-[#243d99]"
+              className="w-full border border-[#2d4bb3] bg-[#2d4bb3] text-white hover:bg-[#243d99] sm:w-auto"
             >
-              <Link href={localizeAppHref(ROUTES.appHub, locale)}>{dictionary.student.openHub}</Link>
+              <Link href={localizeAppHref(ROUTES.appHub, locale)}>{studentDictionary.openHub}</Link>
             </Button>
           </div>
         </div>
 
         <Card className="rounded-[30px] border-slate-200 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
-          <CardContent className="p-4 text-sm text-slate-500">
-            {dictionary.student.ownedLicenses}:{' '}
-            <span className="text-slate-900">{ownedCount}</span> / {LICENSES.length}
+          <CardContent className="space-y-3 p-4 text-sm text-slate-500">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-stretch">
+              <div className="rounded-2xl bg-slate-50 px-4 py-3">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{studentDictionary.currentPlanLabel}</div>
+                <div className="mt-1 text-sm font-medium text-slate-900">{student?.plan?.name ?? studentDictionary.noPlanSelected}</div>
+              </div>
+              <div className="rounded-2xl bg-slate-50 px-4 py-3">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{studentDictionary.certificationsLabel}</div>
+                <div className="mt-1 text-sm font-medium text-slate-900">
+                  {ownedCount} / {formatCertificationLimit(maxLicenses, studentDictionary)}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1 text-xs leading-5 text-slate-400 sm:text-sm">
+              <span>{studentDictionary.regsExclusionNote}</span>
+            {isLogbookOnlyPlan ? (
+                <span>{studentDictionary.logbookOnlySummary}</span>
+            ) : null}
             {ready ? null : (
-              <span className="ml-2 text-slate-400">{dictionary.student.loading}</span>
+                <span>{studentDictionary.loading}</span>
             )}
+            </div>
           </CardContent>
         </Card>
+
+        {ready && student?.subscription ? (
+          <Card className="rounded-[30px] border-slate-200 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
+            <CardContent className="p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="space-y-1">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Subscription</div>
+                  <div className="flex items-center gap-2">
+                    <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                      student.subscription.active
+                        ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
+                        : student.subscription.status === 'trialing'
+                          ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-200'
+                          : student.subscription.status === 'past_due'
+                            ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-200'
+                            : 'bg-red-50 text-red-600 ring-1 ring-red-200'
+                    }`}>
+                      {student.subscription.status === 'active' ? 'Active'
+                        : student.subscription.status === 'trialing' ? 'Trial'
+                        : student.subscription.status === 'past_due' ? 'Past Due'
+                        : student.subscription.status === 'canceled' ? 'Canceled'
+                        : 'Inactive'}
+                    </span>
+                    {student.subscription.expiresAt ? (
+                      <span className="text-xs text-slate-500">
+                        {student.subscription.active ? 'Renews' : 'Expired'}{' '}
+                        {new Date(student.subscription.expiresAt).toLocaleDateString()}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  {student.subscription.active ? (
+                    <ManageBillingButton />
+                  ) : (
+                    <Button asChild size="sm" className="border border-[#2d4bb3] bg-[#2d4bb3] text-white hover:bg-[#243d99]">
+                      <Link href={ROUTES.pricing}>Upgrade</Link>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
+
+        {guidanceCard ? (
+          <Card className="rounded-[30px] border-[#c9d4f4] bg-[#f5f8ff] shadow-[0_16px_40px_rgba(45,75,179,0.08)]">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base text-slate-900">{guidanceCard.title}</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm leading-6 text-slate-600">{guidanceCard.body}</CardContent>
+          </Card>
+        ) : null}
 
         <div className="grid grid-cols-1 gap-4">
           {LICENSES.map((lic) => {
             const exp = getLicenseExperience(student, lic.id);
             const owned = !!exp;
-            const tier = (exp?.plan || 'basic') as PlanTier;
+            const canEnroll = Boolean(student?.plan) && (lic.id === 'regs' || maxLicenses < 0 || ownedCount < maxLicenses);
+            const helperText = lic.id === 'regs'
+              ? studentDictionary.enrollRegsHelper
+              : isLogbookOnlyPlan
+                ? studentDictionary.enrollLogbookHelper
+                : studentDictionary.enrollDefaultHelper;
+            const disabledReason = !student?.plan
+              ? studentDictionary.planNeededForEnrollment
+              : studentDictionary.certificationLimitReached;
 
             // Safety: never let an undefined href crash the page
             const safeHref = lic.href || ROUTES.appHub;
+            const isGuidedTarget = guidedLicenseId === lic.id;
 
             return (
               <Card
                 key={lic.id}
-                className="rounded-[30px] border-slate-200 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.08)]"
+                className={[
+                  'rounded-[30px] bg-white shadow-[0_16px_40px_rgba(15,23,42,0.08)]',
+                  isGuidedTarget ? 'border-[#c9d4f4] ring-2 ring-[#dfe7ff]' : 'border-slate-200',
+                ].join(' ')}
               >
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between gap-3">
@@ -257,7 +430,7 @@ export default function StudentPage() {
                       <CardTitle className="flex items-center gap-2 text-slate-900">
                         {lic.title}
                         {owned ? (
-                          <PlanPill tier={tier} />
+                          <PlanPill label={exp.plan.name} />
                         ) : (
                           <Badge className="rounded-full border border-slate-200 bg-slate-50 text-slate-500">
                             {dictionary.student.notOwned}
@@ -273,15 +446,15 @@ export default function StudentPage() {
                         <div className="mt-1 text-xs text-slate-400">
                           {dictionary.study.flashcards}:{' '}
                           <span className="text-slate-600">
-                            {exp.flashcards}
+                            {formatAccessStatus(exp.flashcards, studentDictionary)} ({formatLimit(exp.caps?.flashcards.limit, exp.caps?.flashcards.unit, studentDictionary)})
                           </span>{' '}
-                          • {dictionary.student.practice}:{' '}
-                          <span className="text-slate-600">{exp.practice}</span>{' '}
-                          • {dictionary.student.test}:{' '}
-                          <span className="text-slate-600">{exp.test}</span> •
-                          {dictionary.student.logbook}:{' '}
+                          • {studentDictionary.practice}:{' '}
+                          <span className="text-slate-600">{formatAccessStatus(exp.practice, studentDictionary)} ({formatLimit(exp.caps?.practice.limit, exp.caps?.practice.unit, studentDictionary)})</span>{' '}
+                          • {studentDictionary.test}:{' '}
+                          <span className="text-slate-600">{formatAccessStatus(exp.test, studentDictionary)} ({formatLimit(exp.caps?.test.limit, exp.caps?.test.unit, studentDictionary)})</span> •
+                          {studentDictionary.logbook}:{' '}
                           <span className="text-slate-600">
-                            {exp.logbook ? dictionary.student.yes : dictionary.student.no}
+                            {exp.logbook ? studentDictionary.yes : studentDictionary.no}
                           </span>
                         </div>
                       )}
@@ -309,7 +482,13 @@ export default function StudentPage() {
 
                 <CardContent className="space-y-3">
                   {!owned ? (
-                    <ChoosePlan licenseId={lic.id} onDone={() => refresh(true)} />
+                    <EnrollLicense
+                      licenseId={lic.id}
+                      canEnroll={canEnroll}
+                      helperText={helperText}
+                      disabledReason={disabledReason}
+                      onDone={() => refresh(true)}
+                    />
                   ) : (
                     <div className="flex flex-col gap-2 sm:flex-row">
                       <Button

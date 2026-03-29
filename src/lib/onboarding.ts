@@ -1,3 +1,4 @@
+import { prisma } from '@/lib/prisma';
 import { ROUTES, type LicenseId } from '@/lib/routes';
 
 export const onboardingLicenseOptions = [
@@ -114,4 +115,51 @@ export function normalizeOnboardingStudyGoal(
 
 export function resolvePostOnboardingRoute(licenseId: LicenseId): string {
   return licenseId === 'regs' ? ROUTES.regs : ROUTES.license(licenseId);
+}
+
+export async function resolvePostOnboardingDestination(userId: number, licenseId: LicenseId) {
+  const user = await prisma.user.findFirst({
+    where: { id: userId, deletedAt: null },
+    select: {
+      subscriptionStatus: true,
+      subscriptionExpiresAt: true,
+      plan: {
+        select: {
+          id: true,
+          isActive: true,
+        },
+      },
+      licenseEntitlements: {
+        where: {
+          licenseId,
+          isActive: true,
+          deletedAt: null,
+        },
+        select: {
+          id: true,
+        },
+        take: 1,
+      },
+    },
+  });
+
+  const hasActiveSub =
+    user?.subscriptionStatus === 'active' ||
+    (user?.subscriptionStatus === 'trialing' &&
+      user.subscriptionExpiresAt &&
+      user.subscriptionExpiresAt > new Date());
+
+  if (!user?.plan || !user.plan.isActive) {
+    if (hasActiveSub) {
+      // Plan is somehow mismatched but subscription is active — let them through
+    } else {
+      return `${ROUTES.student}?intent=choose-plan&license=${licenseId}`;
+    }
+  }
+
+  if (user.licenseEntitlements.length > 0) {
+    return resolvePostOnboardingRoute(licenseId);
+  }
+
+  return `${ROUTES.student}?intent=enroll&license=${licenseId}`;
 }

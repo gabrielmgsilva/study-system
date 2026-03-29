@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Eye, Mail, Plane, User, Loader2 } from 'lucide-react';
+import { ArrowRight, Eye, Mail, Plane, User, Loader2, Check } from 'lucide-react';
 import { Sora } from 'next/font/google';
 
 import type { LandingLocale } from '@/lib/i18n/landing';
@@ -27,6 +27,13 @@ const sora = Sora({
   weight: ['400', '500', '600', '700'],
 });
 
+type PlanOption = {
+  id: number;
+  name: string;
+  price: string | null;
+  trialDays: number;
+};
+
 export function PublicRegisterPage({ locale }: { locale: LandingLocale }) {
   const router = useRouter();
   const dictionary = getAuthDictionary(locale);
@@ -34,8 +41,28 @@ export function PublicRegisterPage({ locale }: { locale: LandingLocale }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null);
+  const [plans, setPlans] = useState<PlanOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch('/api/plans')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.ok && Array.isArray(data.items)) {
+          setPlans(
+            data.items.map((p: { id: number; name: string; price: string | null; trialDays: number }) => ({
+              id: p.id,
+              name: p.name,
+              price: p.price,
+              trialDays: p.trialDays,
+            })),
+          );
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -58,6 +85,7 @@ export function PublicRegisterPage({ locale }: { locale: LandingLocale }) {
         name: cleanName,
         email: cleanEmail,
         password,
+        planId: selectedPlanId,
       }),
     });
 
@@ -148,6 +176,42 @@ export function PublicRegisterPage({ locale }: { locale: LandingLocale }) {
                 </div>
                 <p className="text-[11px] leading-5 text-slate-400">{dictionary.register.passwordHint}</p>
               </div>
+
+              {plans.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-[12px] font-semibold text-slate-600">Choose your plan</Label>
+                  <div className="space-y-1.5">
+                    {plans.map((plan) => (
+                      <button
+                        key={plan.id}
+                        type="button"
+                        onClick={() => setSelectedPlanId(plan.id)}
+                        className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
+                          selectedPlanId === plan.id
+                            ? 'border-[#2d4bb3] bg-[#2d4bb3]/5 text-slate-900'
+                            : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`flex h-4 w-4 items-center justify-center rounded-full border ${
+                              selectedPlanId === plan.id
+                                ? 'border-[#2d4bb3] bg-[#2d4bb3]'
+                                : 'border-slate-300'
+                            }`}
+                          >
+                            {selectedPlanId === plan.id && <Check className="h-2.5 w-2.5 text-white" />}
+                          </div>
+                          <span className="font-medium">{plan.name}</span>
+                        </div>
+                        <span className="text-xs text-slate-400">
+                          {plan.trialDays} day free trial
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {error ? <p className="text-sm text-red-600">{error}</p> : null}
 

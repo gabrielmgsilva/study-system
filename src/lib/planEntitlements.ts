@@ -1,85 +1,99 @@
-import type {
-  FlashcardsAccess,
-  PracticeAccess,
-  TestAccess,
-  PlanTier,
-} from '@prisma/client';
+import type { LimitUnit } from '@prisma/client';
 
 export type LicenseId = 'm' | 'e' | 's' | 'balloons' | 'regs';
 
+export type AccessStatus = 'blocked' | 'limited' | 'unlimited';
+
+export type PlanRecord = {
+  id: number;
+  slug: string;
+  name: string;
+  description?: string | null;
+  maxLicenses: number;
+  flashcardsLimit: number;
+  flashcardsUnit: LimitUnit;
+  practiceLimit: number;
+  practiceUnit: LimitUnit;
+  testsLimit: number;
+  testsUnit: LimitUnit;
+  maxQuestionsPerSession: number | null;
+  logbookAccess: boolean;
+  isActive: boolean;
+};
+
 export type LicenseExperience = {
-  plan: PlanTier;
-  flashcards: FlashcardsAccess;
-  practice: PracticeAccess;
-  test: TestAccess;
+  plan: Pick<PlanRecord, 'id' | 'slug' | 'name' | 'maxLicenses' | 'isActive'>;
+  flashcards: AccessStatus;
+  practice: AccessStatus;
+  test: AccessStatus;
   logbook: boolean;
 };
 
-export type PlanCapOverrides = {
-  flashcardsPerDay?: number | null;
-  practicePerDay?: number | null;
-  testsPerWeek?: number | null;
+export type LimitWindow = {
+  limit: number | null;
+  unit: LimitUnit;
 };
 
 export type LicensePlanCaps = {
-  flashcardsPerDay: number;
-  practicePerDay: number;
-  testsPerWeek: number;
+  flashcards: LimitWindow;
+  practice: LimitWindow;
+  test: LimitWindow;
+  maxQuestionsPerSession: number | null;
 };
 
-// Central mapping (no complicated counters in DB)
-export function experienceForPlan(plan: PlanTier): Omit<LicenseExperience, 'plan'> {
-  if (plan === 'premium') {
-    return {
-      flashcards: 'unlimited',
-      practice: 'unlimited',
-      test: 'unlimited',
-      logbook: true,
-    };
+function normalizeLimit(limit: number | null | undefined) {
+  if (typeof limit !== 'number' || !Number.isFinite(limit)) {
+    return null;
   }
 
-  if (plan === 'standard') {
-    return {
-      flashcards: 'unlimited',
-      practice: 'unlimited',
-      test: 'weekly_limit',
-      logbook: false,
-    };
+  if (limit < 0) {
+    return null;
   }
 
-  // basic
+  return Math.floor(limit);
+}
+
+function accessStatus(limit: number | null) {
+  if (limit === null) return 'unlimited';
+  if (limit <= 0) return 'blocked';
+  return 'limited';
+}
+
+export function planCaps(plan: PlanRecord): LicensePlanCaps {
   return {
-    flashcards: 'daily_limit',
-    practice: 'cooldown',
-    test: 'weekly_limit',
-    logbook: false,
+    flashcards: {
+      limit: normalizeLimit(plan.flashcardsLimit),
+      unit: plan.flashcardsUnit,
+    },
+    practice: {
+      limit: normalizeLimit(plan.practiceLimit),
+      unit: plan.practiceUnit,
+    },
+    test: {
+      limit: normalizeLimit(plan.testsLimit),
+      unit: plan.testsUnit,
+    },
+    maxQuestionsPerSession:
+      typeof plan.maxQuestionsPerSession === 'number' && Number.isFinite(plan.maxQuestionsPerSession)
+        ? Math.max(Math.floor(plan.maxQuestionsPerSession), 1)
+        : null,
   };
 }
 
-export function defaultLicenseExperience(plan: PlanTier = 'basic'): LicenseExperience {
-  return { plan, ...experienceForPlan(plan) };
-}
-
-function resolveOverride(base: number, override?: number | null) {
-  if (typeof override !== 'number' || !Number.isFinite(override) || override < 0) {
-    return base;
-  }
-
-  return override;
-}
-
-export function planCaps(plan: PlanTier, overrides?: PlanCapOverrides): LicensePlanCaps {
-  // Client uses this for perceived limits (MVP). Backend keeps only plan + access types.
-  const base: LicensePlanCaps =
-    plan === 'premium'
-      ? { flashcardsPerDay: Infinity, practicePerDay: Infinity, testsPerWeek: Infinity }
-      : plan === 'standard'
-        ? { flashcardsPerDay: Infinity, practicePerDay: Infinity, testsPerWeek: 3 }
-        : { flashcardsPerDay: 20, practicePerDay: 2, testsPerWeek: 1 };
+export function experienceForPlan(plan: PlanRecord): LicenseExperience {
+  const caps = planCaps(plan);
 
   return {
-    flashcardsPerDay: resolveOverride(base.flashcardsPerDay, overrides?.flashcardsPerDay),
-    practicePerDay: resolveOverride(base.practicePerDay, overrides?.practicePerDay),
-    testsPerWeek: resolveOverride(base.testsPerWeek, overrides?.testsPerWeek),
+    plan: {
+      id: plan.id,
+      slug: plan.slug,
+      name: plan.name,
+      maxLicenses: plan.maxLicenses,
+      isActive: plan.isActive,
+    },
+    flashcards: accessStatus(caps.flashcards.limit),
+    practice: accessStatus(caps.practice.limit),
+    test: accessStatus(caps.test.limit),
+    logbook: plan.logbookAccess,
   };
 }

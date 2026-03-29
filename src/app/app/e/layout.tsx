@@ -14,7 +14,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       maxWidthClass="max-w-6xl"
       showHeader={false}
     >
-      <ModuleGate licenseId="avionics" title="Avionics" backHref={ROUTES.landing}>
+      <ModuleGate licenseId="e" title="Avionics" backHref={ROUTES.appHome}>
         {children}
       </ModuleGate>
     </AppShell>

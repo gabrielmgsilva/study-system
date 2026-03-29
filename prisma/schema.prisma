@@ -16,25 +16,10 @@ enum UserRole {
   admin
 }
 
-enum PlanTier {
-  basic
-  standard
-  premium
-}
-
-enum FlashcardsAccess {
-  daily_limit
-  unlimited
-}
-
-enum PracticeAccess {
-  cooldown
-  unlimited
-}
-
-enum TestAccess {
-  weekly_limit
-  unlimited
+enum LimitUnit {
+  day
+  week
+  month
 }
 
 enum StudyMode {
@@ -75,6 +60,7 @@ model User {
   email                  String    @unique @map("email")
   name                   String?   @map("name")
   username               String?   @map("username")
+  planId                 Int?      @map("plan_id")
   primaryLicenseId       String?   @map("primary_license_id")
   studyLevel             String?   @map("study_level")
   studyGoal              String?   @map("study_goal")
@@ -82,24 +68,30 @@ model User {
   passwordHash           String    @map("password_hash")
   role                   UserRole  @default(user) @map("role")
   lastPasswordChangeAt   DateTime? @map("last_password_change_at")
+  stripeCustomerId       String?   @unique @map("stripe_customer_id")
+  subscriptionStatus     String?   @map("subscription_status")
+  subscriptionExpiresAt  DateTime? @map("subscription_expires_at")
   createdAt              DateTime  @default(now()) @map("created_at")
   updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at")
   deletedAt              DateTime? @map("deleted_at")
 
-  creditAccount       CreditAccount?
-  creditLedger        CreditLedger[]
-  entitlements        Entitlement[]
-  licenseEntitlements LicenseEntitlement[]
-  passwordResetTokens PasswordResetToken[]
-  sessions            Session[]
-  studyProgress       StudyProgress[]
-  studySessions       StudySession[]
-  userStreak          UserStreak?
-  practiceStates      PracticeState[]
-  testAttempts        TestAttempt[]
-  createdQuestions    Question[]          @relation("QuestionCreatedBy")
-  reviewedQuestions   Question[]          @relation("QuestionReviewedBy")
+  creditAccount        CreditAccount?
+  creditLedger         CreditLedger[]
+  entitlements         Entitlement[]
+  licenseEntitlements  LicenseEntitlement[]
+  passwordResetTokens  PasswordResetToken[]
+  sessions             Session[]
+  studyProgress        StudyProgress[]
+  studySessions        StudySession[]
+  userStreak           UserStreak?
+  practiceStates       PracticeState[]
+  testAttempts         TestAttempt[]
+  createdQuestions     Question[]          @relation("QuestionCreatedBy")
+  reviewedQuestions    Question[]          @relation("QuestionReviewedBy")
+  plan                 Plan?               @relation(fields: [planId], references: [id])
+  subscriptionEvents   SubscriptionEvent[]
 
+  @@index([planId])
   @@map("users")
 }
 
@@ -187,28 +179,19 @@ model Entitlement {
 }
 
 model LicenseEntitlement {
-  id        Int              @id @default(autoincrement()) @map("id")
-  userId    Int              @map("user_id")
-  licenseId String           @map("license_id") // "m" | "e" | "s" | "balloons" | "regs"
-
-  plan       PlanTier         @default(basic) @map("plan")
-  flashcards FlashcardsAccess @default(daily_limit) @map("flashcards")
-  practice   PracticeAccess   @default(cooldown) @map("practice")
-  test       TestAccess       @default(weekly_limit) @map("test")
-  logbook    Boolean          @default(false) @map("logbook")
-  flashcardsPerDayOverride Int? @map("flashcards_per_day_override")
-  practicePerDayOverride   Int? @map("practice_per_day_override")
-  testsPerWeekOverride     Int? @map("tests_per_week_override")
-
-  grantedAt DateTime         @default(now()) @map("granted_at")
-  createdAt DateTime         @default(now()) @map("created_at")
-  updatedAt DateTime         @default(now()) @updatedAt @map("updated_at")
-  deletedAt DateTime?        @map("deleted_at")
+  id         Int       @id @default(autoincrement()) @map("id")
+  userId     Int       @map("user_id")
+  licenseId  String    @map("license_id") // "m" | "e" | "s" | "balloons" | "regs"
+  enrolledAt DateTime  @default(now()) @map("enrolled_at")
+  isActive   Boolean   @default(true) @map("is_active")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @default(now()) @updatedAt @map("updated_at")
+  deletedAt  DateTime? @map("deleted_at")
 
   user User @relation(fields: [userId], references: [id])
 
   @@unique([userId, licenseId])
-  @@index([userId])
+  @@index([userId, isActive])
   @@map("license_entitlements")
 }
 
@@ -463,30 +446,38 @@ model License {
   updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at")
   deletedAt    DateTime? @map("deleted_at")
 
-  plans            Plan[]
-  modules          Module[]
-  planModuleLimits PlanModuleLimit[]
+  modules Module[]
 
   @@map("licenses")
 }
 
 model Plan {
-  id           Int       @id @default(autoincrement()) @map("id")
-  tier         PlanTier  @unique @map("tier")
-  licenseId    String?   @map("license_id")
-  slug         String    @unique @map("slug")
-  name         String    @map("name")
-  description  String?   @map("description")
-  displayOrder Int       @default(0) @map("display_order")
-  isActive     Boolean   @default(true) @map("is_active")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at")
-  deletedAt    DateTime? @map("deleted_at")
+  id                     Int       @id @default(autoincrement()) @map("id")
+  slug                   String    @unique @map("slug")
+  name                   String    @map("name")
+  description            String?   @map("description")
+  price                  Decimal?  @db.Decimal(10, 2) @map("price")
+  maxLicenses            Int       @default(0) @map("max_licenses")
+  flashcardsLimit        Int       @default(0) @map("flashcards_limit")
+  flashcardsUnit         LimitUnit @default(day) @map("flashcards_unit")
+  practiceLimit          Int       @default(0) @map("practice_limit")
+  practiceUnit           LimitUnit @default(day) @map("practice_unit")
+  testsLimit             Int       @default(0) @map("tests_limit")
+  testsUnit              LimitUnit @default(week) @map("tests_unit")
+  maxQuestionsPerSession Int?      @map("max_questions_per_session")
+  logbookAccess          Boolean   @default(false) @map("logbook_access")
+  displayOrder           Int       @default(0) @map("display_order")
+  stripeProductId        String?   @map("stripe_product_id")
+  stripePriceMonthly     String?   @map("stripe_price_monthly")
+  stripePriceAnnual      String?   @map("stripe_price_annual")
+  trialDays              Int       @default(7) @map("trial_days")
+  isActive               Boolean   @default(true) @map("is_active")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at")
+  deletedAt              DateTime? @map("deleted_at")
 
-  license          License?           @relation(fields: [licenseId], references: [id])
-  planModuleLimits PlanModuleLimit[]
+  users User[]
 
-  @@index([licenseId])
   @@map("plans")
 }
 
@@ -503,9 +494,8 @@ model Module {
   updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at")
   deletedAt    DateTime? @map("deleted_at")
 
-  license          License           @relation(fields: [licenseId], references: [id])
-  subjects         Subject[]
-  planModuleLimits PlanModuleLimit[]
+  license  License   @relation(fields: [licenseId], references: [id])
+  subjects Subject[]
 
   @@unique([licenseId, slug])
   @@index([licenseId])
@@ -649,25 +639,39 @@ model QuestionReference {
   @@map("question_references")
 }
 
-model PlanModuleLimit {
-  id                  Int       @id @default(autoincrement()) @map("id")
-  planId              Int       @map("plan_id")
-  licenseId           String    @map("license_id")
-  moduleId            Int?      @map("module_id")
-  flashcardsPerDay    Int?      @map("flashcards_per_day")
-  practicePerDay      Int?      @map("practice_per_day")
-  testsPerWeek        Int?      @map("tests_per_week")
-  maxQuestionsPerSession Int?   @map("max_questions_per_session")
-  logbookAccess       Boolean?  @map("logbook_access")
-  createdAt           DateTime  @default(now()) @map("created_at")
-  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at")
-  deletedAt           DateTime? @map("deleted_at")
+// Stripe
+// ---------------------------------------------------------------------------
 
-  plan    Plan    @relation(fields: [planId], references: [id])
-  license License @relation(fields: [licenseId], references: [id])
-  module  Module? @relation(fields: [moduleId], references: [id])
+model Coupon {
+  id              Int       @id @default(autoincrement()) @map("id")
+  code            String    @unique @map("code")
+  stripeId        String    @unique @map("stripe_id")
+  percentOff      Int       @map("percent_off")
+  annualOnly      Boolean   @default(true) @map("annual_only")
+  maxRedemptions  Int?      @map("max_redemptions")
+  timesRedeemed   Int       @default(0) @map("times_redeemed")
+  expiresAt       DateTime? @map("expires_at")
+  isActive        Boolean   @default(true) @map("is_active")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
 
-  @@index([planId, licenseId])
-  @@index([moduleId])
-  @@map("plan_module_limits")
+  @@map("coupons")
 }
+
+model SubscriptionEvent {
+  id            Int      @id @default(autoincrement()) @map("id")
+  userId        Int      @map("user_id")
+  stripeEventId String   @unique @map("stripe_event_id")
+  eventType     String   @map("event_type")
+  payload       Json     @map("payload")
+  processedAt   DateTime @map("processed_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("subscription_events")
+}
+

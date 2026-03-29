@@ -483,7 +483,10 @@ const baseStudyNavigation: StudyNavLicense[] = [
 ];
 
 type StudyModuleOverride = Partial<
-  Omit<StudyNavModule, 'id' | 'sidebarHref' | 'studyHref' | 'progressPercent'>
+  Omit<
+    StudyNavModule,
+    'id' | 'sidebarHref' | 'studyHref' | 'progressPercent' | 'flashcards' | 'practice' | 'test'
+  >
 > & {
   flashcards?: Partial<StudyNavModule['flashcards']>;
   practice?: Partial<StudyNavModule['practice']>;

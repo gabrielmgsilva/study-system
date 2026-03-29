@@ -2,8 +2,9 @@ import { prisma } from '@/lib/prisma';
 import { hashToken } from '@/lib/token';
 import SignClient from './sign-client';
 
-export default async function Page({ params }: { params: { token: string } }) {
-  const tokenHash = hashToken(params.token);
+export default async function Page({ params }: { params: Promise<{ token: string }> }) {
+  const { token } = await params;
+  const tokenHash = hashToken(token);
 
   const req = await prisma.taskSignatureRequest.findFirst({
     where: { tokenHash, deletedAt: null, signatory: { deletedAt: null }, logbook: { deletedAt: null } },
@@ -18,7 +19,7 @@ export default async function Page({ params }: { params: { token: string } }) {
 
   return (
     <SignClient
-      rawToken={params.token}
+      rawToken={token}
       signatory={{
         id: String(req.signatory.id),
         name: req.signatory.name,

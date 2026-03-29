@@ -155,6 +155,38 @@ type AppDictionary = {
     exploreStart: string;
     seriousStudy: string;
     examCareer: string;
+    enroll: string;
+    unlimited: string;
+    notAvailable: string;
+    none: string;
+    blocked: string;
+    limited: string;
+    day: string;
+    days: string;
+    week: string;
+    weeks: string;
+    month: string;
+    months: string;
+    planRequiredTitle: string;
+    planRequiredBody: string;
+    nextStepEnrollPrefix: string;
+    nextStepEnrollRegsTitle: string;
+    nextStepEnrollRegsBody: string;
+    nextStepEnrollLogbookBody: string;
+    nextStepEnrollDefaultBody: string;
+    logbookPlanTitle: string;
+    logbookPlanBody: string;
+    currentPlanLabel: string;
+    noPlanSelected: string;
+    certificationsLabel: string;
+    regsExclusionNote: string;
+    logbookOnlySummary: string;
+    enrollRegsHelper: string;
+    enrollLogbookHelper: string;
+    enrollDefaultHelper: string;
+    planNeededForEnrollment: string;
+    certificationLimitReached: string;
+    failedToEnrollLicense: string;
   };
   account: {
     title: string;
@@ -352,6 +384,45 @@ const en: AppDictionary = {
     exploreStart: 'Explore & Start',
     seriousStudy: 'Serious Study',
     examCareer: 'Exam & Career',
+    enroll: 'Enroll',
+    unlimited: 'Unlimited',
+    notAvailable: 'Not available',
+    none: 'None',
+    blocked: 'blocked',
+    limited: 'limited',
+    day: 'day',
+    days: 'days',
+    week: 'week',
+    weeks: 'weeks',
+    month: 'month',
+    months: 'months',
+    planRequiredTitle: 'Plan required before enrollment',
+    planRequiredBody:
+      'Your onboarding preferences were saved, but your account still needs a plan before certification enrollment can start. Once a plan is assigned, come back here to enroll the first track.',
+    nextStepEnrollPrefix: 'Next step: enroll',
+    nextStepEnrollRegsTitle: 'Next step: enroll REGS',
+    nextStepEnrollRegsBody:
+      'REGS unlocks CARs and Standards and does not consume one of your certification slots. Enroll it here, then open the regulatory study path.',
+    nextStepEnrollLogbookBody:
+      'Your current plan is configured for logbook access only. Enroll one certification track here to activate its logbook area. Flashcards, practice, and tests remain unavailable on this plan.',
+    nextStepEnrollDefaultBody:
+      'Enroll the certification track you chose during onboarding. REGS never counts toward the cap, while M, E, S, and Balloons use the certification slots from your plan.',
+    logbookPlanTitle: 'This plan is configured for logbook access',
+    logbookPlanBody:
+      'This is a 1-track logbook plan. Enroll one certification track to activate its logbook area, but flashcards, practice, and tests stay blocked until you move to a study plan.',
+    currentPlanLabel: 'Current plan',
+    noPlanSelected: 'No plan selected',
+    certificationsLabel: 'Certifications',
+    regsExclusionNote: 'REGS does not count toward the limit when enrolled.',
+    logbookOnlySummary:
+      'This plan enables logbook access for 1 certification track only and does not include study volume.',
+    enrollRegsHelper: 'Enroll REGS to unlock CARs and Standards. It does not consume a certification slot.',
+    enrollLogbookHelper:
+      'Enroll this certification to activate its logbook area. Study modes remain blocked on your current plan.',
+    enrollDefaultHelper: 'Enroll this certification track using your current plan.',
+    planNeededForEnrollment: 'Your account still needs a plan before certification enrollment can start.',
+    certificationLimitReached: 'Your current plan already reached the certification limit.',
+    failedToEnrollLicense: 'Failed to enroll license',
   },
   account: {
     title: 'My Account',
@@ -559,6 +630,45 @@ const pt: AppDictionary = {
     exploreStart: 'Explorar e começar',
     seriousStudy: 'Estudo sério',
     examCareer: 'Prova e carreira',
+    enroll: 'Matricular',
+    unlimited: 'Ilimitado',
+    notAvailable: 'Indisponível',
+    none: 'Nenhuma',
+    blocked: 'bloqueado',
+    limited: 'limitado',
+    day: 'dia',
+    days: 'dias',
+    week: 'semana',
+    weeks: 'semanas',
+    month: 'mês',
+    months: 'meses',
+    planRequiredTitle: 'É preciso ter um plano antes da matrícula',
+    planRequiredBody:
+      'Suas preferências do onboarding foram salvas, mas a sua conta ainda precisa de um plano antes que a matrícula em uma certificação possa começar. Depois que um plano for atribuído, volte aqui para matricular a primeira trilha.',
+    nextStepEnrollPrefix: 'Próximo passo: matricular em',
+    nextStepEnrollRegsTitle: 'Próximo passo: matricular em REGS',
+    nextStepEnrollRegsBody:
+      'REGS libera CARs e Standards e não consome um slot de certificação do seu plano. Faça a matrícula aqui e depois abra a trilha regulatória.',
+    nextStepEnrollLogbookBody:
+      'O seu plano atual foi configurado apenas para acesso ao logbook. Matricule uma certificação aqui para ativar a área de logbook dela. Flashcards, prática e testes continuam indisponíveis nesse plano.',
+    nextStepEnrollDefaultBody:
+      'Matricule a certificação que você escolheu no onboarding. REGS nunca conta no limite, enquanto M, E, S e Balloons usam os slots de certificação do seu plano.',
+    logbookPlanTitle: 'Este plano está configurado para acesso ao logbook',
+    logbookPlanBody:
+      'Este é um plano de logbook para 1 trilha. Matricule uma certificação para ativar a área de logbook dela, mas flashcards, prática e testes continuam bloqueados até você migrar para um plano de estudo.',
+    currentPlanLabel: 'Plano atual',
+    noPlanSelected: 'Nenhum plano selecionado',
+    certificationsLabel: 'Certificações',
+    regsExclusionNote: 'REGS não conta no limite quando está matriculado.',
+    logbookOnlySummary:
+      'Este plano libera acesso ao logbook para apenas 1 trilha de certificação e não inclui volume de estudo.',
+    enrollRegsHelper: 'Matricule REGS para liberar CARs e Standards. Ele não consome um slot de certificação.',
+    enrollLogbookHelper:
+      'Matricule esta certificação para ativar a área de logbook dela. Os modos de estudo continuam bloqueados no seu plano atual.',
+    enrollDefaultHelper: 'Matricule esta trilha de certificação usando o seu plano atual.',
+    planNeededForEnrollment: 'A sua conta ainda precisa de um plano antes que a matrícula em uma certificação possa começar.',
+    certificationLimitReached: 'O seu plano atual já atingiu o limite de certificações.',
+    failedToEnrollLicense: 'Falha ao matricular a licença',
   },
   account: {
     title: 'Minha conta',

@@ -158,7 +158,7 @@ export function OnboardingPage({
                 Welcome, {userName}.
               </CardTitle>
               <CardDescription className="max-w-md text-sm leading-6 text-slate-500">
-                Two short steps and we will point you to the most relevant study path right away, without changing the app flow you already know.
+                Two short steps and we will point you to the most relevant study path right away. Choosing a focus does not enroll a certification yet.
               </CardDescription>
             </div>
 
@@ -166,6 +166,7 @@ export function OnboardingPage({
               <p className="font-semibold text-slate-900">Recommended flow</p>
               <p className="mt-2">1. Choose the license you want to focus on first.</p>
               <p>2. Tell us your current level and, if useful, your main goal.</p>
+              <p>3. After onboarding, enroll the first track your current plan should unlock. REGS never consumes a certification slot.</p>
             </div>
           </CardHeader>
 
@@ -175,7 +176,7 @@ export function OnboardingPage({
               active={step === 1}
               done={step === 2 && !!primaryLicenseId}
               title="License focus"
-              description="Pick the first path you want the platform to emphasize in your study area."
+              description="Pick the first path you want the platform to emphasize. Enrollment happens right after onboarding."
             />
             <StepBlock
               index={2}
@@ -208,7 +209,7 @@ export function OnboardingPage({
             </CardTitle>
             <CardDescription className="text-sm leading-6 text-slate-500">
               {step === 1
-                ? 'You can access other paths later. This only defines where the product should guide you first.'
+                ? 'You can access other paths later. This only defines where the product should guide you first and what enrollment step we recommend next.'
                 : 'Keep it practical. These choices are used to shape recommendations, not lock the account.'}
             </CardDescription>
           </CardHeader>

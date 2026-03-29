@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { use, useEffect, useMemo, useRef, useState } from 'react';
 
 type Point = { x: number; y: number };
 type Stroke = Point[];
@@ -40,8 +40,8 @@ function getPoint(e: PointerEvent, el: HTMLElement) {
   };
 }
 
-export default function VerifyPage({ params }: { params: { token: string } }) {
-  const token = params.token;
+export default function VerifyPage({ params }: { params: Promise<{ token: string }> }) {
+  const { token } = use(params);
 
   const PAD_W = 520;
   const PAD_H = 180;

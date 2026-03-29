@@ -1,4 +1,7 @@
 {
+  "/[locale]/page": "app/[locale]/page.js",
   "/[locale]/auth/login/page": "app/[locale]/auth/login/page.js",
+  "/admin/users/page": "app/admin/users/page.js",
+  "/admin/content/page": "app/admin/content/page.js",
   "/admin/plans/page": "app/admin/plans/page.js"
 }

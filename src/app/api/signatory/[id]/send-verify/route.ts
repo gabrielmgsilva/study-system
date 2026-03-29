@@ -1,10 +1,12 @@
 import { prisma } from '@/lib/prisma';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { addDays, generateRawToken, hashToken } from '@/lib/token';
 import { sendEmailDev } from '@/lib/email-dev';
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
-  const signatoryId = Number(params.id);
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  void req;
+  const { id } = await params;
+  const signatoryId = Number(id);
   if (!Number.isInteger(signatoryId) || signatoryId <= 0) {
     return NextResponse.json({ error: 'Invalid signatory id' }, { status: 400 });
   }

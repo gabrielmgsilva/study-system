@@ -1,10 +1,17 @@
 'use client';
 
+import { useSearchParams } from 'next/navigation';
 import React from 'react';
 import { ChevronLeft, ChevronRight, MoreVertical, Plus, RotateCcw, Search } from 'lucide-react';
 
+import {
+  AdminDialogBody,
+  AdminDialogContent,
+  AdminDialogFooter,
+  AdminDialogHeader,
+} from '@/components/admin/AdminDialog';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -93,6 +100,7 @@ type Filters = {
   topicId: string;
   locale: string;
   status: string;
+  pageSize: number;
   page: number;
 };
 
@@ -126,6 +134,7 @@ const DEFAULT_FILTERS: Filters = {
   topicId: 'all',
   locale: 'all',
   status: 'all',
+  pageSize: 10,
   page: 1,
 };
 
@@ -156,6 +165,28 @@ const EMPTY_FORM: QuestionForm = {
   referenceNote: '',
 };
 
+function parseInitialFilters(searchParams: URLSearchParams): Filters {
+  const page = Number(searchParams.get('page'));
+  const pageSize = Number(searchParams.get('pageSize'));
+  const locale = searchParams.get('locale');
+  const status = searchParams.get('status');
+
+  return {
+    q: searchParams.get('q')?.trim() ?? '',
+    licenseId: searchParams.get('licenseId')?.trim() || 'all',
+    moduleId: searchParams.get('moduleId')?.trim() || 'all',
+    subjectId: searchParams.get('subjectId')?.trim() || 'all',
+    topicId: searchParams.get('topicId')?.trim() || 'all',
+    locale: locale === 'en' || locale === 'pt' ? locale : 'all',
+    status:
+      status === 'draft' || status === 'review' || status === 'published' || status === 'archived'
+        ? status
+        : 'all',
+    pageSize: Number.isInteger(pageSize) && pageSize > 0 ? pageSize : DEFAULT_FILTERS.pageSize,
+    page: Number.isInteger(page) && page > 0 ? page : DEFAULT_FILTERS.page,
+  };
+}
+
 function statusBadgeClass(status: QuestionListItem['status']) {
   if (status === 'published') return 'bg-[#dcfce7] text-[#16a34a]';
   if (status === 'review') return 'bg-[#fef3c7] text-[#b45309]';
@@ -173,8 +204,9 @@ function trimStem(stem: string) {
 
 export default function AdminContentClient({ locale }: { locale: LandingLocale }) {
   void locale;
+  const searchParams = useSearchParams();
 
-  const [filters, setFilters] = React.useState<Filters>(DEFAULT_FILTERS);
+  const [filters, setFilters] = React.useState<Filters>(() => parseInitialFilters(searchParams));
   const [rows, setRows] = React.useState<QuestionListItem[]>([]);
   const [pagination, setPagination] = React.useState({ page: 1, pageSize: 10, total: 0, totalPages: 1 });
   const [licenses, setLicenses] = React.useState<LicenseOption[]>([]);
@@ -209,7 +241,7 @@ export default function AdminContentClient({ locale }: { locale: LandingLocale }
     setError(null);
 
     try {
-      const params = new URLSearchParams({ page: String(filters.page), pageSize: '10' });
+      const params = new URLSearchParams({ page: String(filters.page), pageSize: String(filters.pageSize) });
       if (filters.q.trim()) params.set('q', filters.q.trim());
       if (filters.licenseId !== 'all') params.set('licenseId', filters.licenseId);
       if (filters.moduleId !== 'all') params.set('moduleId', filters.moduleId);
@@ -467,7 +499,7 @@ export default function AdminContentClient({ locale }: { locale: LandingLocale }
               </TableRow>
             </TableHeader>
             <TableBody>
-              {loading ? Array.from({ length: 10 }).map((_, index) => <TableRow key={index}><TableCell colSpan={7} className="py-5 text-sm text-slate-400">Loading questions...</TableCell></TableRow>) : rows.length === 0 ? <TableRow><TableCell colSpan={7} className="py-8 text-center text-sm text-slate-500">No questions found.</TableCell></TableRow> : rows.map((question) => (
+              {loading ? Array.from({ length: filters.pageSize }).map((_, index) => <TableRow key={index}><TableCell colSpan={7} className="py-5 text-sm text-slate-400">Loading questions...</TableCell></TableRow>) : rows.length === 0 ? <TableRow><TableCell colSpan={7} className="py-8 text-center text-sm text-slate-500">No questions found.</TableCell></TableRow> : rows.map((question) => (
                 <TableRow key={question.id} className="bg-white hover:bg-slate-50/80">
                   <TableCell>
                     <div>
@@ -496,21 +528,37 @@ export default function AdminContentClient({ locale }: { locale: LandingLocale }
 
         <div className="mt-4 flex items-center justify-between gap-4">
           <div className="text-[13px] text-slate-500">Showing {showingFrom}-{showingTo} of {pagination.total.toLocaleString()} questions</div>
-          <div className="flex items-center gap-1.5">
-            <button type="button" disabled={pagination.page <= 1} onClick={() => updateFilter('page', Math.max(pagination.page - 1, 1))} className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 disabled:opacity-40"><ChevronLeft className="h-4 w-4" /></button>
-            {Array.from({ length: Math.min(pagination.totalPages, 3) }).map((_, index) => { const page = index + 1; const isActive = page === pagination.page; return <button key={page} type="button" onClick={() => updateFilter('page', page)} className={['flex h-8 w-8 items-center justify-center rounded-lg border text-[12px] font-semibold transition', isActive ? 'border-[#2f55d4] bg-[#2f55d4] text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'].join(' ')}>{page}</button>; })}
-            <button type="button" disabled={pagination.page >= pagination.totalPages} onClick={() => updateFilter('page', Math.min(pagination.page + 1, pagination.totalPages))} className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 disabled:opacity-40"><ChevronRight className="h-4 w-4" /></button>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
+              <label className="text-[12px] font-medium text-slate-600">Rows</label>
+              <Select value={String(filters.pageSize)} onValueChange={(value) => updateFilter('pageSize', Number(value))}>
+                <SelectTrigger className="h-9 w-[110px] rounded-xl border-slate-200 bg-white text-[13px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="20">20</SelectItem>
+                  <SelectItem value="30">30</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <button type="button" disabled={pagination.page <= 1} onClick={() => updateFilter('page', Math.max(pagination.page - 1, 1))} className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 disabled:opacity-40"><ChevronLeft className="h-4 w-4" /></button>
+              {Array.from({ length: Math.min(pagination.totalPages, 3) }).map((_, index) => { const page = index + 1; const isActive = page === pagination.page; return <button key={page} type="button" onClick={() => updateFilter('page', page)} className={['flex h-8 w-8 items-center justify-center rounded-lg border text-[12px] font-semibold transition', isActive ? 'border-[#2f55d4] bg-[#2f55d4] text-white' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'].join(' ')}>{page}</button>; })}
+              <button type="button" disabled={pagination.page >= pagination.totalPages} onClick={() => updateFilter('page', Math.min(pagination.page + 1, pagination.totalPages))} className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 disabled:opacity-40"><ChevronRight className="h-4 w-4" /></button>
+            </div>
           </div>
         </div>
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-h-[92vh] max-w-5xl overflow-y-auto rounded-2xl border-slate-200 bg-white p-0">
-          <DialogHeader className="border-b border-slate-200 px-6 py-5">
+        <AdminDialogContent size="content" height="tall">
+          <AdminDialogHeader>
             <DialogTitle className="text-xl font-semibold text-slate-900">{editingQuestionId ? 'Edit Question' : 'New Question'}</DialogTitle>
             <DialogDescription className="text-sm text-slate-500">Create or update the normalized content surfaced by flashcards and test mode.</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 px-6 py-5 md:grid-cols-2">
+          </AdminDialogHeader>
+          <AdminDialogBody className="grid gap-4 md:grid-cols-2">
             <div className="space-y-1.5"><label className="text-[12px] font-medium text-slate-600">External ID</label><Input value={formState.externalId} onChange={(event) => setFormState((current) => ({ ...current, externalId: event.target.value }))} className="h-11 rounded-xl border-slate-200" /></div>
             <div className="space-y-1.5"><label className="text-[12px] font-medium text-slate-600">Source File</label><Input value={formState.sourceFile} onChange={(event) => setFormState((current) => ({ ...current, sourceFile: event.target.value }))} className="h-11 rounded-xl border-slate-200" /></div>
             <div className="space-y-1.5"><label className="text-[12px] font-medium text-slate-600">License</label><Select value={formState.licenseId || 'none'} onValueChange={(value) => void handleLicenseChange(value)}><SelectTrigger className="h-11 w-full rounded-xl border-slate-200"><SelectValue placeholder="Select license" /></SelectTrigger><SelectContent><SelectItem value="none">Select license</SelectItem>{licenses.map((license) => <SelectItem key={license.id} value={license.id}>{license.name}</SelectItem>)}</SelectContent></Select></div>
@@ -532,12 +580,12 @@ export default function AdminContentClient({ locale }: { locale: LandingLocale }
             <div className="space-y-1.5"><label className="text-[12px] font-medium text-slate-600">Topic Ref</label><Input value={formState.referenceTopicRef} onChange={(event) => setFormState((current) => ({ ...current, referenceTopicRef: event.target.value }))} className="h-11 rounded-xl border-slate-200" /></div>
             <div className="space-y-1.5"><label className="text-[12px] font-medium text-slate-600">Locator</label><Input value={formState.referenceLocator} onChange={(event) => setFormState((current) => ({ ...current, referenceLocator: event.target.value }))} className="h-11 rounded-xl border-slate-200" /></div>
             <div className="space-y-1.5 md:col-span-2"><label className="text-[12px] font-medium text-slate-600">Reference Note</label><Textarea value={formState.referenceNote} onChange={(event) => setFormState((current) => ({ ...current, referenceNote: event.target.value }))} className="min-h-[90px] rounded-xl border-slate-200" /></div>
-          </div>
-          <DialogFooter className="border-t border-slate-200 px-6 py-4 sm:justify-end">
+          </AdminDialogBody>
+          <AdminDialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)} className="rounded-xl border-slate-200 bg-white text-slate-700 hover:bg-slate-50">Cancel</Button>
             <Button onClick={() => void saveQuestion()} disabled={saving || !formState.topicId} className="rounded-xl bg-[#2f55d4] text-white hover:bg-[#2448be]">{saving ? 'Saving...' : editingQuestionId ? 'Save Changes' : 'Create Question'}</Button>
-          </DialogFooter>
-        </DialogContent>
+          </AdminDialogFooter>
+        </AdminDialogContent>
       </Dialog>
     </div>
   );

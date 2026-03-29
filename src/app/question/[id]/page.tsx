@@ -15,8 +15,8 @@ type Q = {
   category?: string;
 };
 
-function getBaseUrl() {
-  const h = headers();
+async function getBaseUrl() {
+  const h = await headers();
   const host = h.get('host') || 'localhost:3000';
 
   // Em dev é http, em produção normalmente https
@@ -27,7 +27,7 @@ function getBaseUrl() {
 }
 
 async function getQuestion(id: string): Promise<Q | null> {
-  const baseUrl = getBaseUrl();
+  const baseUrl = await getBaseUrl();
 
   const res = await fetch(
     `${baseUrl}/api/question-by-id?id=${encodeURIComponent(id)}`,
@@ -43,9 +43,10 @@ async function getQuestion(id: string): Promise<Q | null> {
 export default async function QuestionPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  const id = decodeURIComponent(params.id);
+  const { id: rawId } = await params;
+  const id = decodeURIComponent(rawId);
   const q = await getQuestion(id);
 
   if (!q) {

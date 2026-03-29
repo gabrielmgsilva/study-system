@@ -1,10 +1,11 @@
 import { prisma } from '@/lib/prisma';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const body = await req.json();
   const { name, email, licenceOrAuthNo, initials } = body;
-  const signatoryId = Number(params.id);
+  const { id } = await params;
+  const signatoryId = Number(id);
 
   if (!Number.isInteger(signatoryId) || signatoryId <= 0) {
     return NextResponse.json({ error: 'Invalid signatory id' }, { status: 400 });

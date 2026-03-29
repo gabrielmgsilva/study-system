@@ -1,42 +1,43 @@
-import type {
-  FlashcardsAccess,
-  PlanTier,
-  PracticeAccess,
-  Prisma,
-  TestAccess,
-} from '@prisma/client';
+import type { LimitUnit, Prisma } from '@prisma/client';
 
-import { planCaps, type LicensePlanCaps } from '@/lib/planEntitlements';
+import { experienceForPlan, planCaps, type AccessStatus, type LicensePlanCaps, type PlanRecord } from '@/lib/planEntitlements';
 
 export type StudyStartMode = 'flashcard' | 'practice' | 'test';
 
 export type SerializablePlanCaps = {
-  flashcardsPerDay: number | null;
-  practicePerDay: number | null;
-  testsPerWeek: number | null;
+  flashcards: { limit: number | null; unit: LimitUnit };
+  practice: { limit: number | null; unit: LimitUnit };
+  test: { limit: number | null; unit: LimitUnit };
+  maxQuestionsPerSession: number | null;
 };
 
 export type LicenseUsageSummary = {
-  flashcardsToday: number;
+  flashcardsUsed: number;
   flashcardsRemaining: number | null;
-  practiceToday: number;
+  practiceUsed: number;
   practiceRemaining: number | null;
-  testsThisWeek: number;
+  testsUsed: number;
   testsRemaining: number | null;
 };
 
 export type LicenseEntitlementSnapshot = {
-  plan: PlanTier;
-  flashcards: FlashcardsAccess;
-  practice: PracticeAccess;
-  test: TestAccess;
+  plan: {
+    id: number;
+    slug: string;
+    name: string;
+    maxLicenses: number;
+    isActive: boolean;
+  };
+  flashcards: AccessStatus;
+  practice: AccessStatus;
+  test: AccessStatus;
   logbook: boolean;
   caps: SerializablePlanCaps;
   usage: LicenseUsageSummary;
-  overrides: {
-    flashcardsPerDay: number | null;
-    practicePerDay: number | null;
-    testsPerWeek: number | null;
+  enrollment: {
+    licenseId: string;
+    enrolledAt: string;
+    isActive: boolean;
   };
 };
 
@@ -44,15 +45,11 @@ type DbClient = Prisma.TransactionClient;
 
 type LicenseEntitlementRow = {
   licenseId: string;
-  plan: PlanTier;
-  flashcards: FlashcardsAccess;
-  practice: PracticeAccess;
-  test: TestAccess;
-  logbook: boolean;
-  flashcardsPerDayOverride: number | null;
-  practicePerDayOverride: number | null;
-  testsPerWeekOverride: number | null;
+  enrolledAt: Date;
+  isActive: boolean;
 };
+
+type UserPlanRow = PlanRecord;
 
 function norm(s: string) {
   return String(s ?? '').trim().toLowerCase().replace(/_/g, '-');
@@ -82,49 +79,53 @@ function startOfWeek(now: Date) {
   return date;
 }
 
-function serializeLimit(limit: number) {
-  return Number.isFinite(limit) ? limit : null;
+function startOfMonth(now: Date) {
+  return new Date(now.getFullYear(), now.getMonth(), 1);
 }
 
-function remainingLimit(limit: number, used: number) {
-  if (!Number.isFinite(limit)) return null;
+function rangeStart(unit: LimitUnit, now: Date) {
+  if (unit === 'month') return startOfMonth(now);
+  if (unit === 'week') return startOfWeek(now);
+  return startOfDay(now);
+}
+
+function remainingLimit(limit: number | null, used: number) {
+  if (limit === null) return null;
   return Math.max(limit - used, 0);
 }
 
-export function resolveEntitlementCaps(row: Pick<LicenseEntitlementRow, 'plan' | 'flashcardsPerDayOverride' | 'practicePerDayOverride' | 'testsPerWeekOverride'>): LicensePlanCaps {
-  return planCaps(row.plan, {
-    flashcardsPerDay: row.flashcardsPerDayOverride,
-    practicePerDay: row.practicePerDayOverride,
-    testsPerWeek: row.testsPerWeekOverride,
-  });
-}
-
-function buildSnapshot(row: LicenseEntitlementRow, usage: { flashcardsToday: number; practiceToday: number; testsThisWeek: number; }): LicenseEntitlementSnapshot {
-  const caps = resolveEntitlementCaps(row);
+function buildSnapshot(
+  row: LicenseEntitlementRow,
+  plan: UserPlanRow,
+  usage: { flashcardsUsed: number; practiceUsed: number; testsUsed: number },
+): LicenseEntitlementSnapshot {
+  const caps = planCaps(plan);
+  const experience = experienceForPlan(plan);
 
   return {
-    plan: row.plan,
-    flashcards: row.flashcards,
-    practice: row.practice,
-    test: row.test,
-    logbook: row.logbook,
+    plan: experience.plan,
+    flashcards: experience.flashcards,
+    practice: experience.practice,
+    test: experience.test,
+    logbook: experience.logbook,
     caps: {
-      flashcardsPerDay: serializeLimit(caps.flashcardsPerDay),
-      practicePerDay: serializeLimit(caps.practicePerDay),
-      testsPerWeek: serializeLimit(caps.testsPerWeek),
+      flashcards: caps.flashcards,
+      practice: caps.practice,
+      test: caps.test,
+      maxQuestionsPerSession: caps.maxQuestionsPerSession,
     },
     usage: {
-      flashcardsToday: usage.flashcardsToday,
-      flashcardsRemaining: remainingLimit(caps.flashcardsPerDay, usage.flashcardsToday),
-      practiceToday: usage.practiceToday,
-      practiceRemaining: remainingLimit(caps.practicePerDay, usage.practiceToday),
-      testsThisWeek: usage.testsThisWeek,
-      testsRemaining: remainingLimit(caps.testsPerWeek, usage.testsThisWeek),
+      flashcardsUsed: usage.flashcardsUsed,
+      flashcardsRemaining: remainingLimit(caps.flashcards.limit, usage.flashcardsUsed),
+      practiceUsed: usage.practiceUsed,
+      practiceRemaining: remainingLimit(caps.practice.limit, usage.practiceUsed),
+      testsUsed: usage.testsUsed,
+      testsRemaining: remainingLimit(caps.test.limit, usage.testsUsed),
     },
-    overrides: {
-      flashcardsPerDay: row.flashcardsPerDayOverride,
-      practicePerDay: row.practicePerDayOverride,
-      testsPerWeek: row.testsPerWeekOverride,
+    enrollment: {
+      licenseId: row.licenseId,
+      enrolledAt: row.enrolledAt.toISOString(),
+      isActive: row.isActive,
     },
   };
 }
@@ -137,31 +138,54 @@ function usageCountMap(rows: Array<{ licenseId: string; _count: { _all: number }
   return out;
 }
 
-function usageSumMap(rows: Array<{ licenseId: string; _sum: { questionsTotal: number | null } }>) {
+function usageSumMap(rows: Array<{ licenseId: string; _sum?: { questionsAnswered?: number | null } }>) {
   const out: Record<string, number> = {};
   for (const row of rows) {
-    out[normalizeLicenseId(row.licenseId)] = Number(row._sum.questionsTotal ?? 0);
+    out[normalizeLicenseId(row.licenseId)] = Number(row._sum?.questionsAnswered ?? 0);
   }
   return out;
 }
 
 export async function getLicenseEntitlementSnapshots(db: DbClient, userId: number, now = new Date()) {
-  const dayStart = startOfDay(now);
-  const weekStart = startOfWeek(now);
+  const user = await db.user.findFirst({
+    where: { id: userId, deletedAt: null },
+    select: {
+      plan: {
+        select: {
+          id: true,
+          slug: true,
+          name: true,
+          description: true,
+          maxLicenses: true,
+          flashcardsLimit: true,
+          flashcardsUnit: true,
+          practiceLimit: true,
+          practiceUnit: true,
+          testsLimit: true,
+          testsUnit: true,
+          maxQuestionsPerSession: true,
+          logbookAccess: true,
+          isActive: true,
+        },
+      },
+    },
+  });
+
+  if (!user?.plan) {
+    return {} as Record<string, LicenseEntitlementSnapshot>;
+  }
+
+  const flashcardsStart = rangeStart(user.plan.flashcardsUnit, now);
+  const practiceStart = rangeStart(user.plan.practiceUnit, now);
+  const testsStart = rangeStart(user.plan.testsUnit, now);
 
   const [entitlements, flashcardsRows, practiceRows, testRows] = await Promise.all([
     db.licenseEntitlement.findMany({
-      where: { userId, deletedAt: null },
+      where: { userId, deletedAt: null, isActive: true },
       select: {
         licenseId: true,
-        plan: true,
-        flashcards: true,
-        practice: true,
-        test: true,
-        logbook: true,
-        flashcardsPerDayOverride: true,
-        practicePerDayOverride: true,
-        testsPerWeekOverride: true,
+        enrolledAt: true,
+        isActive: true,
       },
     }),
     db.studySession.groupBy({
@@ -170,9 +194,9 @@ export async function getLicenseEntitlementSnapshots(db: DbClient, userId: numbe
         userId,
         deletedAt: null,
         mode: 'flashcard',
-        startedAt: { gte: dayStart },
+        startedAt: { gte: flashcardsStart },
       },
-      _sum: { questionsTotal: true },
+      _sum: { questionsAnswered: true },
     }),
     db.studySession.groupBy({
       by: ['licenseId'],
@@ -180,7 +204,7 @@ export async function getLicenseEntitlementSnapshots(db: DbClient, userId: numbe
         userId,
         deletedAt: null,
         mode: 'practice',
-        startedAt: { gte: dayStart },
+        startedAt: { gte: practiceStart },
       },
       _count: { _all: true },
     }),
@@ -190,7 +214,7 @@ export async function getLicenseEntitlementSnapshots(db: DbClient, userId: numbe
         userId,
         deletedAt: null,
         mode: 'test',
-        startedAt: { gte: weekStart },
+        startedAt: { gte: testsStart },
       },
       _count: { _all: true },
     }),
@@ -204,10 +228,10 @@ export async function getLicenseEntitlementSnapshots(db: DbClient, userId: numbe
 
   for (const row of entitlements) {
     const licenseId = normalizeLicenseId(row.licenseId);
-    snapshots[licenseId] = buildSnapshot(row, {
-      flashcardsToday: flashcardsMap[licenseId] ?? 0,
-      practiceToday: practiceMap[licenseId] ?? 0,
-      testsThisWeek: testMap[licenseId] ?? 0,
+    snapshots[licenseId] = buildSnapshot(row, user.plan, {
+      flashcardsUsed: flashcardsMap[licenseId] ?? 0,
+      practiceUsed: practiceMap[licenseId] ?? 0,
+      testsUsed: testMap[licenseId] ?? 0,
     });
   }
 
@@ -221,27 +245,50 @@ export async function getSingleLicenseEntitlementSnapshot(
   now = new Date(),
 ) {
   const normalizedLicenseId = normalizeLicenseId(licenseId);
-  const dayStart = startOfDay(now);
-  const weekStart = startOfWeek(now);
+  const user = await db.user.findFirst({
+    where: { id: userId, deletedAt: null },
+    select: {
+      plan: {
+        select: {
+          id: true,
+          slug: true,
+          name: true,
+          description: true,
+          maxLicenses: true,
+          flashcardsLimit: true,
+          flashcardsUnit: true,
+          practiceLimit: true,
+          practiceUnit: true,
+          testsLimit: true,
+          testsUnit: true,
+          maxQuestionsPerSession: true,
+          logbookAccess: true,
+          isActive: true,
+        },
+      },
+    },
+  });
+
+  if (!user?.plan) {
+    return null;
+  }
 
   const entitlement = await db.licenseEntitlement.findFirst({
-    where: { userId, licenseId: normalizedLicenseId, deletedAt: null },
+    where: { userId, licenseId: normalizedLicenseId, deletedAt: null, isActive: true },
     select: {
       licenseId: true,
-      plan: true,
-      flashcards: true,
-      practice: true,
-      test: true,
-      logbook: true,
-      flashcardsPerDayOverride: true,
-      practicePerDayOverride: true,
-      testsPerWeekOverride: true,
+      enrolledAt: true,
+      isActive: true,
     },
   });
 
   if (!entitlement) {
     return null;
   }
+
+  const flashcardsStart = rangeStart(user.plan.flashcardsUnit, now);
+  const practiceStart = rangeStart(user.plan.practiceUnit, now);
+  const testsStart = rangeStart(user.plan.testsUnit, now);
 
   const [flashcardsAgg, practiceCount, testCount] = await Promise.all([
     db.studySession.aggregate({
@@ -250,9 +297,9 @@ export async function getSingleLicenseEntitlementSnapshot(
         licenseId: normalizedLicenseId,
         deletedAt: null,
         mode: 'flashcard',
-        startedAt: { gte: dayStart },
+        startedAt: { gte: flashcardsStart },
       },
-      _sum: { questionsTotal: true },
+      _sum: { questionsAnswered: true },
     }),
     db.studySession.count({
       where: {
@@ -260,7 +307,7 @@ export async function getSingleLicenseEntitlementSnapshot(
         licenseId: normalizedLicenseId,
         deletedAt: null,
         mode: 'practice',
-        startedAt: { gte: dayStart },
+        startedAt: { gte: practiceStart },
       },
     }),
     db.studySession.count({
@@ -269,14 +316,14 @@ export async function getSingleLicenseEntitlementSnapshot(
         licenseId: normalizedLicenseId,
         deletedAt: null,
         mode: 'test',
-        startedAt: { gte: weekStart },
+        startedAt: { gte: testsStart },
       },
     }),
   ]);
 
-  return buildSnapshot(entitlement, {
-    flashcardsToday: Number(flashcardsAgg._sum.questionsTotal ?? 0),
-    practiceToday: practiceCount,
-    testsThisWeek: testCount,
+  return buildSnapshot(entitlement, user.plan, {
+    flashcardsUsed: Number(flashcardsAgg._sum?.questionsAnswered ?? 0),
+    practiceUsed: practiceCount,
+    testsUsed: testCount,
   });
 }

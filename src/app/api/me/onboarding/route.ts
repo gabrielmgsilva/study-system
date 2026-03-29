@@ -6,7 +6,7 @@ import {
   isOnboardingLicense,
   isOnboardingStudyGoal,
   isOnboardingStudyLevel,
-  resolvePostOnboardingRoute,
+  resolvePostOnboardingDestination,
 } from '@/lib/onboarding';
 
 export async function PATCH(req: Request) {
@@ -48,9 +48,11 @@ export async function PATCH(req: Request) {
     },
   });
 
+  const redirectTo = await resolvePostOnboardingDestination(auth.userId, primaryLicenseId);
+
   return NextResponse.json({
     ok: true,
     user,
-    redirectTo: resolvePostOnboardingRoute(primaryLicenseId),
+    redirectTo,
   });
 }

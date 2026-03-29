@@ -3,30 +3,29 @@
 import type { LicenseExperience } from '@/lib/planEntitlements';
 
 export type LicenseUsageCaps = {
-  flashcardsPerDay: number | null;
-  practicePerDay: number | null;
-  testsPerWeek: number | null;
+  flashcards: { limit: number | null; unit: 'day' | 'week' | 'month' };
+  practice: { limit: number | null; unit: 'day' | 'week' | 'month' };
+  test: { limit: number | null; unit: 'day' | 'week' | 'month' };
+  maxQuestionsPerSession: number | null;
 };
 
 export type LicenseUsageSummary = {
-  flashcardsToday: number;
+  flashcardsUsed: number;
   flashcardsRemaining: number | null;
-  practiceToday: number;
+  practiceUsed: number;
   practiceRemaining: number | null;
-  testsThisWeek: number;
+  testsUsed: number;
   testsRemaining: number | null;
-};
-
-export type LicensePlanOverrides = {
-  flashcardsPerDay: number | null;
-  practicePerDay: number | null;
-  testsPerWeek: number | null;
 };
 
 export type LicenseExperienceSnapshot = LicenseExperience & {
   caps?: LicenseUsageCaps;
   usage?: LicenseUsageSummary;
-  overrides?: LicensePlanOverrides;
+  enrollment?: {
+    licenseId: string;
+    enrolledAt: string;
+    isActive: boolean;
+  };
 };
 
 /**
@@ -40,7 +39,17 @@ export type LicenseExperienceSnapshot = LicenseExperience & {
 export type StudentState = {
   credits: number;
   entitlements: string[];
+  plan: LicenseExperience['plan'] | null;
+  enrollmentSummary: {
+    count: number;
+    max: number;
+  };
   licenseEntitlements: Record<string, LicenseExperienceSnapshot>;
+  subscription?: {
+    status: string | null;
+    expiresAt: string | null;
+    active: boolean;
+  };
 };
 
 let _cache: StudentState | null = null;
@@ -59,7 +68,13 @@ export function normalizeModuleKey(moduleKey: string): string {
 }
 
 function emptyState(): StudentState {
-  return { credits: 0, entitlements: [], licenseEntitlements: {} };
+  return {
+    credits: 0,
+    entitlements: [],
+    plan: null,
+    enrollmentSummary: { count: 0, max: 0 },
+    licenseEntitlements: {},
+  };
 }
 
 export async function getStudentState(opts?: { force?: boolean }): Promise<StudentState | null> {
@@ -90,7 +105,13 @@ export async function getStudentState(opts?: { force?: boolean }): Promise<Stude
       const next: StudentState = {
         credits: Number(data?.credits ?? 0),
         entitlements,
+        plan: data?.plan && typeof data.plan === 'object' ? data.plan : null,
+        enrollmentSummary: {
+          count: Number(data?.enrollmentSummary?.count ?? 0),
+          max: Number(data?.enrollmentSummary?.max ?? 0),
+        },
         licenseEntitlements,
+        subscription: data?.subscription ?? undefined,
       };
 
       _cache = next;
@@ -138,7 +159,6 @@ export function canAccessModuleFromState(state: StudentState | null, moduleKey: 
   // Logbook requires the logbook flag in the plan.
   if (moduleId === 'logbook') return !!exp.logbook;
 
-  // Everything else is unlocked by owning the licence plan.
   return true;
 }
 

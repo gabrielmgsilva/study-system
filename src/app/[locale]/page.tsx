@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 import { PublicLandingPage } from '@/components/landing/PublicLandingPage';
 import { isLandingLocale, landingLocales, normalizeLandingLocale } from '@/lib/i18n/landing';
 
+export const dynamic = 'force-dynamic';
+
 export function generateStaticParams() {
   return landingLocales.map((locale) => ({ locale }));
 }

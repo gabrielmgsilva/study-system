@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useSearchParams } from 'next/navigation';
-import { Bell, FileText, Languages, LayoutDashboard, LogOut, Menu, Settings2, Users } from 'lucide-react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useState } from 'react';
+import { Bell, FileText, Languages, LayoutDashboard, LogOut, Menu, Settings2, Tag, Users } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -15,7 +16,8 @@ import {
 } from '@/components/ui/sheet';
 import type { LandingLocale } from '@/lib/i18n/landing';
 import { getAdminConsoleCopy, type AdminSectionId } from '@/lib/adminConsole';
-import { localizeAppHref, localizePathname, stripLocalePrefix } from '@/lib/i18n/app';
+import { getAppDictionary, localizeAppHref, localizePathname, stripLocalePrefix } from '@/lib/i18n/app';
+import { logoutAndRedirect } from '@/lib/clientLogout';
 import { ROUTES } from '@/lib/routes';
 
 type AdminShellProps = {
@@ -39,24 +41,37 @@ function initialsFromName(name: string) {
 function resolveActiveSection(pathname: string): AdminSectionId {
   if (pathname.startsWith(ROUTES.adminPlans)) return 'plans';
   if (pathname.startsWith(ROUTES.adminContent)) return 'content';
+  if (pathname.startsWith(ROUTES.adminCoupons)) return 'coupons';
   return 'users';
 }
 
 function SectionIcon({ id }: { id: AdminSectionId }) {
   if (id === 'plans') return <Settings2 className="h-4 w-4" />;
   if (id === 'content') return <FileText className="h-4 w-4" />;
+  if (id === 'coupons') return <Tag className="h-4 w-4" />;
   return <Users className="h-4 w-4" />;
 }
 
 export default function AdminShell({ locale, user, children }: AdminShellProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const copy = getAdminConsoleCopy(locale);
+  const dictionary = getAppDictionary(locale);
   const strippedPath = stripLocalePrefix(pathname || ROUTES.adminHome);
   const activeSection = resolveActiveSection(strippedPath);
   const query = searchParams.toString();
   const displayName = user.name?.trim() || user.email;
   const initials = initialsFromName(displayName || 'AD');
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  async function handleLogout() {
+    if (loggingOut) return;
+    setLoggingOut(true);
+
+    await logoutAndRedirect(locale, router);
+    setLoggingOut(false);
+  }
 
   const nav = (
     <div className="flex h-full flex-col bg-white text-slate-900">
@@ -88,8 +103,10 @@ export default function AdminShell({ locale, user, children }: AdminShellProps) 
               section.id === 'users'
                 ? 'User Management'
                 : section.id === 'plans'
-                  ? 'License and Plan Management'
-                  : 'Content Management';
+                  ? 'Plan Management'
+                  : section.id === 'coupons'
+                    ? 'Coupon Management'
+                    : 'Content Management';
 
             return (
               <Link
@@ -185,13 +202,18 @@ export default function AdminShell({ locale, user, children }: AdminShellProps) 
                     <div className="text-[13px] font-semibold text-slate-900">{displayName}</div>
                     <div className="text-[11px] text-slate-500">Super Admin</div>
                   </div>
-                  <Link
-                    href={localizeAppHref(ROUTES.appHome, locale)}
-                    className="rounded-full p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
-                    aria-label={copy.backToApp}
+                  <button
+                    type="button"
+                    className="rounded-full p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    aria-label={loggingOut ? dictionary.shell.signingOut : dictionary.shell.logout}
+                    title={loggingOut ? dictionary.shell.signingOut : dictionary.shell.logout}
+                    onClick={() => {
+                      void handleLogout();
+                    }}
+                    disabled={loggingOut}
                   >
                     <LogOut className="h-4 w-4" />
-                  </Link>
+                  </button>
                 </div>
               </div>
             </div>

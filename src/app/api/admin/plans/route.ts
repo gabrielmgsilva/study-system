@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client';
+import type { LimitUnit, Prisma } from '@prisma/client';
 import { NextRequest, NextResponse } from 'next/server';
 
 import { prisma } from '@/lib/prisma';
@@ -21,68 +21,54 @@ function parsePlanId(value: string | null) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
-function parseTierSearch(value: string) {
-  const normalized = value.trim().toLowerCase();
-  return normalized === 'basic' || normalized === 'standard' || normalized === 'premium'
-    ? (normalized as 'basic' | 'standard' | 'premium')
-    : null;
+function parseStatus(value: string | null) {
+  if (value === 'active' || value === 'inactive') return value;
+  return 'all';
 }
 
-function parseModuleId(value: string | null) {
-  if (!value || value === 'all') return null;
-  if (value === 'license') return 'license';
-  const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
-}
-
-function parseNullableInt(value: unknown) {
+function parseNullableInt(value: unknown, minimum = 0) {
   if (value === '' || value === null || value === undefined) return null;
   const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed >= 0 ? parsed : undefined;
+  return Number.isInteger(parsed) && parsed >= minimum ? parsed : undefined;
 }
 
 function parseNullableBool(value: unknown) {
-  if (value === null || value === undefined || value === '') return null;
+  if (value === null || value === undefined || value === '') return undefined;
   if (typeof value === 'boolean') return value;
   if (value === 'true') return true;
   if (value === 'false') return false;
   return undefined;
 }
 
-async function getPlanCatalogOptions() {
-  const [plans, licenses, modules] = await Promise.all([
-    prisma.plan.findMany({
-      where: { deletedAt: null },
-      orderBy: [{ displayOrder: 'asc' }, { id: 'asc' }],
-      select: {
-        id: true,
-        tier: true,
-        slug: true,
-        name: true,
-        description: true,
-        isActive: true,
-        updatedAt: true,
-      },
-    }),
-    prisma.license.findMany({
-      where: { deletedAt: null },
-      orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }],
-      select: { id: true, name: true },
-    }),
-    prisma.module.findMany({
-      where: { deletedAt: null },
-      orderBy: [{ license: { displayOrder: 'asc' } }, { displayOrder: 'asc' }, { name: 'asc' }],
-      select: {
-        id: true,
-        licenseId: true,
-        name: true,
-        slug: true,
-        moduleKey: true,
-      },
-    }),
-  ]);
+function parseLimitUnit(value: unknown, fallback: LimitUnit) {
+  if (value === undefined || value === null || value === '') return fallback;
+  return value === 'day' || value === 'week' || value === 'month' ? value : undefined;
+}
 
-  return { plans, licenses, modules };
+function parsePrice(value: unknown) {
+  if (value === '' || value === null || value === undefined) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed.toFixed(2) : undefined;
+}
+
+function parseName(value: unknown) {
+  const parsed = String(value ?? '').trim();
+  return parsed.length > 0 ? parsed : null;
+}
+
+function parseSlug(value: unknown) {
+  const parsed = String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return parsed.length > 0 ? parsed : null;
+}
+
+function parseDescription(value: unknown) {
+  if (value === undefined) return undefined;
+  const parsed = String(value ?? '').trim();
+  return parsed.length > 0 ? parsed : null;
 }
 
 export async function GET(req: NextRequest) {
@@ -91,56 +77,74 @@ export async function GET(req: NextRequest) {
 
   const q = String(req.nextUrl.searchParams.get('q') ?? '').trim();
   const planId = parsePlanId(req.nextUrl.searchParams.get('planId'));
-  const licenseId = String(req.nextUrl.searchParams.get('licenseId') ?? '').trim().toLowerCase();
-  const moduleFilter = parseModuleId(req.nextUrl.searchParams.get('moduleId'));
+  const status = parseStatus(req.nextUrl.searchParams.get('status'));
   const page = parsePage(req.nextUrl.searchParams.get('page'));
   const pageSize = parsePageSize(req.nextUrl.searchParams.get('pageSize'));
-  const tierSearch = q ? parseTierSearch(q) : null;
 
-  const where: Prisma.PlanModuleLimitWhereInput = {
+  const where: Prisma.PlanWhereInput = {
     deletedAt: null,
-    ...(planId ? { planId } : {}),
-    ...(licenseId ? { licenseId } : {}),
-    ...(moduleFilter === 'license'
-      ? { moduleId: null }
-      : typeof moduleFilter === 'number'
-        ? { moduleId: moduleFilter }
-        : {}),
+    ...(planId ? { id: planId } : {}),
+    ...(status === 'active' ? { isActive: true } : {}),
+    ...(status === 'inactive' ? { isActive: false } : {}),
     ...(q
       ? {
           OR: [
-            { plan: { name: { contains: q, mode: 'insensitive' } } },
-            ...(tierSearch ? [{ plan: { tier: tierSearch } }] : []),
-            { licenseId: { contains: q, mode: 'insensitive' } },
-            { license: { name: { contains: q, mode: 'insensitive' } } },
-            { module: { name: { contains: q, mode: 'insensitive' } } },
-            { module: { slug: { contains: q, mode: 'insensitive' } } },
-            { module: { moduleKey: { contains: q, mode: 'insensitive' } } },
+            { name: { contains: q, mode: 'insensitive' } },
+            { slug: { contains: q, mode: 'insensitive' } },
+            { description: { contains: q, mode: 'insensitive' } },
           ],
         }
       : {}),
   };
 
-  const [total, rows, options] = await Promise.all([
-    prisma.planModuleLimit.count({ where }),
-    prisma.planModuleLimit.findMany({
+  const [total, rows] = await Promise.all([
+    prisma.plan.count({ where }),
+    prisma.plan.findMany({
       where,
-      orderBy: [{ updatedAt: 'desc' }],
+      orderBy: [{ displayOrder: 'asc' }, { createdAt: 'desc' }],
       skip: (page - 1) * pageSize,
       take: pageSize,
-      include: {
-        plan: { select: { id: true, tier: true, name: true, slug: true, isActive: true } },
-        license: { select: { id: true, name: true } },
-        module: { select: { id: true, name: true, slug: true, moduleKey: true } },
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        description: true,
+        price: true,
+        maxLicenses: true,
+        flashcardsLimit: true,
+        flashcardsUnit: true,
+        practiceLimit: true,
+        practiceUnit: true,
+        testsLimit: true,
+        testsUnit: true,
+        maxQuestionsPerSession: true,
+        logbookAccess: true,
+        displayOrder: true,
+        isActive: true,
+        stripeProductId: true,
+        stripePriceMonthly: true,
+        stripePriceAnnual: true,
+        trialDays: true,
+        createdAt: true,
+        updatedAt: true,
+        _count: {
+          select: {
+            users: {
+              where: { deletedAt: null },
+            },
+          },
+        },
       },
     }),
-    getPlanCatalogOptions(),
   ]);
 
   return NextResponse.json({
     ok: true,
-    items: rows,
-    options,
+    items: rows.map((row) => ({
+      ...row,
+      price: row.price?.toString() ?? null,
+      userCount: row._count.users,
+    })),
     pagination: {
       page,
       pageSize,
@@ -155,89 +159,103 @@ export async function POST(req: NextRequest) {
   if (isAuthError(auth)) return auth;
 
   const body = await req.json().catch(() => ({}));
-  const planId = parsePlanId(String(body?.planId ?? ''));
-  const licenseId = String(body?.licenseId ?? '').trim().toLowerCase();
-  const moduleIdRaw = body?.moduleId;
-  const moduleId = moduleIdRaw === null || moduleIdRaw === '' || moduleIdRaw === undefined ? null : Number(moduleIdRaw);
-  const flashcardsPerDay = parseNullableInt(body?.flashcardsPerDay);
-  const practicePerDay = parseNullableInt(body?.practicePerDay);
-  const testsPerWeek = parseNullableInt(body?.testsPerWeek);
+  const name = parseName(body?.name);
+  const slug = parseSlug(body?.slug);
+  const description = parseDescription(body?.description);
+  const price = parsePrice(body?.price);
+  const maxLicenses = parseNullableInt(body?.maxLicenses, -1);
+  const flashcardsLimit = parseNullableInt(body?.flashcardsLimit, -1);
+  const flashcardsUnit = parseLimitUnit(body?.flashcardsUnit, 'day');
+  const practiceLimit = parseNullableInt(body?.practiceLimit, -1);
+  const practiceUnit = parseLimitUnit(body?.practiceUnit, 'day');
+  const testsLimit = parseNullableInt(body?.testsLimit, -1);
+  const testsUnit = parseLimitUnit(body?.testsUnit, 'week');
   const maxQuestionsPerSession = parseNullableInt(body?.maxQuestionsPerSession);
   const logbookAccess = parseNullableBool(body?.logbookAccess);
+  const displayOrder = parseNullableInt(body?.displayOrder);
+  const isActive = parseNullableBool(body?.isActive);
+  const stripeProductId = typeof body?.stripeProductId === 'string' ? body.stripeProductId.trim() || null : null;
+  const stripePriceMonthly = typeof body?.stripePriceMonthly === 'string' ? body.stripePriceMonthly.trim() || null : null;
+  const stripePriceAnnual = typeof body?.stripePriceAnnual === 'string' ? body.stripePriceAnnual.trim() || null : null;
+  const trialDays = parseNullableInt(body?.trialDays, 0);
 
-  if (!planId || !licenseId) {
+  if (!name || !slug) {
     return NextResponse.json({ ok: false, error: 'Invalid plan payload' }, { status: 400 });
   }
 
   if (
-    flashcardsPerDay === undefined ||
-    practicePerDay === undefined ||
-    testsPerWeek === undefined ||
+    maxLicenses === undefined ||
+    flashcardsLimit === undefined ||
+    flashcardsUnit === undefined ||
+    practiceLimit === undefined ||
+    practiceUnit === undefined ||
+    testsLimit === undefined ||
+    testsUnit === undefined ||
     maxQuestionsPerSession === undefined ||
-    logbookAccess === undefined
+    logbookAccess === undefined ||
+    displayOrder === undefined ||
+    isActive === undefined ||
+    price === undefined
   ) {
-    return NextResponse.json({ ok: false, error: 'Numeric fields must be null or non-negative integers.' }, { status: 400 });
+    return NextResponse.json({ ok: false, error: 'Invalid plan payload' }, { status: 400 });
   }
 
-  if (moduleId !== null && (!Number.isInteger(moduleId) || moduleId <= 0)) {
-    return NextResponse.json({ ok: false, error: 'Invalid module id' }, { status: 400 });
-  }
-
-  const plan = await prisma.plan.findFirst({
-    where: { id: planId, deletedAt: null },
-    select: { id: true },
-  });
-
-  if (!plan) {
-    return NextResponse.json({ ok: false, error: 'Plan not found' }, { status: 404 });
-  }
-
-  const license = await prisma.license.findFirst({
-    where: { id: licenseId, deletedAt: null },
-    select: { id: true },
-  });
-
-  if (!license) {
-    return NextResponse.json({ ok: false, error: 'License not found' }, { status: 404 });
-  }
-
-  if (moduleId !== null) {
-    const module = await prisma.module.findFirst({
-      where: { id: moduleId, licenseId, deletedAt: null },
-      select: { id: true },
-    });
-
-    if (!module) {
-      return NextResponse.json({ ok: false, error: 'Module not found for selected license' }, { status: 404 });
-    }
-  }
-
-  const duplicate = await prisma.planModuleLimit.findFirst({
-    where: { deletedAt: null, planId, licenseId, moduleId },
+  const duplicate = await prisma.plan.findFirst({
+    where: { deletedAt: null, OR: [{ slug }, { name }] },
     select: { id: true },
   });
 
   if (duplicate) {
-    return NextResponse.json({ ok: false, error: 'A rule already exists for this plan, license, and module scope.' }, { status: 409 });
+    return NextResponse.json({ ok: false, error: 'A plan with this name or slug already exists.' }, { status: 409 });
   }
 
-  const created = await prisma.planModuleLimit.create({
+  const created = await prisma.plan.create({
     data: {
-      planId,
-      licenseId,
-      moduleId,
-      flashcardsPerDay,
-      practicePerDay,
-      testsPerWeek,
+      name,
+      slug,
+      description,
+      price,
+      maxLicenses: maxLicenses ?? 0,
+      flashcardsLimit: flashcardsLimit ?? 0,
+      flashcardsUnit,
+      practiceLimit: practiceLimit ?? 0,
+      practiceUnit,
+      testsLimit: testsLimit ?? 0,
+      testsUnit,
       maxQuestionsPerSession,
       logbookAccess,
+      displayOrder: displayOrder ?? 0,
+      isActive,
+      stripeProductId,
+      stripePriceMonthly,
+      stripePriceAnnual,
+      trialDays: trialDays ?? 7,
     },
-    include: {
-      plan: { select: { id: true, tier: true, name: true, slug: true, isActive: true } },
-      license: { select: { id: true, name: true } },
-      module: { select: { id: true, name: true, slug: true, moduleKey: true } },
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      description: true,
+      price: true,
+      maxLicenses: true,
+      flashcardsLimit: true,
+      flashcardsUnit: true,
+      practiceLimit: true,
+      practiceUnit: true,
+      testsLimit: true,
+      testsUnit: true,
+      maxQuestionsPerSession: true,
+      logbookAccess: true,
+      displayOrder: true,
+      isActive: true,
+      stripeProductId: true,
+      stripePriceMonthly: true,
+      stripePriceAnnual: true,
+      trialDays: true,
+      createdAt: true,
+      updatedAt: true,
     },
   });
 
-  return NextResponse.json({ ok: true, item: created });
+  return NextResponse.json({ ok: true, item: { ...created, price: created.price?.toString() ?? null } });
 }

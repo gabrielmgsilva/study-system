@@ -8,9 +8,8 @@ import {
   normalizeOnboardingLicense,
   normalizeOnboardingStudyGoal,
   normalizeOnboardingStudyLevel,
-  resolvePostOnboardingRoute,
+  resolvePostOnboardingDestination,
 } from '@/lib/onboarding';
-import { ROUTES } from '@/lib/routes';
 
 export default async function AppOnboardingPage() {
   const locale = await getServerAppLocale();
@@ -20,14 +19,16 @@ export default async function AppOnboardingPage() {
     redirect(localizeAppHref('/auth/login', locale));
   }
 
-  if (user.onboardingCompletedAt && user.primaryLicenseId) {
-    redirect(localizeAppHref(resolvePostOnboardingRoute(user.primaryLicenseId), locale));
+  const primaryLicenseId = normalizeOnboardingLicense(user.primaryLicenseId);
+
+  if (user.onboardingCompletedAt && primaryLicenseId) {
+    redirect(localizeAppHref(await resolvePostOnboardingDestination(user.id, primaryLicenseId), locale));
   }
 
   return (
     <OnboardingPage
       userName={user.name || 'pilot'}
-      initialLicenseId={normalizeOnboardingLicense(user.primaryLicenseId)}
+      initialLicenseId={primaryLicenseId}
       initialStudyLevel={normalizeOnboardingStudyLevel(user.studyLevel)}
       initialStudyGoal={normalizeOnboardingStudyGoal(user.studyGoal)}
     />

@@ -27,7 +27,13 @@ import {
 } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
 import { getLandingDictionary, type LandingLocale } from '@/lib/i18n/landing';
+import { getPublicPlans, type PublicPlan } from '@/lib/publicPlans';
+import {
+  getPublicPlanSectionId,
+  type PublicPlanSectionId,
+} from '@/lib/publicPlanPresentation';
 import { ROUTES } from '@/lib/routes';
+import LandingPricingSection from './LandingPricingSection';
 
 const sora = Sora({
   subsets: ['latin'],
@@ -75,12 +81,42 @@ function getLocaleHref(targetLocale: LandingLocale, section?: string) {
   return section ? `${basePath}#${section}` : basePath;
 }
 
-export function PublicLandingPage({
+export async function PublicLandingPage({
   locale = 'en',
   basePath = '',
 }: PublicLandingPageProps) {
   const dictionary = getLandingDictionary(locale);
   const homeHref = getLandingLink(basePath);
+  const plans = await getPublicPlans();
+  const planSections: Array<{
+    id: PublicPlanSectionId;
+    eyebrow: string;
+    title: string;
+    description: string;
+    plans: PublicPlan[];
+  }> = [
+    {
+      id: 'regs',
+      eyebrow: dictionary.pricing.regsEyebrow,
+      title: dictionary.pricing.regsTitle,
+      description: dictionary.pricing.regsDescription,
+      plans: plans.filter((plan) => getPublicPlanSectionId(plan) === 'regs'),
+    },
+    {
+      id: 'licenses',
+      eyebrow: dictionary.pricing.licensesEyebrow,
+      title: dictionary.pricing.licensesTitle,
+      description: dictionary.pricing.licensesDescription,
+      plans: plans.filter((plan) => getPublicPlanSectionId(plan) === 'licenses'),
+    },
+    {
+      id: 'logbook',
+      eyebrow: dictionary.pricing.logbookEyebrow,
+      title: dictionary.pricing.logbookTitle,
+      description: dictionary.pricing.logbookDescription,
+      plans: plans.filter((plan) => getPublicPlanSectionId(plan) === 'logbook'),
+    },
+  ];
 
   return (
     <div className="relative z-10 min-h-screen bg-[#f5f7fb] text-slate-900">
@@ -385,85 +421,13 @@ export function PublicLandingPage({
           </div>
         </section>
 
-        <section id="pricing" className="scroll-mt-24 bg-white py-16 sm:py-20 lg:py-24">
-          <div className="mx-auto max-w-6xl px-4">
-            <div className="text-center">
-              <p className="text-sm font-semibold text-slate-500">{dictionary.pricing.eyebrow}</p>
-              <h2 className={`${sora.className} mt-3 text-3xl font-semibold tracking-tight text-[#102a54] sm:text-4xl`}>
-                {dictionary.pricing.title}
-              </h2>
-              <p className="mt-3 text-sm text-slate-500 sm:text-base">{dictionary.pricing.description}</p>
-            </div>
-
-            <div className="mt-10 grid gap-5 lg:mt-14 lg:grid-cols-3 lg:items-end lg:gap-6">
-              {dictionary.pricing.plans.map((plan) => (
-                <article
-                  key={plan.name}
-                  className={[
-                    'relative rounded-[22px] border p-6 shadow-[0_18px_42px_rgba(15,43,87,0.10)] sm:p-8',
-                    plan.highlighted
-                      ? 'scale-100 border-[#102a54] bg-[#102a54] text-white shadow-[0_22px_55px_rgba(16,42,84,0.28)] lg:scale-[1.04]'
-                      : plan.name === 'Premium'
-                        ? 'border-[#102a54] bg-white text-slate-900'
-                        : 'border-slate-200 bg-white text-slate-900',
-                  ].join(' ')}
-                >
-                  {plan.highlighted ? (
-                    <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#ff6d3a] px-4 py-1 text-xs font-bold uppercase tracking-wide text-white shadow-[0_12px_26px_rgba(255,109,58,0.35)]">
-                      {dictionary.pricing.popular}
-                    </div>
-                  ) : null}
-
-                  <div className="text-center">
-                    <h3 className={`${sora.className} text-2xl font-semibold`}>{plan.name}</h3>
-                    <p className={plan.highlighted ? 'mt-2 text-sm text-slate-300' : 'mt-2 text-sm text-slate-500'}>
-                      {plan.subtitle}
-                    </p>
-                    <div className="mt-6 flex items-end justify-center gap-1">
-                      <span className={`${sora.className} text-4xl font-semibold sm:text-5xl`}>
-                        {plan.price}
-                      </span>
-                      {plan.period ? (
-                        <span className={plan.highlighted ? 'pb-1 text-sm text-slate-300' : 'pb-1 text-sm text-slate-500'}>
-                          {plan.period}
-                        </span>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  <ul className="mt-8 space-y-4 text-sm">
-                    {plan.features.map((feature) => (
-                      <li key={feature} className="flex items-start gap-3">
-                        <Check className={`mt-0.5 h-4 w-4 shrink-0 ${plan.highlighted ? 'text-cyan-300' : 'text-[#39c66d]'}`} />
-                        <span>{feature}</span>
-                      </li>
-                    ))}
-                    {plan.mutedFeatures?.map((feature) => (
-                      <li key={feature} className="flex items-start gap-3 text-slate-400">
-                        <span className="mt-1 h-4 w-4 shrink-0 rounded-full border border-current" />
-                        <span>{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  <Button
-                    asChild
-                    className={[
-                      'mt-8 w-full rounded-md py-6 text-sm font-semibold',
-                      plan.highlighted
-                        ? 'bg-[#ff6d3a] text-white hover:bg-[#f2612e]'
-                        : plan.name === 'Premium'
-                          ? 'bg-[#102a54] text-white hover:bg-[#0e2347]'
-                          : 'bg-slate-100 text-[#102a54] hover:bg-slate-200',
-                    ].join(' ')}
-                  >
-                    <Link href={ROUTES.localizedRegister(locale)}>{plan.cta}</Link>
-                  </Button>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
+        <LandingPricingSection
+          locale={locale}
+          dictionary={dictionary}
+          planSections={planSections}
+          totalPlans={plans.length}
+          soraClassName={sora.className}
+        />
 
         <section className="bg-[#f7f8fc] py-16 sm:py-20 lg:py-24">
           <div className="mx-auto max-w-6xl px-4">

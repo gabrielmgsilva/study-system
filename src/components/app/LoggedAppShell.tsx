@@ -29,6 +29,7 @@ import {
   localizePathname,
   stripLocalePrefix,
 } from '@/lib/i18n/app';
+import { logoutAndRedirect } from '@/lib/clientLogout';
 import type { LandingLocale } from '@/lib/i18n/landing';
 import { ROUTES } from '@/lib/routes';
 import {
@@ -157,14 +158,8 @@ export default function LoggedAppShell({ locale, user, children }: LoggedAppShel
     if (loggingOut) return;
     setLoggingOut(true);
 
-    await fetch('/api/auth/logout', {
-      method: 'POST',
-      credentials: 'include',
-    }).catch(() => {});
-
+    await logoutAndRedirect(locale, router);
     setLoggingOut(false);
-    router.push(localizeAppHref('/', locale));
-    router.refresh();
   }
 
   const chromeHidden =

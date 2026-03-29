@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { prisma } from '@/lib/prisma';
 import { getCurrentSessionServer } from '@/lib/currentUserServer';
+import { getSubscriptionStatus } from '@/lib/subscriptionGuard';
 import {
   getSingleLicenseEntitlementSnapshot,
   normalizeLicenseId,
@@ -40,6 +41,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Check subscription validity before any study access
+    const sub = await getSubscriptionStatus(session.userId);
+    if (!sub.active) {
+      return NextResponse.json(
+        { ok: false, error: 'subscription_expired', message: 'Your subscription has expired. Please subscribe to continue studying.' },
+        { status: 403 },
+      );
+    }
+
     const body = await req.json().catch(() => ({}));
     const licenseId = normalizeLicenseId(String(body?.licenseId ?? ''));
     const mode = body?.mode;
@@ -61,6 +71,13 @@ export async function POST(req: NextRequest) {
       }
 
       let allowedQuestionsTotal = requestedQuestionsTotal;
+
+      if (
+        snapshot.caps.maxQuestionsPerSession !== null &&
+        allowedQuestionsTotal > snapshot.caps.maxQuestionsPerSession
+      ) {
+        allowedQuestionsTotal = snapshot.caps.maxQuestionsPerSession;
+      }
 
       if (mode === 'flashcard') {
         const remaining = snapshot.usage.flashcardsRemaining;
@@ -120,7 +137,7 @@ export async function POST(req: NextRequest) {
           licenseId,
           moduleKey,
           mode,
-          questionsTotal: allowedQuestionsTotal,
+          questionsAnswered: mode === 'flashcard' ? allowedQuestionsTotal : 0,
           details: JSON.stringify({
             requestedQuestionsTotal,
             allowedQuestionsTotal,
@@ -131,10 +148,10 @@ export async function POST(req: NextRequest) {
       });
 
       const usage = {
-        flashcardsToday:
-          snapshot.usage.flashcardsToday + (mode === 'flashcard' ? allowedQuestionsTotal : 0),
-        practiceToday: snapshot.usage.practiceToday + (mode === 'practice' ? 1 : 0),
-        testsThisWeek: snapshot.usage.testsThisWeek + (mode === 'test' ? 1 : 0),
+        flashcardsUsed:
+          snapshot.usage.flashcardsUsed + (mode === 'flashcard' ? allowedQuestionsTotal : 0),
+        practiceUsed: snapshot.usage.practiceUsed + (mode === 'practice' ? 1 : 0),
+        testsUsed: snapshot.usage.testsUsed + (mode === 'test' ? 1 : 0),
       };
 
       return {
@@ -145,21 +162,21 @@ export async function POST(req: NextRequest) {
         licenseEntitlement: {
           ...snapshot,
           usage: {
-            flashcardsToday: usage.flashcardsToday,
+            flashcardsUsed: usage.flashcardsUsed,
             flashcardsRemaining:
-              snapshot.caps.flashcardsPerDay === null
+              snapshot.caps.flashcards.limit === null
                 ? null
-                : Math.max(snapshot.caps.flashcardsPerDay - usage.flashcardsToday, 0),
-            practiceToday: usage.practiceToday,
+                : Math.max(snapshot.caps.flashcards.limit - usage.flashcardsUsed, 0),
+            practiceUsed: usage.practiceUsed,
             practiceRemaining:
-              snapshot.caps.practicePerDay === null
+              snapshot.caps.practice.limit === null
                 ? null
-                : Math.max(snapshot.caps.practicePerDay - usage.practiceToday, 0),
-            testsThisWeek: usage.testsThisWeek,
+                : Math.max(snapshot.caps.practice.limit - usage.practiceUsed, 0),
+            testsUsed: usage.testsUsed,
             testsRemaining:
-              snapshot.caps.testsPerWeek === null
+              snapshot.caps.test.limit === null
                 ? null
-                : Math.max(snapshot.caps.testsPerWeek - usage.testsThisWeek, 0),
+                : Math.max(snapshot.caps.test.limit - usage.testsUsed, 0),
           },
         },
       };

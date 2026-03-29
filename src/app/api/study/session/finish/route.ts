@@ -74,15 +74,15 @@ export async function POST(req: NextRequest) {
         where: { id: studySession.id },
         data: {
           finishedAt,
-          questionsTotal,
           questionsAnswered,
           questionsCorrect,
           score,
           timeSpentMs,
           details:
-            body?.details && typeof body.details === 'object'
-              ? JSON.stringify(body.details)
-              : studySession.details,
+            JSON.stringify({
+              ...(body?.details && typeof body.details === 'object' ? body.details : {}),
+              questionsTotal,
+            }),
         },
         select: {
           id: true,

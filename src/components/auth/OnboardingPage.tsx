@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, ArrowRight, CheckCircle2, Compass, Plane, Target } from 'lucide-react';
 import { Sora } from 'next/font/google';
 
+import { clearStudentCache } from '@/lib/entitlementsClient';
 import {
   onboardingLicenseOptions,
   onboardingStudyGoals,
@@ -22,8 +23,10 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 type OnboardingPageProps = {
   userName: string;
   initialLicenseId?: LicenseId | null;
+  initialSelectedLicenses?: LicenseId[];
   initialStudyLevel?: OnboardingStudyLevel | null;
   initialStudyGoal?: OnboardingStudyGoal | null;
+  maxSelectableLicenses: number;
 };
 
 const sora = Sora({
@@ -35,6 +38,23 @@ const surfaceCard = 'rounded-[22px] border border-slate-200 bg-white shadow-[0_1
 const outlineBtn = 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50';
 const primaryBtn = 'bg-[#2d4bb3] text-white hover:bg-[#243d99]';
 const finishBtn = 'bg-[#ff6d3a] text-white hover:bg-[#f2612e]';
+
+function dedupeLicenses(values: Array<LicenseId | null | undefined>) {
+  const seen = new Set<LicenseId>();
+  const unique: LicenseId[] = [];
+
+  for (const value of values) {
+    if (!value || seen.has(value)) continue;
+    seen.add(value);
+    unique.push(value);
+  }
+
+  return unique;
+}
+
+function countSelectedCertifications(values: LicenseId[]) {
+  return values.filter((value) => value !== 'regs').length;
+}
 
 function StepBlock({
   active,
@@ -79,20 +99,75 @@ function StepBlock({
 export function OnboardingPage({
   userName,
   initialLicenseId,
+  initialSelectedLicenses,
   initialStudyLevel,
   initialStudyGoal,
+  maxSelectableLicenses,
 }: OnboardingPageProps) {
   const router = useRouter();
   const [step, setStep] = useState(initialLicenseId ? 2 : 1);
+  const [selectedLicenses, setSelectedLicenses] = useState<LicenseId[]>(() =>
+    dedupeLicenses(['regs', ...(initialSelectedLicenses ?? []), initialLicenseId ?? undefined]),
+  );
   const [primaryLicenseId, setPrimaryLicenseId] = useState<LicenseId | ''>(initialLicenseId ?? '');
   const [studyLevel, setStudyLevel] = useState<OnboardingStudyLevel | ''>(initialStudyLevel ?? '');
   const [studyGoal, setStudyGoal] = useState<OnboardingStudyGoal | ''>(initialStudyGoal ?? '');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const selectedCertificationCount = countSelectedCertifications(selectedLicenses);
+
+  function setPrimaryFocus(licenseId: LicenseId) {
+    if (!selectedLicenses.includes(licenseId)) {
+      setSelectedLicenses((current) => dedupeLicenses([...current, licenseId]));
+    }
+
+    setPrimaryLicenseId(licenseId);
+    setError(null);
+  }
+
+  function toggleLicense(licenseId: LicenseId) {
+    if (licenseId === 'regs') {
+      setPrimaryFocus('regs');
+      return;
+    }
+
+    const isSelected = selectedLicenses.includes(licenseId);
+
+    if (isSelected) {
+      const nextSelected = selectedLicenses.filter((current) => current !== licenseId);
+      setSelectedLicenses(nextSelected);
+
+      if (primaryLicenseId === licenseId) {
+        setPrimaryLicenseId(nextSelected.find((current) => current !== 'regs') ?? 'regs');
+      }
+
+      setError(null);
+      return;
+    }
+
+    if (selectedCertificationCount >= maxSelectableLicenses) {
+      setError(
+        maxSelectableLicenses > 0
+          ? `Your plan allows up to ${maxSelectableLicenses} certifications at this step.`
+          : 'Your current plan does not unlock extra certifications yet.',
+      );
+      return;
+    }
+
+    const nextSelected = dedupeLicenses([...selectedLicenses, licenseId]);
+    setSelectedLicenses(nextSelected);
+
+    if (!primaryLicenseId || primaryLicenseId === 'regs') {
+      setPrimaryLicenseId(licenseId);
+    }
+
+    setError(null);
+  }
+
   async function finishOnboarding() {
     if (!primaryLicenseId) {
-      setError('Choose the license you want to focus on first.');
+      setError('Choose the certification you want the platform to prioritize first.');
       setStep(1);
       return;
     }
@@ -110,6 +185,7 @@ export function OnboardingPage({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         primaryLicenseId,
+        selectedLicenses,
         studyLevel,
         studyGoal: studyGoal || undefined,
       }),
@@ -124,6 +200,7 @@ export function OnboardingPage({
     }
 
     const data = await res.json().catch(() => ({}));
+    clearStudentCache();
     router.push(data?.redirectTo ?? '/app');
   }
 
@@ -158,15 +235,15 @@ export function OnboardingPage({
                 Welcome, {userName}.
               </CardTitle>
               <CardDescription className="max-w-md text-sm leading-6 text-slate-500">
-                Two short steps and we will point you to the most relevant study path right away. Choosing a focus does not enroll a certification yet.
+                Two short steps and we will configure your first study paths right away. The certifications you pick here become available in the logged-in area as soon as onboarding finishes.
               </CardDescription>
             </div>
 
             <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600">
               <p className="font-semibold text-slate-900">Recommended flow</p>
-              <p className="mt-2">1. Choose the license you want to focus on first.</p>
+              <p className="mt-2">1. Select the certifications you want to activate now.</p>
               <p>2. Tell us your current level and, if useful, your main goal.</p>
-              <p>3. After onboarding, enroll the first track your current plan should unlock. REGS never consumes a certification slot.</p>
+              <p>3. We enroll the selected certifications automatically. REGS stays included and does not consume a certification slot.</p>
             </div>
           </CardHeader>
 
@@ -175,8 +252,8 @@ export function OnboardingPage({
               index={1}
               active={step === 1}
               done={step === 2 && !!primaryLicenseId}
-              title="License focus"
-              description="Pick the first path you want the platform to emphasize. Enrollment happens right after onboarding."
+              title="Certifications"
+              description="Choose one or more certifications and define which one should lead the experience first."
             />
             <StepBlock
               index={2}
@@ -191,11 +268,11 @@ export function OnboardingPage({
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-[16px] border border-slate-200 bg-slate-50 p-3">
                   <p className="text-sm font-semibold text-slate-900">App home</p>
-                  <p className="mt-1 text-sm leading-6 text-slate-500">Shortcuts and suggested study routes can be prioritized by your selected license.</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-500">Shortcuts and suggested study routes can be prioritized by your primary certification.</p>
                 </div>
                 <div className="rounded-[16px] border border-slate-200 bg-slate-50 p-3">
                   <p className="text-sm font-semibold text-slate-900">Study guidance</p>
-                  <p className="mt-1 text-sm leading-6 text-slate-500">Practice intensity and onboarding hints can adapt to your current stage.</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-500">Selected certifications are enrolled automatically and appear in the sidebar right after onboarding.</p>
                 </div>
               </div>
             </div>
@@ -205,47 +282,115 @@ export function OnboardingPage({
         <Card className={surfaceCard}>
           <CardHeader className="space-y-2">
             <CardTitle className={`${sora.className} text-2xl text-slate-900`}>
-              {step === 1 ? 'Choose your first license' : 'Set your current study profile'}
+              {step === 1 ? 'Choose your certifications' : 'Set your current study profile'}
             </CardTitle>
             <CardDescription className="text-sm leading-6 text-slate-500">
               {step === 1
-                ? 'You can access other paths later. This only defines where the product should guide you first and what enrollment step we recommend next.'
+                ? 'Select the certifications you want active now. REGS is already included, and your primary choice becomes the first path we emphasize.'
                 : 'Keep it practical. These choices are used to shape recommendations, not lock the account.'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {step === 1 ? (
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-4">
+                <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="font-semibold text-slate-900">
+                      {maxSelectableLicenses > 0
+                        ? `${selectedCertificationCount} / ${maxSelectableLicenses} certifications selected`
+                        : 'REGS is included with your account'}
+                    </p>
+                    <p className="text-xs uppercase tracking-[0.14em] text-slate-400">
+                      {primaryLicenseId ? `Primary: ${primaryLicenseId.toUpperCase()}` : 'Choose a primary focus'}
+                    </p>
+                  </div>
+                  <p className="mt-2 leading-6">
+                    REGS is always available and does not consume a certification slot. Add the paid certifications you want in the sidebar immediately after onboarding.
+                  </p>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
                 {onboardingLicenseOptions.map((option) => {
-                  const isActive = primaryLicenseId === option.value;
+                  const isSelected = selectedLicenses.includes(option.value);
+                  const isPrimary = primaryLicenseId === option.value;
+                  const isIncluded = option.value === 'regs';
+                  const limitReached =
+                    !isSelected && !isIncluded && selectedCertificationCount >= maxSelectableLicenses;
 
                   return (
-                    <button
+                    <div
                       key={option.value}
-                      type="button"
-                      onClick={() => {
-                        setPrimaryLicenseId(option.value);
-                        setError(null);
-                      }}
                       className={[
-                        'rounded-[18px] border p-4 text-left transition',
-                        isActive
+                        'rounded-[18px] border p-4 transition',
+                        isSelected
                           ? 'border-[#c9d4f4] bg-[#f5f8ff] text-slate-900 shadow-[0_16px_35px_rgba(45,75,179,0.10)]'
-                          : 'border-slate-200 bg-white text-slate-900 hover:border-slate-300 hover:bg-slate-50',
+                          : 'border-slate-200 bg-white text-slate-900',
                       ].join(' ')}
                     >
                       <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-base font-semibold">{option.title}</p>
-                          <p className={isActive ? 'mt-2 text-sm leading-6 text-slate-600' : 'mt-2 text-sm leading-6 text-slate-500'}>
+                        <button
+                          type="button"
+                          onClick={() => toggleLicense(option.value)}
+                          className="flex-1 text-left"
+                        >
+                          <div className="flex items-center gap-2">
+                            <p className="text-base font-semibold">{option.title}</p>
+                            {isIncluded ? (
+                              <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#2d4bb3] ring-1 ring-[#c9d4f4]">
+                                Included
+                              </span>
+                            ) : null}
+                            {isPrimary ? (
+                              <span className="rounded-full bg-[#2d4bb3] px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-white">
+                                Focus
+                              </span>
+                            ) : null}
+                          </div>
+                          <p className={isSelected ? 'mt-2 text-sm leading-6 text-slate-600' : 'mt-2 text-sm leading-6 text-slate-500'}>
                             {option.description}
                           </p>
-                        </div>
-                        {isActive ? <CheckCircle2 className="h-5 w-5 shrink-0 text-[#2d4bb3]" /> : null}
+                        </button>
+                        {isSelected ? <CheckCircle2 className="h-5 w-5 shrink-0 text-[#2d4bb3]" /> : null}
                       </div>
-                    </button>
+
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {isSelected && !isPrimary ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className={outlineBtn}
+                            onClick={() => setPrimaryFocus(option.value)}
+                          >
+                            Make primary
+                          </Button>
+                        ) : null}
+
+                        {isIncluded ? (
+                          <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-600 ring-1 ring-slate-200">
+                            Always active
+                          </span>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant={isSelected ? 'outline' : 'default'}
+                            className={isSelected ? outlineBtn : primaryBtn}
+                            onClick={() => toggleLicense(option.value)}
+                            disabled={limitReached}
+                          >
+                            {isSelected ? 'Remove' : 'Add certification'}
+                          </Button>
+                        )}
+
+                        {limitReached ? (
+                          <span className="inline-flex items-center rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700 ring-1 ring-amber-200">
+                            Plan limit reached
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
                   );
                 })}
+                </div>
               </div>
             ) : (
               <div className="space-y-6">
@@ -337,7 +482,7 @@ export function OnboardingPage({
                   className={primaryBtn}
                   onClick={() => {
                     if (!primaryLicenseId) {
-                      setError('Choose the license you want to focus on first.');
+                      setError('Choose the certification you want the platform to prioritize first.');
                       return;
                     }
                     setError(null);

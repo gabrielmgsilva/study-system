@@ -10,7 +10,7 @@ import { getAppLocaleFromPathname, localizeAppHref } from '@/lib/i18n/app';
 import { ROUTES } from '@/lib/routes';
 import {
   getStudentState,
-  hasModuleFromState,
+  canAccessModuleFromState,
   type StudentState,
 } from '@/lib/entitlementsClient';
 
@@ -94,7 +94,7 @@ export default function MHubPage() {
 
   const hasModule = (key: string) => {
     if (!ready || !student) return false;
-    return hasModuleFromState(student, key);
+    return canAccessModuleFromState(student, key);
   };
 
   return (

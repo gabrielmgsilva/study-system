@@ -32,13 +32,9 @@ export type LicenseExperienceSnapshot = LicenseExperience & {
  * Client-side student snapshot
  *
  * Backend returns:
- * - credits: number
- * - entitlements: flat list of moduleKeys ("m.powerplant", "regs.core"...)
  * - licenseEntitlements: map by licenseId -> experience object
  */
 export type StudentState = {
-  credits: number;
-  entitlements: string[];
   plan: LicenseExperience['plan'] | null;
   enrollmentSummary: {
     count: number;
@@ -69,8 +65,6 @@ export function normalizeModuleKey(moduleKey: string): string {
 
 function emptyState(): StudentState {
   return {
-    credits: 0,
-    entitlements: [],
     plan: null,
     enrollmentSummary: { count: 0, max: 0 },
     licenseEntitlements: {},
@@ -93,18 +87,11 @@ export async function getStudentState(opts?: { force?: boolean }): Promise<Stude
 
       const data = await res.json().catch(() => null);
 
-      const entRaw = data?.entitlements;
-      const entitlements: string[] = Array.isArray(entRaw)
-        ? entRaw.map(normalizeModuleKey).filter(Boolean)
-        : [];
-
       const leRaw = data?.licenseEntitlements;
       const licenseEntitlements: Record<string, LicenseExperienceSnapshot> =
         leRaw && typeof leRaw === 'object' ? leRaw : {};
 
       const next: StudentState = {
-        credits: Number(data?.credits ?? 0),
-        entitlements,
         plan: data?.plan && typeof data.plan === 'object' ? data.plan : null,
         enrollmentSummary: {
           count: Number(data?.enrollmentSummary?.count ?? 0),
@@ -124,13 +111,6 @@ export async function getStudentState(opts?: { force?: boolean }): Promise<Stude
   })();
 
   return _inflight;
-}
-
-export function hasModuleFromState(state: StudentState | null, moduleKey: string): boolean {
-  if (!state) return false;
-  if (!Array.isArray(state.entitlements)) return false;
-
-  return state.entitlements.includes(normalizeModuleKey(moduleKey));
 }
 
 /**
@@ -160,11 +140,6 @@ export function canAccessModuleFromState(state: StudentState | null, moduleKey: 
   if (moduleId === 'logbook') return !!exp.logbook;
 
   return true;
-}
-
-export async function hasModule(moduleKey: string): Promise<boolean> {
-  const s = await getStudentState({ force: true });
-  return hasModuleFromState(s, moduleKey);
 }
 
 export function clearStudentCache() {

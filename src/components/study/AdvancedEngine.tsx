@@ -2,12 +2,14 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 import { ROUTES } from '@/lib/routes';
 import {
   getStudentState,
   type StudentState,
 } from '@/lib/entitlementsClient';
+import { getAppDictionary, getAppLocaleFromPathname } from '@/lib/i18n/app';
 import { planCaps } from '@/lib/planEntitlements';
 import type { LicenseUsageCaps, LicenseUsageSummary } from '@/lib/entitlementsClient';
 
@@ -28,10 +30,8 @@ import {
   BookOpen,
   Brain,
   Check,
-  Coins,
   RefreshCw,
   Trophy,
-  User,
   X,
 } from 'lucide-react';
 
@@ -139,10 +139,6 @@ interface AdvancedEngineProps {
   // Plan-based experience gating (MVP). If omitted, study modes are unlimited.
   licenseId?: 'm' | 'e' | 's' | 'balloons' | 'regs';
   backHref?: string;
-
-  // Legacy (kept for compatibility; should remain false in AME ONE pages)
-  enableCredits?: boolean;
-  examCost?: number;
 
   defaultTestQuestionCount?: number;
 }
@@ -376,16 +372,77 @@ function classifyTopic(percent: number) {
   return 'Needs Study';
 }
 
-function formatUsageLimit(limit: number | null, remaining: number | null, period: string) {
-  if (limit === null || remaining === null) {
-    return `Unlimited ${period}`;
+type StudyDictionary = ReturnType<typeof getAppDictionary>['study'];
+
+function formatUsageSummary(
+  limit: number | null,
+  used: number,
+  period: string,
+  dictionary: StudyDictionary,
+) {
+  if (limit === null) {
+    return `${dictionary.unlimitedLabel} ${period}`;
   }
 
   if (limit <= 0) {
-    return `Not available ${period}`;
+    return `${dictionary.notAvailableLabel} ${period}`;
   }
 
-  return `${remaining} remaining ${period}`;
+  if (period === 'day') {
+    return `${used}/${limit} ${dictionary.sessionsToday}`;
+  }
+
+  if (period === 'week') {
+    return `${used}/${limit} ${dictionary.sessionsThisWeek}`;
+  }
+
+  return `${used}/${limit} ${dictionary.sessionsThisMonth}`;
+}
+
+function timeUntilNextReset(unit: 'day' | 'week' | 'month', now = new Date()) {
+  if (unit === 'month') {
+    return new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0, 0).getTime() - now.getTime();
+  }
+
+  if (unit === 'week') {
+    const next = new Date(now);
+    const day = next.getDay();
+    const daysUntilMonday = day === 0 ? 1 : 8 - day;
+    next.setDate(next.getDate() + daysUntilMonday);
+    next.setHours(0, 0, 0, 0);
+    return next.getTime() - now.getTime();
+  }
+
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0).getTime() - now.getTime();
+}
+
+function formatResetLabel(unit: 'day' | 'week' | 'month', dictionary: StudyDictionary) {
+  const remainingMs = Math.max(timeUntilNextReset(unit), 0);
+  const totalMinutes = Math.max(Math.ceil(remainingMs / 60000), 1);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (unit === 'week') {
+    if (hours >= 24) {
+      const days = Math.floor(hours / 24);
+      return `${dictionary.resetsIn} ${days} ${days === 1 ? dictionary.daySingular : dictionary.dayPlural}`;
+    }
+    return `${dictionary.resetsIn} ${hours}h ${minutes}m`;
+  }
+
+  if (unit === 'month') {
+    if (hours >= 24) {
+      const days = Math.floor(hours / 24);
+      return `${dictionary.resetsIn} ${days} ${days === 1 ? dictionary.daySingular : dictionary.dayPlural}`;
+    }
+    return `${dictionary.resetsIn} ${hours}h ${minutes}m`;
+  }
+
+  if (hours <= 0) {
+    return `${dictionary.resetsIn} ${minutes}m`;
+  }
+
+  return `${dictionary.resetsIn} ${hours}h ${minutes}m`;
 }
 
 function fallbackCaps(plan?: StudentState['plan'] | null): LicenseUsageCaps | null {
@@ -422,10 +479,11 @@ function AdvancedEngine({
   sections,
   licenseId,
   backHref,
-  enableCredits = true,
-  examCost = 1,
   defaultTestQuestionCount = 50,
 }: AdvancedEngineProps) {
+  const pathname = usePathname();
+  const locale = getAppLocaleFromPathname(pathname);
+  const dictionary = getAppDictionary(locale);
   const sectionIds = useMemo(() => sections.map((s) => s.id), [sections]);
 
   const [selectedSections, setSelectedSections] = useState<string[]>(() =>
@@ -433,7 +491,7 @@ function AdvancedEngine({
   );
 
   const [screenMode, setScreenMode] = useState<
-    'home' | 'quiz' | 'results' | 'practiceResults' | 'account'
+    'home' | 'quiz' | 'results' | 'practiceResults'
   >('home');
 
   const [studyMode, setStudyMode] = useState<'flashcard' | 'practice' | 'test'>(
@@ -452,7 +510,6 @@ function AdvancedEngine({
   const [isTimerRunning, setIsTimerRunning] = useState(false);
 
   const [questionScores, setQuestionScores] = useState<QuestionScoreMap>({});
-  const [credits, setCredits] = useState<number>(0);
   const [isStartingSession, setIsStartingSession] = useState(false);
   const [activeStudySessionId, setActiveStudySessionId] = useState<number | null>(null);
   const [activeSessionStartedAt, setActiveSessionStartedAt] = useState<number | null>(null);
@@ -473,7 +530,6 @@ function AdvancedEngine({
       const s = await getStudentState({ force: false });
       if (!alive) return;
       setStudent(s);
-      setCredits(s?.credits ?? 0);
     })();
     return () => { alive = false; };
   }, [licenseId]);
@@ -703,9 +759,49 @@ function AdvancedEngine({
   const syncStudentState = useCallback(async () => {
     const next = await getStudentState({ force: true });
     setStudent(next);
-    setCredits(next?.credits ?? 0);
     return next;
   }, []);
+
+  const modeAvailability = useMemo(() => ({
+    flashcard: {
+      remaining: usage?.flashcardsRemaining ?? null,
+      limit: caps?.flashcards.limit ?? null,
+      unit: caps?.flashcards.unit ?? 'day',
+      used: usage?.flashcardsUsed ?? 0,
+    },
+    practice: {
+      remaining: usage?.practiceRemaining ?? null,
+      limit: caps?.practice.limit ?? null,
+      unit: caps?.practice.unit ?? 'day',
+      used: usage?.practiceUsed ?? 0,
+    },
+    test: {
+      remaining: usage?.testsRemaining ?? null,
+      limit: caps?.test.limit ?? null,
+      unit: caps?.test.unit ?? 'week',
+      used: usage?.testsUsed ?? 0,
+    },
+  }), [caps, usage]);
+
+  const isModeExhausted = useCallback(
+    (modeToCheck: 'flashcard' | 'practice' | 'test') => {
+      const modeState = modeAvailability[modeToCheck];
+      return modeState.remaining !== null && modeState.remaining <= 0;
+    },
+    [modeAvailability],
+  );
+
+  const getModeBlockedMessage = useCallback(
+    (modeToCheck: 'flashcard' | 'practice' | 'test') => {
+      const modeState = modeAvailability[modeToCheck];
+      if (modeState.limit !== null && modeState.limit <= 0) {
+        return dictionary.study.notIncludedInPlan;
+      }
+
+      return `${dictionary.study.limitReached}. ${formatResetLabel(modeState.unit, dictionary.study)}`;
+    },
+    [dictionary.study, modeAvailability],
+  );
 
   const beginStudySession = useCallback(
     async (
@@ -724,7 +820,6 @@ function AdvancedEngine({
           moduleKey: moduleKey ?? `${licenseId}.${moduleId}`,
           mode: modeToUse,
           requestedQuestionsTotal,
-          examCost: modeToUse === 'test' && enableCredits ? examCost : 0,
         }),
       });
 
@@ -741,10 +836,9 @@ function AdvancedEngine({
       return data as {
         sessionId?: number;
         allowedQuestionsTotal: number;
-        credits?: number;
       };
     },
-    [enableCredits, examCost, licenseId, moduleId, moduleKey, syncStudentState],
+    [licenseId, moduleId, moduleKey, syncStudentState],
   );
 
   const completeStudySession = useCallback(
@@ -784,11 +878,13 @@ function AdvancedEngine({
       }
 
       persistedStudySessionRef.current = activeStudySessionId;
+      await syncStudentState();
     },
     [
       activeSessionStartedAt,
       activeStudySessionId,
       selectedSections,
+      syncStudentState,
       userAnswers,
     ],
   );
@@ -807,7 +903,7 @@ function AdvancedEngine({
       return;
     }
 
-    if (isStartingSession) {
+    if (isStartingSession || isModeExhausted(modeToUse)) {
       return;
     }
 
@@ -825,7 +921,6 @@ function AdvancedEngine({
           ? deck.slice(0, Math.max(session.allowedQuestionsTotal, 1))
           : deck;
 
-      // reset guards
       savedResultRef.current = false;
       autoFinishRef.current = false;
       persistedStudySessionRef.current = null;
@@ -1198,81 +1293,7 @@ function AdvancedEngine({
   // TELAS
   // ----------------------------------------------------
 
-  // 1) Minha conta
-  if (screenMode === 'account') {
-    return (
-      <div className="space-y-6 text-slate-900">
-        <div className="max-w-3xl mx-auto space-y-6">
-          <div className="flex items-center justify-between gap-4">
-            <div className="space-y-1">
-              <div className="inline-flex items-center gap-2 rounded-full border border-[#c9d4f4] bg-[#eef3ff] px-3 py-1 text-xs font-medium text-[#2d4bb3]">
-                <User className="h-3 w-3" />
-                <span>My account – {moduleTitle}</span>
-              </div>
-              <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">
-                Exam credits
-              </h1>
-              <p className="text-sm text-slate-600">
-                Credits for Test mode sessions in this module.
-              </p>
-            </div>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleGoHome}
-              className={outlineBtn}
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
-            </Button>
-          </div>
-
-          <GlassCard>
-            <CardHeader>
-              <CardTitle className="text-slate-900">Available credits</CardTitle>
-              <CardDescription className="text-slate-600">
-                Test mode consumes account credits; Practice and Flashcards are free.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <div className="flex items-center gap-2 text-slate-700">
-                  <Coins className="h-4 w-4" />
-                  <span className="text-sm font-semibold">
-                    Credits in your account
-                  </span>
-                </div>
-                <span className="font-mono text-lg text-slate-900">{credits}</span>
-              </div>
-
-              <div className="flex flex-wrap gap-2 text-xs text-slate-600">
-                <span>• 1 Test = {examCost} credit</span>
-                <span>• Practice and Flashcards are always free</span>
-              </div>
-            </CardContent>
-
-            <CardFooter className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <p className="text-xs text-slate-500">
-                In the future, credits will be recharged via payment methods.
-              </p>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCredits((prev) => prev + 5)}
-                className={outlineBtn}
-              >
-                Add 5 test credits (dev)
-              </Button>
-            </CardFooter>
-          </GlassCard>
-        </div>
-      </div>
-    );
-  }
-
-  // 2) Home
+  // 1) Home
   if (screenMode === 'home') {
     return (
       <div className="space-y-6 text-slate-900">
@@ -1284,28 +1305,6 @@ function AdvancedEngine({
               </h1>
               <p className="text-sm text-slate-600">{moduleDescription}</p>
             </div>
-
-            {enableCredits && (
-              <div className="flex flex-col items-end gap-2">
-                <div className="inline-flex items-center gap-2 rounded-full border border-[#c9d4f4] bg-[#eef3ff] px-3 py-1 text-xs text-[#2d4bb3]">
-                  <Coins className="h-3 w-3" />
-                  <span className="font-medium text-[#2d4bb3]">
-                    Credits:{' '}
-                    <span className="font-mono text-slate-900">{credits}</span>
-                  </span>
-                </div>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setScreenMode('account')}
-                  className={outlineBtn}
-                >
-                  <User className="mr-2 h-4 w-4" />
-                  My account
-                </Button>
-              </div>
-            )}
           </div>
 
           <GlassCard>
@@ -1425,9 +1424,9 @@ function AdvancedEngine({
 
           <GlassCard>
             <CardHeader>
-              <CardTitle className="text-slate-900">Study modes</CardTitle>
+              <CardTitle className="text-slate-900">{dictionary.study.studyModesTitle}</CardTitle>
               <CardDescription className="text-slate-600">
-                Choose how you want to study this deck.
+                {dictionary.study.studyModesDescription}
               </CardDescription>
             </CardHeader>
 
@@ -1435,76 +1434,132 @@ function AdvancedEngine({
               {caps && usage ? (
                 <div className="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600 md:grid-cols-3">
                   <div>
-                    <p className="font-semibold text-slate-900">Flashcards</p>
-                    <p>{formatUsageLimit(caps.flashcards.limit, usage.flashcardsRemaining, caps.flashcards.unit)}</p>
+                    <p className="font-semibold text-slate-900">{dictionary.study.flashcards}</p>
+                    <p>{formatUsageSummary(caps.flashcards.limit, usage.flashcardsUsed, caps.flashcards.unit, dictionary.study)}</p>
                   </div>
                   <div>
-                    <p className="font-semibold text-slate-900">Practice</p>
-                    <p>{formatUsageLimit(caps.practice.limit, usage.practiceRemaining, caps.practice.unit)}</p>
+                    <p className="font-semibold text-slate-900">{dictionary.study.practice}</p>
+                    <p>{formatUsageSummary(caps.practice.limit, usage.practiceUsed, caps.practice.unit, dictionary.study)}</p>
                   </div>
                   <div>
-                    <p className="font-semibold text-slate-900">Tests</p>
-                    <p>{formatUsageLimit(caps.test.limit, usage.testsRemaining, caps.test.unit)}</p>
+                    <p className="font-semibold text-slate-900">{dictionary.study.test}</p>
+                    <p>{formatUsageSummary(caps.test.limit, usage.testsUsed, caps.test.unit, dictionary.study)}</p>
                   </div>
                 </div>
               ) : null}
 
-              <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <div>
-                  <p className="font-semibold text-slate-900">Flashcard mode</p>
-                  <p className="text-xs text-slate-600">
-                    Self-paced review. Server enforces your daily flashcard quota.
-                  </p>
+              <div className={[
+                'space-y-3 rounded-2xl px-4 py-3',
+                isModeExhausted('flashcard')
+                  ? 'border border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50'
+                  : 'border border-slate-200 bg-slate-50',
+              ].join(' ')}>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <p className="font-semibold text-slate-900">{dictionary.study.flashcardModeTitle}</p>
+                      <span className={[
+                        'rounded-full px-2 py-1 text-[11px] font-semibold',
+                        isModeExhausted('flashcard')
+                          ? 'bg-amber-100 text-amber-900'
+                          : 'bg-emerald-100 text-emerald-800',
+                      ].join(' ')}>
+                        {isModeExhausted('flashcard') ? dictionary.study.blockedLabel : dictionary.study.availableLabel}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600">
+                      {dictionary.study.flashcardModeDescription}
+                    </p>
+                  </div>
+                  <Button
+                    disabled={totalQuestionsSelected === 0 || isStartingSession || isModeExhausted('flashcard')}
+                    onClick={() => void handleStartQuiz('flashcard')}
+                    className={primaryBtn}
+                  >
+                    {isStartingSession ? dictionary.study.starting : isModeExhausted('flashcard') ? dictionary.study.limitReached : dictionary.study.start}
+                  </Button>
                 </div>
-                <Button
-                  disabled={totalQuestionsSelected === 0 || isStartingSession}
-                  onClick={() => void handleStartQuiz('flashcard')}
-                  className={primaryBtn}
-                >
-                  {isStartingSession ? 'Starting...' : 'Start'}
-                </Button>
+                {isModeExhausted('flashcard') ? (
+                  <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    {getModeBlockedMessage('flashcard')}
+                  </p>
+                ) : null}
               </div>
 
-              <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <div>
-                  <p className="font-semibold text-slate-900">Practice mode</p>
-                  <p className="text-xs text-slate-600">
-                    Multiple choice with instant feedback. Server enforces your daily practice quota.
-                  </p>
+              <div className={[
+                'space-y-3 rounded-2xl px-4 py-3',
+                isModeExhausted('practice')
+                  ? 'border border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50'
+                  : 'border border-slate-200 bg-slate-50',
+              ].join(' ')}>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <p className="font-semibold text-slate-900">{dictionary.study.practiceModeTitle}</p>
+                      <span className={[
+                        'rounded-full px-2 py-1 text-[11px] font-semibold',
+                        isModeExhausted('practice')
+                          ? 'bg-amber-100 text-amber-900'
+                          : 'bg-emerald-100 text-emerald-800',
+                      ].join(' ')}>
+                        {isModeExhausted('practice') ? dictionary.study.blockedLabel : dictionary.study.availableLabel}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600">
+                      {dictionary.study.practiceModeDescription}
+                    </p>
+                  </div>
+                  <Button
+                    disabled={totalQuestionsSelected === 0 || isStartingSession || isModeExhausted('practice')}
+                    onClick={() => void handleStartQuiz('practice')}
+                    className={primaryBtn}
+                  >
+                    {isStartingSession ? dictionary.study.starting : isModeExhausted('practice') ? dictionary.study.limitReached : dictionary.study.start}
+                  </Button>
                 </div>
-                <Button
-                  disabled={totalQuestionsSelected === 0 || isStartingSession}
-                  onClick={() => void handleStartQuiz('practice')}
-                  className={primaryBtn}
-                >
-                  {isStartingSession ? 'Starting...' : 'Start'}
-                </Button>
+                {isModeExhausted('practice') ? (
+                  <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    {getModeBlockedMessage('practice')}
+                  </p>
+                ) : null}
               </div>
 
-              <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <div>
-                  <p className="font-semibold text-slate-900">Test mode</p>
-                  <p className="text-xs text-slate-600">
-                    Timed exam. Unanswered questions count as incorrect.
-                    {enableCredits && (
-                      <>
-                        {' '}
-                        Costs{' '}
-                        <span className="font-semibold text-slate-900">
-                          {examCost} credit{examCost !== 1 && 's'}
-                        </span>{' '}
-                        per test.
-                      </>
-                    )}
-                  </p>
+              <div className={[
+                'space-y-3 rounded-2xl px-4 py-3',
+                isModeExhausted('test')
+                  ? 'border border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50'
+                  : 'border border-slate-200 bg-slate-50',
+              ].join(' ')}>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <p className="font-semibold text-slate-900">{dictionary.study.testModeTitle}</p>
+                      <span className={[
+                        'rounded-full px-2 py-1 text-[11px] font-semibold',
+                        isModeExhausted('test')
+                          ? 'bg-amber-100 text-amber-900'
+                          : 'bg-emerald-100 text-emerald-800',
+                      ].join(' ')}>
+                        {isModeExhausted('test') ? dictionary.study.blockedLabel : dictionary.study.availableLabel}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600">
+                      {dictionary.study.testModeDescription}
+                    </p>
+                  </div>
+                  <Button
+                    disabled={totalQuestionsSelected === 0 || isStartingSession || isModeExhausted('test')}
+                    onClick={() => void handleStartQuiz('test')}
+                    className={primaryBtn}
+                  >
+                    {isStartingSession ? dictionary.study.starting : isModeExhausted('test') ? dictionary.study.limitReached : dictionary.study.start}
+                  </Button>
                 </div>
-                <Button
-                  disabled={totalQuestionsSelected === 0 || isStartingSession}
-                  onClick={() => void handleStartQuiz('test')}
-                  className={primaryBtn}
-                >
-                  {isStartingSession ? 'Starting...' : 'Start'}
-                </Button>
+                {isModeExhausted('test') ? (
+                  <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    {getModeBlockedMessage('test')}
+                  </p>
+                ) : null}
               </div>
             </CardContent>
           </GlassCard>
@@ -1513,7 +1568,7 @@ function AdvancedEngine({
             <Button asChild variant="outline" size="sm" className={outlineBtn}>
               <Link href={backHref ?? ROUTES.appHub} className="flex items-center">
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Back
+                {dictionary.guards.back}
               </Link>
             </Button>
             <span className="truncate">{deckLabel}</span>
@@ -1549,17 +1604,17 @@ function AdvancedEngine({
                 {isFlashcard ? (
                   <>
                     <BookOpen className="w-3 h-3" />
-                    <span>Flashcard mode</span>
+                    <span>{dictionary.study.flashcardModeTitle}</span>
                   </>
                 ) : studyMode === 'practice' ? (
                   <>
                     <Brain className="w-3 h-3" />
-                    <span>Practice mode</span>
+                    <span>{dictionary.study.practiceModeTitle}</span>
                   </>
                 ) : (
                   <>
                     <Trophy className="w-3 h-3" />
-                    <span>Test mode</span>
+                    <span>{dictionary.study.testModeTitle}</span>
                   </>
                 )}
               </div>

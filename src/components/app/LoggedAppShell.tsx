@@ -355,7 +355,13 @@ export default function LoggedAppShell({ locale, user, children }: LoggedAppShel
               </div>
             ) : visibleLicenses.length === 0 ? (
               <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-500">
-                {dictionary.shell.noCertifications}
+                <p>{dictionary.shell.noCertifications}</p>
+                <Link
+                  href={localizeAppHref(ROUTES.student, locale)}
+                  className="mt-3 inline-flex rounded-lg bg-[#2d4bb3] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#243d99]"
+                >
+                  {dictionary.shell.addCertification}
+                </Link>
               </div>
             ) : (
               <div className="space-y-3">

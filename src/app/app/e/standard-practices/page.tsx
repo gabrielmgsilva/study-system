@@ -113,8 +113,6 @@ export default function EStandardPracticesPage() {
         moduleTitle="Standard Practices – Avionics (E)"
         moduleDescription="Build a deck by selecting Standard Practices subjects and study in Flashcard, Practice, or Test mode."
         sections={sections}
-        enableCredits={false}
-        examCost={0}
         defaultTestQuestionCount={50}
       />
     </EntitlementGuard>

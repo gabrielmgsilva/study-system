@@ -31,7 +31,6 @@ type AdminUser = {
   onboardingCompletedAt: string | null;
   createdAt: string;
   updatedAt: string;
-  creditBalance: number;
   subscriptionStatus: string | null;
   subscriptionExpiresAt: string | null;
   stripeCustomerId: string | null;

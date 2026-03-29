@@ -75,12 +75,8 @@ model User {
   updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at")
   deletedAt              DateTime? @map("deleted_at")
 
-  creditAccount        CreditAccount?
-  creditLedger         CreditLedger[]
-  entitlements         Entitlement[]
   licenseEntitlements  LicenseEntitlement[]
   passwordResetTokens  PasswordResetToken[]
-  sessions             Session[]
   studyProgress        StudyProgress[]
   studySessions        StudySession[]
   userStreak           UserStreak?
@@ -95,19 +91,7 @@ model User {
   @@map("users")
 }
 
-model Session {
-  id        Int       @id @default(autoincrement()) @map("id")
-  userId    Int       @map("user_id")
-  createdAt DateTime  @default(now()) @map("created_at")
-  expiresAt DateTime  @map("expires_at")
-  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at")
-  deletedAt DateTime? @map("deleted_at")
 
-  user User @relation(fields: [userId], references: [id])
-
-  @@index([userId])
-  @@map("sessions")
-}
 
 model PasswordResetToken {
   id        Int       @id @default(autoincrement()) @map("id")
@@ -125,58 +109,11 @@ model PasswordResetToken {
   @@map("password_reset_tokens")
 }
 
-// ---------------------------------------------------------------------------
-// Credits
-// ---------------------------------------------------------------------------
 
-model CreditAccount {
-  id        Int      @id @default(autoincrement()) @map("id")
-  userId    Int      @unique @map("user_id")
-  balance   Int      @default(0) @map("balance")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
-  deletedAt DateTime? @map("deleted_at")
-
-  user User @relation(fields: [userId], references: [id])
-
-  @@map("credit_accounts")
-}
-
-model CreditLedger {
-  id        Int      @id @default(autoincrement()) @map("id")
-  userId    Int      @map("user_id")
-  delta     Int      @map("delta")
-  reason    String   @map("reason")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
-  deletedAt DateTime? @map("deleted_at")
-
-  user User @relation(fields: [userId], references: [id])
-
-  @@index([userId])
-  @@map("credit_ledger")
-}
 
 // ---------------------------------------------------------------------------
 // Entitlements
 // ---------------------------------------------------------------------------
-
-model Entitlement {
-  id        Int      @id @default(autoincrement()) @map("id")
-  userId    Int      @map("user_id")
-  moduleKey String   @map("module_key") // ex: "regs.core", "m.powerplant"
-  granted   Boolean  @default(true) @map("granted")
-  grantedAt DateTime @default(now()) @map("granted_at")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
-  deletedAt DateTime? @map("deleted_at")
-
-  user User @relation(fields: [userId], references: [id])
-
-  @@unique([userId, moduleKey])
-  @@index([userId])
-  @@map("entitlements")
-}
 
 model LicenseEntitlement {
   id         Int       @id @default(autoincrement()) @map("id")

@@ -85,8 +85,6 @@ export default function SRatingStructuresPage() {
         moduleTitle={title}
         moduleDescription="Select one or more Structures rating sections (13–20) and study them in Flashcard, Practice, or Test mode."
         sections={sections}
-        enableCredits={false}
-        examCost={0}
         defaultTestQuestionCount={50}
       />
     </EntitlementGuard>

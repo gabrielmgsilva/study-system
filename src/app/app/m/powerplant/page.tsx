@@ -106,8 +106,6 @@ export default function PowerplantPage() {
         moduleTitle={title}
         moduleDescription={desc}
         sections={sections}
-        enableCredits={false}
-        examCost={0}
         defaultTestQuestionCount={50}
       />
     </EntitlementGuard>

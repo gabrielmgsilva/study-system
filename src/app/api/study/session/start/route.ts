@@ -28,12 +28,6 @@ function normalizeRequestedQuestionsTotal(value: unknown) {
   return Math.floor(n);
 }
 
-function normalizeExamCost(value: unknown) {
-  const n = Number(value);
-  if (!Number.isFinite(n) || n < 0) return 0;
-  return Math.floor(n);
-}
-
 export async function POST(req: NextRequest) {
   try {
     const session = await getCurrentSessionServer();
@@ -54,7 +48,6 @@ export async function POST(req: NextRequest) {
     const licenseId = normalizeLicenseId(String(body?.licenseId ?? ''));
     const mode = body?.mode;
     const requestedQuestionsTotal = normalizeRequestedQuestionsTotal(body?.requestedQuestionsTotal);
-    const examCost = normalizeExamCost(body?.examCost);
     const moduleKey = normalizeStudyModuleKey(String(body?.moduleKey ?? ''), licenseId);
 
     if (!licenseId || !isStudyMode(mode) || !moduleKey || requestedQuestionsTotal <= 0) {
@@ -84,9 +77,6 @@ export async function POST(req: NextRequest) {
         if (remaining !== null && remaining <= 0) {
           throw new StudyStartError(403, 'Flashcards limit reached for today.');
         }
-        allowedQuestionsTotal = remaining === null
-          ? requestedQuestionsTotal
-          : Math.max(1, Math.min(requestedQuestionsTotal, remaining));
       }
 
       if (mode === 'practice') {
@@ -96,38 +86,10 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      let credits = 0;
-      const account = await tx.creditAccount.findFirst({
-        where: { userId: session.userId, deletedAt: null },
-        select: { balance: true },
-      });
-      credits = account?.balance ?? 0;
-
       if (mode === 'test') {
         const remaining = snapshot.usage.testsRemaining;
         if (remaining !== null && remaining <= 0) {
           throw new StudyStartError(403, 'Test limit reached for this week.');
-        }
-
-        if (examCost > 0) {
-          if (credits < examCost) {
-            throw new StudyStartError(402, `You do not have enough exam credits. Required: ${examCost}.`);
-          }
-
-          await tx.creditAccount.update({
-            where: { userId: session.userId },
-            data: { balance: { decrement: examCost } },
-          });
-
-          await tx.creditLedger.create({
-            data: {
-              userId: session.userId,
-              delta: -examCost,
-              reason: `Start test ${moduleKey}`,
-            },
-          });
-
-          credits -= examCost;
         }
       }
 
@@ -137,19 +99,17 @@ export async function POST(req: NextRequest) {
           licenseId,
           moduleKey,
           mode,
-          questionsAnswered: mode === 'flashcard' ? allowedQuestionsTotal : 0,
+          questionsAnswered: 0,
           details: JSON.stringify({
             requestedQuestionsTotal,
             allowedQuestionsTotal,
-            examCost,
           }),
         },
         select: { id: true },
       });
 
       const usage = {
-        flashcardsUsed:
-          snapshot.usage.flashcardsUsed + (mode === 'flashcard' ? allowedQuestionsTotal : 0),
+        flashcardsUsed: snapshot.usage.flashcardsUsed + (mode === 'flashcard' ? 1 : 0),
         practiceUsed: snapshot.usage.practiceUsed + (mode === 'practice' ? 1 : 0),
         testsUsed: snapshot.usage.testsUsed + (mode === 'test' ? 1 : 0),
       };
@@ -158,7 +118,6 @@ export async function POST(req: NextRequest) {
         ok: true,
         sessionId: studySession.id,
         allowedQuestionsTotal,
-        credits,
         licenseEntitlement: {
           ...snapshot,
           usage: {

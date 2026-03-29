@@ -68,8 +68,6 @@ export async function POST(req: Request) {
       planId: selectedPlanId,
       subscriptionStatus: selectedPlanId ? 'trialing' : null,
       subscriptionExpiresAt: selectedPlanId ? subscriptionExpiresAt : null,
-      creditAccount: { create: { balance: 10 } },
-      creditLedger: { create: { delta: 10, reason: 'Welcome credits' } },
       licenseEntitlements: {
         create: { licenseId: 'regs', isActive: true },
       },

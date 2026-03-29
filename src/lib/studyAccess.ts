@@ -138,14 +138,6 @@ function usageCountMap(rows: Array<{ licenseId: string; _count: { _all: number }
   return out;
 }
 
-function usageSumMap(rows: Array<{ licenseId: string; _sum?: { questionsAnswered?: number | null } }>) {
-  const out: Record<string, number> = {};
-  for (const row of rows) {
-    out[normalizeLicenseId(row.licenseId)] = Number(row._sum?.questionsAnswered ?? 0);
-  }
-  return out;
-}
-
 export async function getLicenseEntitlementSnapshots(db: DbClient, userId: number, now = new Date()) {
   const user = await db.user.findFirst({
     where: { id: userId, deletedAt: null },
@@ -196,7 +188,7 @@ export async function getLicenseEntitlementSnapshots(db: DbClient, userId: numbe
         mode: 'flashcard',
         startedAt: { gte: flashcardsStart },
       },
-      _sum: { questionsAnswered: true },
+      _count: { _all: true },
     }),
     db.studySession.groupBy({
       by: ['licenseId'],
@@ -220,7 +212,7 @@ export async function getLicenseEntitlementSnapshots(db: DbClient, userId: numbe
     }),
   ]);
 
-  const flashcardsMap = usageSumMap(flashcardsRows);
+  const flashcardsMap = usageCountMap(flashcardsRows);
   const practiceMap = usageCountMap(practiceRows);
   const testMap = usageCountMap(testRows);
 
@@ -290,8 +282,8 @@ export async function getSingleLicenseEntitlementSnapshot(
   const practiceStart = rangeStart(user.plan.practiceUnit, now);
   const testsStart = rangeStart(user.plan.testsUnit, now);
 
-  const [flashcardsAgg, practiceCount, testCount] = await Promise.all([
-    db.studySession.aggregate({
+  const [flashcardsCount, practiceCount, testCount] = await Promise.all([
+    db.studySession.count({
       where: {
         userId,
         licenseId: normalizedLicenseId,
@@ -299,7 +291,6 @@ export async function getSingleLicenseEntitlementSnapshot(
         mode: 'flashcard',
         startedAt: { gte: flashcardsStart },
       },
-      _sum: { questionsAnswered: true },
     }),
     db.studySession.count({
       where: {
@@ -322,7 +313,7 @@ export async function getSingleLicenseEntitlementSnapshot(
   ]);
 
   return buildSnapshot(entitlement, user.plan, {
-    flashcardsUsed: Number(flashcardsAgg._sum?.questionsAnswered ?? 0),
+    flashcardsUsed: flashcardsCount,
     practiceUsed: practiceCount,
     testsUsed: testCount,
   });

@@ -80,24 +80,9 @@ export default function ModuleShortcutCard({
     };
   }, []);
 
-  // If your entitlementsClient already has a "plan-aware" checker, use it.
-  // Otherwise, fallback to legacy hasModuleFromState.
   const unlocked = useMemo(() => {
     if (!ready) return false;
-
-    const anyEnt = Ent as any;
-
-    // Prefer plan-aware checker if present
-    if (typeof anyEnt.canAccessModuleFromState === 'function') {
-      try {
-        return !!anyEnt.canAccessModuleFromState(student, moduleKey);
-      } catch {
-        // ignore and fallback
-      }
-    }
-
-    // Legacy fallback
-    return Ent.hasModuleFromState(student, moduleKey);
+    return Ent.canAccessModuleFromState(student, moduleKey);
   }, [ready, student, moduleKey]);
 
   const isLogbook = useMemo(() => {

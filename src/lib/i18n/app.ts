@@ -58,6 +58,7 @@ type AppDictionary = {
     certifications: string;
     loadingModules: string;
     noCertifications: string;
+    addCertification: string;
   };
   dashboard: {
     eyebrow: string;
@@ -106,6 +107,28 @@ type AppDictionary = {
     studyRecommendations: string;
     recommendationsTuned: string;
     viewFullModule: string;
+    studyModesTitle: string;
+    studyModesDescription: string;
+    flashcardModeTitle: string;
+    practiceModeTitle: string;
+    testModeTitle: string;
+    flashcardModeDescription: string;
+    practiceModeDescription: string;
+    testModeDescription: string;
+    start: string;
+    starting: string;
+    limitReached: string;
+    notIncludedInPlan: string;
+    availableLabel: string;
+    blockedLabel: string;
+    sessionsToday: string;
+    sessionsThisWeek: string;
+    sessionsThisMonth: string;
+    resetsIn: string;
+    daySingular: string;
+    dayPlural: string;
+    unlimitedLabel: string;
+    notAvailableLabel: string;
   };
   guards: {
     loading: string;
@@ -169,11 +192,6 @@ type AppDictionary = {
     months: string;
     planRequiredTitle: string;
     planRequiredBody: string;
-    nextStepEnrollPrefix: string;
-    nextStepEnrollRegsTitle: string;
-    nextStepEnrollRegsBody: string;
-    nextStepEnrollLogbookBody: string;
-    nextStepEnrollDefaultBody: string;
     logbookPlanTitle: string;
     logbookPlanBody: string;
     currentPlanLabel: string;
@@ -192,7 +210,6 @@ type AppDictionary = {
     title: string;
     description: string;
     refresh: string;
-    creditsDev: string;
     entitlements: string;
     roadmap: string;
     note: string;
@@ -281,6 +298,7 @@ const en: AppDictionary = {
     certifications: 'Certifications',
     loadingModules: 'Loading available modules...',
     noCertifications: 'No active certifications found for this account yet.',
+    addCertification: 'Add certification',
   },
   dashboard: {
     eyebrow: 'Dashboard',
@@ -332,6 +350,28 @@ const en: AppDictionary = {
     studyRecommendations: 'Study Recommendations',
     recommendationsTuned: 'Recommendations tuned for',
     viewFullModule: 'View Full Study Module',
+    studyModesTitle: 'Study modes',
+    studyModesDescription: 'Choose how you want to study this deck.',
+    flashcardModeTitle: 'Flashcard mode',
+    practiceModeTitle: 'Practice mode',
+    testModeTitle: 'Test mode',
+    flashcardModeDescription: 'Self-paced review. Each start consumes one flashcard session from your plan.',
+    practiceModeDescription: 'Multiple choice with instant feedback. Each start consumes one practice session from your plan.',
+    testModeDescription: 'Timed exam. Each start consumes one test session from your plan.',
+    start: 'Start',
+    starting: 'Starting...',
+    limitReached: 'Limit reached',
+    notIncludedInPlan: 'This study mode is not included in your current plan.',
+    availableLabel: 'Available',
+    blockedLabel: 'Blocked',
+    sessionsToday: 'sessions today',
+    sessionsThisWeek: 'sessions this week',
+    sessionsThisMonth: 'sessions this month',
+    resetsIn: 'Resets in',
+    daySingular: 'day',
+    dayPlural: 'days',
+    unlimitedLabel: 'Unlimited',
+    notAvailableLabel: 'Not available',
   },
   guards: {
     loading: 'Loading...',
@@ -384,7 +424,7 @@ const en: AppDictionary = {
     exploreStart: 'Explore & Start',
     seriousStudy: 'Serious Study',
     examCareer: 'Exam & Career',
-    enroll: 'Enroll',
+    enroll: 'Add certification',
     unlimited: 'Unlimited',
     notAvailable: 'Not available',
     none: 'None',
@@ -396,43 +436,34 @@ const en: AppDictionary = {
     weeks: 'weeks',
     month: 'month',
     months: 'months',
-    planRequiredTitle: 'Plan required before enrollment',
+    planRequiredTitle: 'Plan required before adding certifications',
     planRequiredBody:
-      'Your onboarding preferences were saved, but your account still needs a plan before certification enrollment can start. Once a plan is assigned, come back here to enroll the first track.',
-    nextStepEnrollPrefix: 'Next step: enroll',
-    nextStepEnrollRegsTitle: 'Next step: enroll REGS',
-    nextStepEnrollRegsBody:
-      'REGS unlocks CARs and Standards and does not consume one of your certification slots. Enroll it here, then open the regulatory study path.',
-    nextStepEnrollLogbookBody:
-      'Your current plan is configured for logbook access only. Enroll one certification track here to activate its logbook area. Flashcards, practice, and tests remain unavailable on this plan.',
-    nextStepEnrollDefaultBody:
-      'Enroll the certification track you chose during onboarding. REGS never counts toward the cap, while M, E, S, and Balloons use the certification slots from your plan.',
+      'Your preferences were saved, but this account still needs an active plan before you can add certifications here.',
     logbookPlanTitle: 'This plan is configured for logbook access',
     logbookPlanBody:
-      'This is a 1-track logbook plan. Enroll one certification track to activate its logbook area, but flashcards, practice, and tests stay blocked until you move to a study plan.',
+      'This is a 1-track logbook plan. Add one certification track to activate its logbook area, but flashcards, practice, and tests stay blocked until you move to a study plan.',
     currentPlanLabel: 'Current plan',
     noPlanSelected: 'No plan selected',
     certificationsLabel: 'Certifications',
     regsExclusionNote: 'REGS does not count toward the limit when enrolled.',
     logbookOnlySummary:
       'This plan enables logbook access for 1 certification track only and does not include study volume.',
-    enrollRegsHelper: 'Enroll REGS to unlock CARs and Standards. It does not consume a certification slot.',
+    enrollRegsHelper: 'Add REGS to unlock CARs and Standards. It does not consume a certification slot.',
     enrollLogbookHelper:
-      'Enroll this certification to activate its logbook area. Study modes remain blocked on your current plan.',
-    enrollDefaultHelper: 'Enroll this certification track using your current plan.',
-    planNeededForEnrollment: 'Your account still needs a plan before certification enrollment can start.',
+      'Add this certification to activate its logbook area. Study modes remain blocked on your current plan.',
+    enrollDefaultHelper: 'Add this certification track using your current plan.',
+    planNeededForEnrollment: 'Your account still needs an active plan before you can add certifications.',
     certificationLimitReached: 'Your current plan already reached the certification limit.',
-    failedToEnrollLicense: 'Failed to enroll license',
+    failedToEnrollLicense: 'Failed to add certification',
   },
   account: {
     title: 'My Account',
     description: 'This page is the long-term home for billing, plans and usage limits.',
     refresh: 'Refresh',
-    creditsDev: 'Credits (dev)',
-    entitlements: 'Entitlements',
-    roadmap: 'Roadmap (no migration later)',
+    entitlements: 'Licenses enrolled',
+    roadmap: 'Roadmap',
     note:
-      'For now, module unlock still uses credits while the subscription model is being finalized.',
+      'Your subscription determines access to study modes and limits per license.',
     basicTitle: 'BASIC',
     standardTitle: 'STANDARD',
     premiumTitle: 'PREMIUM',
@@ -527,6 +558,7 @@ const pt: AppDictionary = {
     certifications: 'Certificações',
     loadingModules: 'Carregando módulos disponíveis...',
     noCertifications: 'Nenhuma certificação ativa foi encontrada para esta conta.',
+    addCertification: 'Adicionar certificação',
   },
   dashboard: {
     eyebrow: 'Painel',
@@ -578,6 +610,28 @@ const pt: AppDictionary = {
     studyRecommendations: 'Recomendações de estudo',
     recommendationsTuned: 'Recomendações ajustadas para',
     viewFullModule: 'Ver módulo de estudo completo',
+    studyModesTitle: 'Modos de estudo',
+    studyModesDescription: 'Escolha como você quer estudar este deck.',
+    flashcardModeTitle: 'Modo flashcard',
+    practiceModeTitle: 'Modo prática',
+    testModeTitle: 'Modo teste',
+    flashcardModeDescription: 'Revisão no seu ritmo. Cada início consome uma sessão de flashcard do seu plano.',
+    practiceModeDescription: 'Múltipla escolha com feedback imediato. Cada início consome uma sessão de prática do seu plano.',
+    testModeDescription: 'Simulado cronometrado. Cada início consome uma sessão de teste do seu plano.',
+    start: 'Iniciar',
+    starting: 'Iniciando...',
+    limitReached: 'Limite atingido',
+    notIncludedInPlan: 'Este modo de estudo não está incluído no seu plano atual.',
+    availableLabel: 'Disponível',
+    blockedLabel: 'Bloqueado',
+    sessionsToday: 'sessões hoje',
+    sessionsThisWeek: 'sessões nesta semana',
+    sessionsThisMonth: 'sessões neste mês',
+    resetsIn: 'Reinicia em',
+    daySingular: 'dia',
+    dayPlural: 'dias',
+    unlimitedLabel: 'Ilimitado',
+    notAvailableLabel: 'Indisponível',
   },
   guards: {
     loading: 'Carregando...',
@@ -630,7 +684,7 @@ const pt: AppDictionary = {
     exploreStart: 'Explorar e começar',
     seriousStudy: 'Estudo sério',
     examCareer: 'Prova e carreira',
-    enroll: 'Matricular',
+    enroll: 'Adicionar certificação',
     unlimited: 'Ilimitado',
     notAvailable: 'Indisponível',
     none: 'Nenhuma',
@@ -642,43 +696,34 @@ const pt: AppDictionary = {
     weeks: 'semanas',
     month: 'mês',
     months: 'meses',
-    planRequiredTitle: 'É preciso ter um plano antes da matrícula',
+    planRequiredTitle: 'É preciso ter um plano antes de adicionar certificações',
     planRequiredBody:
-      'Suas preferências do onboarding foram salvas, mas a sua conta ainda precisa de um plano antes que a matrícula em uma certificação possa começar. Depois que um plano for atribuído, volte aqui para matricular a primeira trilha.',
-    nextStepEnrollPrefix: 'Próximo passo: matricular em',
-    nextStepEnrollRegsTitle: 'Próximo passo: matricular em REGS',
-    nextStepEnrollRegsBody:
-      'REGS libera CARs e Standards e não consome um slot de certificação do seu plano. Faça a matrícula aqui e depois abra a trilha regulatória.',
-    nextStepEnrollLogbookBody:
-      'O seu plano atual foi configurado apenas para acesso ao logbook. Matricule uma certificação aqui para ativar a área de logbook dela. Flashcards, prática e testes continuam indisponíveis nesse plano.',
-    nextStepEnrollDefaultBody:
-      'Matricule a certificação que você escolheu no onboarding. REGS nunca conta no limite, enquanto M, E, S e Balloons usam os slots de certificação do seu plano.',
+      'Suas preferências foram salvas, mas esta conta ainda precisa de um plano ativo antes que você possa adicionar certificações aqui.',
     logbookPlanTitle: 'Este plano está configurado para acesso ao logbook',
     logbookPlanBody:
-      'Este é um plano de logbook para 1 trilha. Matricule uma certificação para ativar a área de logbook dela, mas flashcards, prática e testes continuam bloqueados até você migrar para um plano de estudo.',
+      'Este é um plano de logbook para 1 trilha. Adicione uma certificação para ativar a área de logbook dela, mas flashcards, prática e testes continuam bloqueados até você migrar para um plano de estudo.',
     currentPlanLabel: 'Plano atual',
     noPlanSelected: 'Nenhum plano selecionado',
     certificationsLabel: 'Certificações',
     regsExclusionNote: 'REGS não conta no limite quando está matriculado.',
     logbookOnlySummary:
       'Este plano libera acesso ao logbook para apenas 1 trilha de certificação e não inclui volume de estudo.',
-    enrollRegsHelper: 'Matricule REGS para liberar CARs e Standards. Ele não consome um slot de certificação.',
+    enrollRegsHelper: 'Adicione REGS para liberar CARs e Standards. Ele não consome um slot de certificação.',
     enrollLogbookHelper:
-      'Matricule esta certificação para ativar a área de logbook dela. Os modos de estudo continuam bloqueados no seu plano atual.',
-    enrollDefaultHelper: 'Matricule esta trilha de certificação usando o seu plano atual.',
-    planNeededForEnrollment: 'A sua conta ainda precisa de um plano antes que a matrícula em uma certificação possa começar.',
+      'Adicione esta certificação para ativar a área de logbook dela. Os modos de estudo continuam bloqueados no seu plano atual.',
+    enrollDefaultHelper: 'Adicione esta trilha de certificação usando o seu plano atual.',
+    planNeededForEnrollment: 'A sua conta ainda precisa de um plano ativo antes que você possa adicionar certificações.',
     certificationLimitReached: 'O seu plano atual já atingiu o limite de certificações.',
-    failedToEnrollLicense: 'Falha ao matricular a licença',
+    failedToEnrollLicense: 'Falha ao adicionar a certificação',
   },
   account: {
     title: 'Minha conta',
     description: 'Esta página é a base de longo prazo para cobrança, planos e limites de uso.',
     refresh: 'Atualizar',
-    creditsDev: 'Créditos (dev)',
-    entitlements: 'Permissões',
-    roadmap: 'Roadmap (sem migração depois)',
+    entitlements: 'Licenças matriculadas',
+    roadmap: 'Roadmap',
     note:
-      'Por enquanto, o desbloqueio de módulos ainda usa créditos enquanto o modelo de assinatura está sendo finalizado.',
+      'Sua assinatura determina o acesso aos modos de estudo e limites por licença.',
     basicTitle: 'BASIC',
     standardTitle: 'STANDARD',
     premiumTitle: 'PREMIUM',

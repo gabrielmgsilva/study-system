@@ -129,17 +129,6 @@ export async function resolvePostOnboardingDestination(userId: number, licenseId
           isActive: true,
         },
       },
-      licenseEntitlements: {
-        where: {
-          licenseId,
-          isActive: true,
-          deletedAt: null,
-        },
-        select: {
-          id: true,
-        },
-        take: 1,
-      },
     },
   });
 
@@ -157,9 +146,5 @@ export async function resolvePostOnboardingDestination(userId: number, licenseId
     }
   }
 
-  if (user.licenseEntitlements.length > 0) {
-    return resolvePostOnboardingRoute(licenseId);
-  }
-
-  return `${ROUTES.student}?intent=enroll&license=${licenseId}`;
+  return resolvePostOnboardingRoute(licenseId);
 }

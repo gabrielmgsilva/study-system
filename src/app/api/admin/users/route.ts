@@ -145,11 +145,6 @@ export async function GET(req: NextRequest) {
         onboardingCompletedAt: true,
         createdAt: true,
         updatedAt: true,
-        creditAccount: {
-          select: {
-            balance: true,
-          },
-        },
         plan: {
           select: {
             id: true,
@@ -174,7 +169,6 @@ export async function GET(req: NextRequest) {
     items: users.map((user) => ({
       ...user,
       status: user.deletedAt ? 'inactive' : 'active',
-      creditBalance: user.creditAccount?.balance ?? 0,
       subscriptionStatus: user.subscriptionStatus ?? null,
       subscriptionExpiresAt: user.subscriptionExpiresAt?.toISOString() ?? null,
       stripeCustomerId: user.stripeCustomerId ?? null,

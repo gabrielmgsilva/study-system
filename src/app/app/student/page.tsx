@@ -14,7 +14,6 @@ import {
   clearStudentCache,
   getLicenseExperience,
   getStudentState,
-  hasLicenseFromState,
   type StudentState,
 } from '@/lib/entitlementsClient';
 
@@ -163,7 +162,7 @@ function EnrollLicense({
           onClick={submit}
           disabled={loading || !canEnroll}
         >
-          {loading ? dictionary.student.saving : dictionary.student.enroll}
+          {loading ? dictionary.student.saving : dictionary.shell.addCertification}
         </Button>
       </div>
 
@@ -242,8 +241,6 @@ export default function StudentPage() {
   const planSlug = student?.plan?.slug ?? null;
   const guidedIntent = searchParams.get('intent');
   const guidedLicenseId = isGuidedLicenseId(searchParams.get('license')) ? searchParams.get('license') : null;
-  const guidedLicense = guidedLicenseId ? LICENSES.find((license) => license.id === guidedLicenseId) ?? null : null;
-  const hasGuidedEnrollment = guidedLicenseId ? Boolean(getLicenseExperience(student, guidedLicenseId)) : false;
   const isLogbookOnlyPlan = planSlug === 'logbook-pro';
 
   const guidanceCard = useMemo(() => {
@@ -251,27 +248,6 @@ export default function StudentPage() {
       return {
         title: studentDictionary.planRequiredTitle,
         body: studentDictionary.planRequiredBody,
-      };
-    }
-
-    if (guidedIntent === 'enroll' && guidedLicense && !hasGuidedEnrollment) {
-      if (guidedLicense.id === 'regs') {
-        return {
-          title: studentDictionary.nextStepEnrollRegsTitle,
-          body: studentDictionary.nextStepEnrollRegsBody,
-        };
-      }
-
-      if (isLogbookOnlyPlan) {
-        return {
-          title: `${studentDictionary.nextStepEnrollPrefix} ${guidedLicense.title}`,
-          body: studentDictionary.nextStepEnrollLogbookBody,
-        };
-      }
-
-      return {
-        title: `${studentDictionary.nextStepEnrollPrefix} ${guidedLicense.title}`,
-        body: studentDictionary.nextStepEnrollDefaultBody,
       };
     }
 
@@ -283,7 +259,7 @@ export default function StudentPage() {
     }
 
     return null;
-  }, [guidedIntent, guidedLicense, hasGuidedEnrollment, isLogbookOnlyPlan, studentDictionary]);
+  }, [guidedIntent, isLogbookOnlyPlan, studentDictionary]);
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-4">

@@ -93,8 +93,6 @@ export default function SStandardPracticesPage() {
         moduleTitle={title}
         moduleDescription="Select one or more Standard Practices sections (01–12) and study them in Flashcard, Practice, or Test mode."
         sections={sections}
-        enableCredits={false}
-        examCost={0}
         defaultTestQuestionCount={50}
       />
     </EntitlementGuard>

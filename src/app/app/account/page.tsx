@@ -30,7 +30,7 @@ export default function MyAccountPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const credits = student?.credits ?? 0;
+  const enrolledCount = student?.enrollmentSummary?.count ?? 0;
 
   return (
     <div className="space-y-6">
@@ -75,10 +75,7 @@ export default function MyAccountPage() {
           <CardContent className="space-y-4">
             <div className="flex flex-wrap items-center gap-3">
               <Badge className="border-slate-200 bg-slate-50 text-slate-700" variant="outline">
-                {dictionary.account.creditsDev}: <span className="ml-1 font-semibold">{ready ? credits : '…'}</span>
-              </Badge>
-              <Badge className="border-slate-200 bg-slate-50 text-slate-700" variant="outline">
-                {dictionary.account.entitlements}: <span className="ml-1 font-semibold">{ready ? (student?.entitlements?.length ?? 0) : '…'}</span>
+                {dictionary.account.entitlements}: <span className="ml-1 font-semibold">{ready ? enrolledCount : '…'}</span>
               </Badge>
             </div>
 

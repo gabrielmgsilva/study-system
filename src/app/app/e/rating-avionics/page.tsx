@@ -77,8 +77,6 @@ export default function ERatingAvionicsPage() {
         moduleTitle="E Rating – Avionics (Systems & Theory)"
         moduleDescription="Select one or more TC sections (24–28) and study them in Flashcard, Practice, or Test mode."
         sections={sections}
-        enableCredits={false}
-        examCost={0}
         defaultTestQuestionCount={50}
       />
     </EntitlementGuard>

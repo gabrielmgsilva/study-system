@@ -1,16 +1,16 @@
 import { redirect } from 'next/navigation';
 
-import { getCurrentUserServer } from '@/lib/currentUserServer';
+import { getCurrentSessionServer } from '@/lib/currentUserServer';
 import { prisma } from '@/lib/prisma';
 import { selectQuestions } from '@/lib/services/study-engine';
 import { checkQuickReviewAccess } from '@/lib/services/usage-limiter';
-import QuickReviewSession from '@/components/student/quick-review-session';
+import { QuickReviewSession } from '@/components/student/quick-review-session';
 
 export default async function QuickReviewPage() {
-  const user = await getCurrentUserServer();
-  if (!user) redirect('/auth/login');
+  const session = await getCurrentSessionServer();
+  if (!session) redirect('/auth/login');
 
-  const access = await checkQuickReviewAccess(user.id);
+  const access = await checkQuickReviewAccess(session.userId);
   if (!access.allowed) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[80dvh] px-6 text-center">
@@ -24,7 +24,7 @@ export default async function QuickReviewPage() {
     );
   }
 
-  const questions = await selectQuestions(user.id, '', 'quick_review', 5);
+  const questions = await selectQuestions(session.userId, '', 'quick_review', 5);
 
   if (questions.length === 0) {
     return (
@@ -39,18 +39,24 @@ export default async function QuickReviewPage() {
     );
   }
 
-  const session = await prisma.studySession.create({
-    data: {
-      userId: user.id,
-      licenseId: 'cross-module',
-      moduleKey: 'quick-review',
-      mode: 'practice',
-      isQuickReview: true,
-      startedAt: new Date(),
-    },
-  });
+  const [studySession, user] = await Promise.all([
+    prisma.studySession.create({
+      data: {
+        userId: session.userId,
+        licenseId: 'cross-module',
+        moduleKey: 'quick-review',
+        mode: 'practice',
+        isQuickReview: true,
+        startedAt: new Date(),
+      },
+    }),
+    prisma.user.findFirst({
+      where: { id: session.userId, deletedAt: null },
+      select: { subscriptionStatus: true },
+    }),
+  ]);
 
-  const isExpired = !user.subscriptionStatus || user.subscriptionStatus === 'expired' || user.subscriptionStatus === 'canceled';
+  const isExpired = !user?.subscriptionStatus || user.subscriptionStatus === 'expired' || user.subscriptionStatus === 'canceled';
 
-  return <QuickReviewSession questions={questions} sessionId={session.id} showUpgradeCta={isExpired} />;
+  return <QuickReviewSession questions={questions} sessionId={studySession.id} showUpgradeCta={isExpired} />;
 }

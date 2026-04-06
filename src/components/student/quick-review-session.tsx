@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Zap } from 'lucide-react';
 
 import type { SelectedQuestion } from '@/lib/services/study-engine';
-import StudySessionShell from './study-session-shell';
+import { StudySessionShell } from './study-session-shell';
 
 interface Props {
   questions: SelectedQuestion[];
@@ -13,7 +13,7 @@ interface Props {
   showUpgradeCta?: boolean;
 }
 
-export default function QuickReviewSession({ questions, sessionId, showUpgradeCta }: Props) {
+export function QuickReviewSession({ questions, sessionId, showUpgradeCta }: Props) {
   const router = useRouter();
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);

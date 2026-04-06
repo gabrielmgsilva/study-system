@@ -88,6 +88,10 @@ model User {
   reviewedQuestions    Question[]          @relation("QuestionReviewedBy")
   plan                 Plan?               @relation(fields: [planId], references: [id])
   subscriptionEvents   SubscriptionEvent[]
+  studyEngines         StudyEngine[]
+  weakTopicTrackers    WeakTopicTracker[]
+  usageCounters        UsageCounter[]
+  studyGoals           StudyGoal[]
 
   @@index([planId])
   @@map("users")
@@ -180,9 +184,10 @@ model StudySession {
   score             Float?  @map("score")
   timeSpentMs       Int   @default(0) @map("time_spent_ms")
 
-  details   String?   @map("details") // JSON stringified (individual answers)
-  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at")
-  deletedAt DateTime? @map("deleted_at")
+  details        String?   @map("details") // JSON stringified (individual answers)
+  isQuickReview  Boolean   @default(false) @map("is_quick_review")
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
 
   user    User            @relation(fields: [userId], references: [id])
   answers SessionAnswer[]
@@ -673,5 +678,94 @@ model TopicPerformance {
   @@unique([userId, moduleKey, topicCode])
   @@index([userId, moduleKey])
   @@map("topic_performance")
+}
+
+// ---------------------------------------------------------------------------
+// Study Engine & Adaptive Learning
+// ---------------------------------------------------------------------------
+
+model StudyEngine {
+  id                Int       @id @default(autoincrement()) @map("id")
+  userId            Int       @map("user_id")
+  licenseId         String    @map("license_id")
+  moduleKey         String    @map("module_key")
+
+  currentDifficulty Int       @default(3) @map("current_difficulty")  // 1-5
+  difficultyTrend   String    @default("stable") @map("difficulty_trend") // "up"|"down"|"stable"
+  recentScores      String    @default("[]") @map("recent_scores") // JSON: [85, 72, 90]
+  windowSize        Int       @default(5) @map("window_size")
+  upperThreshold    Int       @default(80) @map("upper_threshold")
+  lowerThreshold    Int       @default(50) @map("lower_threshold")
+  totalSessions     Int       @default(0) @map("total_sessions")
+  avgScore          Float     @default(0) @map("avg_score")
+
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, moduleKey])
+  @@index([userId, licenseId])
+  @@map("study_engines")
+}
+
+model WeakTopicTracker {
+  id                  Int       @id @default(autoincrement()) @map("id")
+  userId              Int       @map("user_id")
+  moduleKey           String    @map("module_key")
+  topicCode           String    @map("topic_code")
+  errorCount          Int       @default(0) @map("error_count")
+  totalAttempts       Int       @default(0) @map("total_attempts")
+  errorRate           Float     @default(0) @map("error_rate")
+  lastErrorAt         DateTime? @map("last_error_at")
+  priority            Float     @default(0) @map("priority")
+  nextReviewDate      DateTime? @map("next_review_date") // spaced repetition
+  consecutiveCorrect  Int       @default(0) @map("consecutive_correct")
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, moduleKey, topicCode])
+  @@index([userId, moduleKey, priority(sort: Desc)])
+  @@map("weak_topic_trackers")
+}
+
+model UsageCounter {
+  id          Int       @id @default(autoincrement()) @map("id")
+  userId      Int       @map("user_id")
+  mode        StudyMode @map("mode")
+  periodKey   String    @map("period_key") // "2026-04-06"|"2026-W14"|"2026-04"
+  count       Int       @default(0) @map("count")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, mode, periodKey])
+  @@index([userId, mode])
+  @@map("usage_counters")
+}
+
+model StudyGoal {
+  id          Int       @id @default(autoincrement()) @map("id")
+  userId      Int       @map("user_id")
+  title       String    @map("title")
+  description String?   @map("description")
+  targetType  String    @map("target_type") // "module_completion"|"avg_score"|"streak"|"custom"
+  targetValue Float     @map("target_value")
+  currentValue Float    @default(0) @map("current_value")
+  targetDate  DateTime? @map("target_date")
+  isCompleted Boolean   @default(false) @map("is_completed")
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, isCompleted])
+  @@map("study_goals")
 }
 

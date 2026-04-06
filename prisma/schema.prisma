@@ -82,6 +82,8 @@ model User {
   userStreak           UserStreak?
   practiceStates       PracticeState[]
   testAttempts         TestAttempt[]
+  questionScores       QuestionScore[]
+  topicPerformances    TopicPerformance[]
   createdQuestions     Question[]          @relation("QuestionCreatedBy")
   reviewedQuestions    Question[]          @relation("QuestionReviewedBy")
   plan                 Plan?               @relation(fields: [planId], references: [id])
@@ -182,7 +184,8 @@ model StudySession {
   updatedAt DateTime  @default(now()) @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  user User @relation(fields: [userId], references: [id])
+  user    User            @relation(fields: [userId], references: [id])
+  answers SessionAnswer[]
 
   @@index([userId])
   @@index([userId, moduleKey])
@@ -610,5 +613,65 @@ model SubscriptionEvent {
 
   @@index([userId])
   @@map("subscription_events")
+}
+
+// ---------------------------------------------------------------------------
+// Question-level Scores & Session Answers & Topic Analytics
+// ---------------------------------------------------------------------------
+
+model QuestionScore {
+  id                 Int      @id @default(autoincrement()) @map("id")
+  userId             Int      @map("user_id")
+  moduleKey          String   @map("module_key")
+  questionExternalId String   @map("question_external_id")
+  score              Int      @default(3) @map("score") // 0–5 mastery scale
+  timesCorrect       Int      @default(0) @map("times_correct")
+  timesIncorrect     Int      @default(0) @map("times_incorrect")
+  lastAnsweredAt     DateTime @default(now()) @map("last_answered_at")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @default(now()) @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, questionExternalId])
+  @@index([userId, moduleKey])
+  @@map("question_scores")
+}
+
+model SessionAnswer {
+  id                 Int      @id @default(autoincrement()) @map("id")
+  sessionId          Int      @map("session_id")
+  questionExternalId String   @map("question_external_id")
+  selectedAnswer     String   @map("selected_answer") // 'A'|'B'|'C'|'D'
+  isCorrect          Boolean  @map("is_correct")
+  tcSectionCode      String?  @map("tc_section_code")
+  tcTopicCode        String?  @map("tc_topic_code")
+  answeredAt         DateTime @default(now()) @map("answered_at")
+
+  session StudySession @relation(fields: [sessionId], references: [id])
+
+  @@unique([sessionId, questionExternalId])
+  @@index([sessionId])
+  @@index([questionExternalId])
+  @@map("session_answers")
+}
+
+model TopicPerformance {
+  id               Int       @id @default(autoincrement()) @map("id")
+  userId           Int       @map("user_id")
+  moduleKey        String    @map("module_key")
+  topicCode        String    @map("topic_code")
+  topicTitle       String?   @map("topic_title")
+  questionsTotal   Int       @default(0) @map("questions_total")
+  questionsCorrect Int       @default(0) @map("questions_correct")
+  lastStudiedAt    DateTime? @map("last_studied_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, moduleKey, topicCode])
+  @@index([userId, moduleKey])
+  @@map("topic_performance")
 }
 

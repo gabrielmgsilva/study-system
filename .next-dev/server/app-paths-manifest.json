@@ -1,0 +1,13 @@
+{
+  "/api/admin/licenses/[licenseId]/route": "app/api/admin/licenses/[licenseId]/route.js",
+  "/api/admin/content/metadata/route": "app/api/admin/content/metadata/route.js",
+  "/api/admin/content/route": "app/api/admin/content/route.js",
+  "/api/admin/content/[questionId]/route": "app/api/admin/content/[questionId]/route.js",
+  "/api/auth/logout/route": "app/api/auth/logout/route.js",
+  "/[locale]/page": "app/[locale]/page.js",
+  "/admin/users/page": "app/admin/users/page.js",
+  "/admin/coupons/page": "app/admin/coupons/page.js",
+  "/admin/content/page": "app/admin/content/page.js",
+  "/admin/content/[licenseId]/page": "app/admin/content/[licenseId]/page.js",
+  "/admin/content/[licenseId]/topic/[topicId]/page": "app/admin/content/[licenseId]/topic/[topicId]/page.js"
+}

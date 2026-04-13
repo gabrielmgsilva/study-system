@@ -1,7 +1,16 @@
 import Stripe from "stripe";
 
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error("STRIPE_SECRET_KEY is not set");
+function getStripeClient(): Stripe {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) throw new Error("STRIPE_SECRET_KEY is not set");
+  return new Stripe(key);
 }
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+// Lazy singleton — evaluated at request time, not at build time.
+let _stripe: Stripe | undefined;
+export const stripe = new Proxy({} as Stripe, {
+  get(_target, prop) {
+    if (!_stripe) _stripe = getStripeClient();
+    return (_stripe as any)[prop];
+  },
+});

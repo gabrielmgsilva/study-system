@@ -1,0 +1,30 @@
+# Git
+.git
+.gitignore
+
+# Dependencies (rebuilt inside Docker)
+node_modules
+
+# Local Next.js dev cache
+.next
+.next-dev
+
+# Environment files — never bake secrets into the image
+.env
+.env.*
+!.env.example
+
+# Tests / tooling
+**/*.test.ts
+**/*.spec.ts
+coverage
+
+# Editor / OS
+.DS_Store
+*.log
+.vscode
+.idea
+
+# Docker files themselves (no need to COPY)
+Dockerfile
+.dockerignore

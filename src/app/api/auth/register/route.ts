@@ -3,8 +3,15 @@ import { prisma } from '@/lib/prisma';
 import { hashPassword } from '@/lib/auth';
 import { setAuthCookie, signJWT } from '@/lib/jwt';
 import { stripe } from '@/lib/stripe';
+import { rateLimit, getClientIp } from '@/lib/rateLimit';
 
 export async function POST(req: Request) {
+  const ip = getClientIp(req);
+  const rl = rateLimit(`register:${ip}`, 5, 60 * 60 * 1000);
+  if (!rl.allowed) {
+    return NextResponse.json({ message: 'Too many requests. Please try again later.' }, { status: 429 });
+  }
+
   const { email, name, password, planId } = await req.json().catch(() => ({}));
 
   const normalizedEmail = String(email ?? '').trim().toLowerCase();

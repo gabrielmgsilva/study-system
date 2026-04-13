@@ -2,8 +2,12 @@ import { prisma } from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import { addDays, generateRawToken, hashToken } from '@/lib/token';
 import { sendEmailDev } from '@/lib/email-dev';
+import { requireAuth, isAuthError } from '@/lib/guards';
 
 export async function POST(req: Request) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
+
   const body = await req.json();
   const { logbookId, signatoryId, tasks } = body;
   const parsedLogbookId = Number(logbookId);
@@ -18,6 +22,12 @@ export async function POST(req: Request) {
     tasks.length === 0
   ) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+  }
+
+  const logbook = await prisma.logbook.findFirst({ where: { id: parsedLogbookId }, select: { userId: true } });
+  if (!logbook) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (logbook.userId !== null && logbook.userId !== auth.userId) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
   const signatory = await prisma.signatory.findFirst({

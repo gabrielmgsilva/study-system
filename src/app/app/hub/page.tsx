@@ -17,6 +17,7 @@ import {
   getStudyLicense,
   getStudyModule,
 } from '@/lib/studyNavigation';
+import { getModuleHubStats } from '@/lib/study/hubStats';
 
 type StudyModulePageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -46,6 +47,11 @@ export default async function StudyModulePage({
   const activeLicense = selectedLicense && selectedModule ? selectedLicense : fallback.license;
   const activeModule = selectedModule ?? fallback.module;
 
+  const moduleKey = `${activeLicense.licenseId}.${activeModule.id}`;
+  const stats = user
+    ? await getModuleHubStats(user.id, moduleKey)
+    : null;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 border-b border-slate-200 pb-5 md:flex-row md:items-end md:justify-between">
@@ -67,7 +73,7 @@ export default async function StudyModulePage({
               {dictionary.study.progress}
             </div>
             <div className="text-[2rem] font-semibold leading-none text-[#2d4bb3]">
-              {activeModule.progressPercent}%
+              {stats ? `${stats.progressPercent}%` : '–'}
             </div>
           </div>
 
@@ -83,7 +89,7 @@ export default async function StudyModulePage({
       <div className="h-2.5 overflow-hidden rounded-full bg-slate-200">
         <div
           className="h-full rounded-full bg-[#2d4bb3]"
-          style={{ width: `${activeModule.progressPercent}%` }}
+          style={{ width: `${stats?.progressPercent ?? 0}%` }}
         />
       </div>
 
@@ -108,27 +114,22 @@ export default async function StudyModulePage({
           <div className="mt-5 flex items-end justify-between text-sm">
             <span className="text-slate-500">{dictionary.study.cardsMastered}</span>
             <span className="font-semibold text-slate-900">
-              {activeModule.flashcards.mastered}/{activeModule.flashcards.total}
+              {stats ? `${stats.flashcards.mastered}/${stats.flashcards.total}` : '–/–'}
             </span>
           </div>
           <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
             <div
               className="h-full rounded-full bg-[#2d4bb3]"
               style={{
-                width: `${Math.min(
-                  100,
-                  Math.round(
-                    (Number(activeModule.flashcards.mastered) /
-                      Number(activeModule.flashcards.total)) *
-                      100,
-                  ),
-                )}%`,
+                width: stats && stats.flashcards.total !== '–'
+                  ? `${Math.min(100, Math.round((Number(stats.flashcards.mastered) / Number(stats.flashcards.total)) * 100))}%`
+                  : '0%',
               }}
             />
           </div>
           <div className="mt-3 flex items-center justify-between text-[11px] text-slate-400">
-            <span>{activeModule.flashcards.lastSession}</span>
-            <span>{activeModule.flashcards.completion}</span>
+            <span>{stats?.flashcards.lastSession ?? '–'}</span>
+            <span>{stats?.flashcards.completion ?? '–'}</span>
           </div>
 
           <Link
@@ -160,22 +161,19 @@ export default async function StudyModulePage({
           <dl className="mt-5 space-y-3 text-sm">
             <div className="flex items-center justify-between gap-3">
               <dt className="text-slate-500">{dictionary.study.lastPracticeScore}</dt>
-              <dd className="font-semibold text-emerald-600">{activeModule.practice.lastScore}</dd>
+              <dd className="font-semibold text-emerald-600">{stats?.practice.lastScore ?? '–'}</dd>
             </div>
             <div className="flex items-center justify-between gap-3">
               <dt className="text-slate-500">{dictionary.study.questionsAnswered}</dt>
               <dd className="font-semibold text-slate-900">
-                {activeModule.practice.questionsAnswered}
+                {stats?.practice.questionsAnswered ?? '–'}
               </dd>
             </div>
             <div className="flex items-center justify-between gap-3">
               <dt className="text-slate-500">{dictionary.study.avgAccuracy}</dt>
-              <dd className="font-semibold text-slate-900">{activeModule.practice.accuracy}</dd>
+              <dd className="font-semibold text-slate-900">{stats?.practice.accuracy ?? '–'}</dd>
             </div>
           </dl>
-          <div className="mt-4 text-[11px] text-slate-400">
-            {dictionary.study.streak}: {activeModule.practice.streak}
-          </div>
 
           <Link
             href={localizeAppHref(activeModule.studyHref, locale)}
@@ -206,20 +204,20 @@ export default async function StudyModulePage({
           <dl className="mt-5 space-y-3 text-sm">
             <div className="flex items-center justify-between gap-3">
               <dt className="text-slate-500">{dictionary.study.mockTestAverage}</dt>
-              <dd className="font-semibold text-[#f97316]">{activeModule.test.averageScore}</dd>
+              <dd className="font-semibold text-[#f97316]">{stats?.test.averageScore ?? '–'}</dd>
             </div>
             <div className="flex items-center justify-between gap-3">
               <dt className="text-slate-500">{dictionary.study.testsCompleted}</dt>
-              <dd className="font-semibold text-slate-900">{activeModule.test.testsCompleted}</dd>
+              <dd className="font-semibold text-slate-900">{stats?.test.testsCompleted ?? '–'}</dd>
             </div>
             <div className="flex items-center justify-between gap-3">
               <dt className="text-slate-500">{dictionary.study.bestScore}</dt>
-              <dd className="font-semibold text-slate-900">{activeModule.test.bestScore}</dd>
+              <dd className="font-semibold text-slate-900">{stats?.test.bestScore ?? '–'}</dd>
             </div>
           </dl>
           <div className="mt-4 flex items-center justify-between text-[11px] text-slate-400">
-            <span>{dictionary.study.time}: {activeModule.test.time}</span>
-            <span>{activeModule.test.readiness} {dictionary.study.readiness.toLowerCase()}</span>
+            <span>{dictionary.study.time}: {stats?.test.avgTime ?? '–'}</span>
+            <span>{stats?.test.readiness ?? '–'} {dictionary.study.readiness.toLowerCase()}</span>
           </div>
 
           <Link
@@ -244,11 +242,17 @@ export default async function StudyModulePage({
               <div className="font-semibold text-slate-900">{dictionary.study.flashcardMastery}</div>
               <div className="grid grid-cols-[auto_auto] gap-x-5 gap-y-1 text-sm">
                 <span className="text-emerald-600">{dictionary.study.easy}</span>
-                <span className="text-slate-900">18 cards</span>
+                <span className="text-slate-900">
+                  {stats ? `${stats.detailedTracking.easyCards} cards` : '–'}
+                </span>
                 <span className="text-amber-500">{dictionary.study.medium}</span>
-                <span className="text-slate-900">6 cards</span>
+                <span className="text-slate-900">
+                  {stats ? `${stats.detailedTracking.mediumCards} cards` : '–'}
+                </span>
                 <span className="text-red-500">{dictionary.study.hard}</span>
-                <span className="text-slate-900">26 cards</span>
+                <span className="text-slate-900">
+                  {stats ? `${stats.detailedTracking.hardCards} cards` : '–'}
+                </span>
               </div>
             </div>
           </div>
@@ -261,11 +265,15 @@ export default async function StudyModulePage({
               <div className="font-semibold text-slate-900">{dictionary.study.practicePerformance}</div>
               <div className="grid grid-cols-[auto_auto] gap-x-5 gap-y-1 text-sm">
                 <span className="text-slate-500">{dictionary.study.correct}</span>
-                <span className="text-emerald-600">104/127</span>
+                <span className="text-emerald-600">
+                  {stats && stats.detailedTracking.practiceTotal > 0
+                    ? `${stats.detailedTracking.practiceCorrect}/${stats.detailedTracking.practiceTotal}`
+                    : '–'}
+                </span>
                 <span className="text-slate-500">{dictionary.study.avgAccuracy}</span>
-                <span className="text-slate-900">{activeModule.practice.accuracy}</span>
+                <span className="text-slate-900">{stats?.practice.accuracy ?? '–'}</span>
                 <span className="text-slate-500">{dictionary.study.avgTime}</span>
-                <span className="text-slate-900">1.2 min</span>
+                <span className="text-slate-900">{stats?.detailedTracking.avgTimeMin ?? '–'}</span>
               </div>
             </div>
           </div>
@@ -278,12 +286,12 @@ export default async function StudyModulePage({
               <div className="font-semibold text-slate-900">{dictionary.study.testReadiness}</div>
               <div className="grid grid-cols-[auto_auto] gap-x-5 gap-y-1 text-sm">
                 <span className="text-slate-500">{dictionary.study.bestScore}</span>
-                <span className="text-slate-900">{activeModule.test.bestScore}</span>
+                <span className="text-slate-900">{stats?.test.bestScore ?? '–'}</span>
                 <span className="text-slate-500">{dictionary.study.average}</span>
-                <span className="text-slate-900">{activeModule.test.averageScore}</span>
+                <span className="text-slate-900">{stats?.test.averageScore ?? '–'}</span>
                 <span className="text-slate-500">{dictionary.study.readiness}</span>
                 <span className="font-semibold text-emerald-600">
-                  {activeModule.test.readiness}
+                  {stats?.test.readiness ?? '–'}
                 </span>
               </div>
             </div>

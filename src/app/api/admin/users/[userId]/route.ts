@@ -85,7 +85,7 @@ export async function PATCH(
 
   const existing = await prisma.user.findFirst({
     where: { id: userId },
-    select: { id: true, deletedAt: true, stripeCustomerId: true, subscriptionStatus: true },
+    select: { id: true, deletedAt: true, stripeCustomerId: true, subscriptionStatus: true, subscriptionExpiresAt: true },
   });
 
   if (!existing) {
@@ -123,8 +123,9 @@ export async function PATCH(
 
     if (action === 'extend_trial') {
       const days = Number(body.trialDays) || 7;
+      // When already trialing, extend from the current expiration date (not today)
       const baseDate = existing.subscriptionStatus === 'trialing'
-        ? new Date()
+        ? (existing.subscriptionExpiresAt ?? new Date())
         : new Date();
       const expiresAt = new Date(baseDate.getTime() + days * 24 * 60 * 60 * 1000);
 

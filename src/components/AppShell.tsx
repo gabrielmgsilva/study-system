@@ -26,7 +26,7 @@ export default function AppShell({
         <div className="flex flex-col gap-3 border-b border-slate-200 pb-5 sm:flex-row sm:items-center sm:justify-between">
           <Link
             href={backHref}
-            className="inline-flex items-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-700 transition hover:bg-slate-50"
+            className="inline-flex min-h-[44px] items-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-700 transition hover:bg-slate-50"
           >
             <span className="text-sm">←</span>
             <span className="text-sm">{backLabel}</span>

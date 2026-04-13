@@ -33,11 +33,13 @@ export interface QuizScreenProps {
   progress: number;
   timeLeft: number | null;
   isTimerRunning: boolean;
+  showFlashcardAnswer: boolean;
   dictionary: Dictionary;
   onAnswerSelect: (value: string) => void;
   onNextQuestion: () => void;
   onPreviousQuestion: () => void;
   onGoHome: () => void;
+  onRevealFlashcardAnswer: () => void;
 }
 
 export function QuizScreen({
@@ -54,11 +56,13 @@ export function QuizScreen({
   isCorrect,
   progress,
   timeLeft,
+  showFlashcardAnswer,
   dictionary,
   onAnswerSelect,
   onNextQuestion,
   onPreviousQuestion,
   onGoHome,
+  onRevealFlashcardAnswer,
 }: QuizScreenProps) {
   const isFlashcard = studyMode === 'flashcard';
   const isTest = studyMode === 'test';
@@ -117,9 +121,8 @@ export function QuizScreen({
 
             <Button
               variant="outline"
-              size="sm"
               onClick={onGoHome}
-              className={outlineBtn}
+              className={outlineBtn + ' min-h-[44px]'}
             >
               <X className="w-4 h-4 mr-2" />
               Exit
@@ -155,70 +158,55 @@ export function QuizScreen({
           <CardContent className="space-y-4">
             {isFlashcard ? (
               <>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm">
-                  <p className="mb-1 font-semibold text-slate-900">
-                    Correct answer
-                  </p>
-                  <p className="text-slate-700">
-                    {currentQuestion.correctAnswer}.{' '}
-                    {currentQuestion.options[currentQuestion.correctAnswer]}
-                  </p>
-                </div>
-
-                {(currentQuestion.explanation?.correct ||
-                  currentQuestion.explanation?.whyOthersAreWrong) && (
-                  <div className="space-y-2 rounded-2xl border border-slate-200 bg-white p-3 text-sm shadow-sm">
-                    <p className="mb-1 font-semibold text-slate-900">
-                      Explanation
-                    </p>
+                {!showFlashcardAnswer ? (
+                  <div className="flex justify-center py-4">
+                    <Button onClick={onRevealFlashcardAnswer} className={primaryBtn}>
+                      Show Answer
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm">
+                      <p className="mb-1 font-semibold text-slate-900">
+                        Correct answer
+                      </p>
+                      <p className="text-slate-700">
+                        {currentQuestion.correctAnswer}.{' '}
+                        {currentQuestion.options[currentQuestion.correctAnswer]}
+                      </p>
+                    </div>
 
                     {currentQuestion.explanation?.correct && (
-                      <p className="whitespace-pre-wrap text-slate-700">
-                        {currentQuestion.explanation.correct}
-                      </p>
-                    )}
-
-                    {currentQuestion.explanation?.whyOthersAreWrong && (
-                      <div className="space-y-1 text-xs text-slate-600">
-                        <p className="font-semibold text-slate-800">
-                          Why the other options are incorrect
+                      <div className="rounded-2xl border border-slate-200 bg-white p-3 text-sm shadow-sm">
+                        <p className="mb-1 font-semibold text-slate-900">
+                          Explanation
                         </p>
-
-                        {(['A', 'B', 'C', 'D'] as const)
-                          .filter((k) => k !== currentQuestion.correctAnswer)
-                          .map((k) => {
-                            const txt = currentQuestion.explanation?.whyOthersAreWrong?.[k];
-
-                            return (
-                              <p key={k} className="whitespace-pre-wrap">
-                                <span className="font-semibold text-slate-800">{k}:</span>{' '}
-                                {txt && txt.trim().length > 0 ? txt : '—'}
-                              </p>
-                            );
-                          })}
+                        <p className="whitespace-pre-wrap text-slate-700">
+                          {currentQuestion.explanation.correct}
+                        </p>
                       </div>
                     )}
-                  </div>
-                )}
 
-                <div className="grid gap-2 text-xs text-slate-600 md:grid-cols-2">
-                  {primaryRef?.locator && (
-                    <p>
-                      <span className="font-semibold text-slate-800">
-                        Reference:{' '}
-                      </span>
-                      {primaryRef.locator}
-                    </p>
-                  )}
-                  {currentQuestion.tcTopicCode && (
-                    <p>
-                      <span className="font-semibold text-slate-800">
-                        TC Topic:{' '}
-                      </span>
-                      {currentQuestion.tcTopicCode}
-                    </p>
-                  )}
-                </div>
+                    <div className="grid gap-2 text-xs text-slate-600 md:grid-cols-2">
+                      {primaryRef?.locator && (
+                        <p>
+                          <span className="font-semibold text-slate-800">
+                            Reference:{' '}
+                          </span>
+                          {primaryRef.locator}
+                        </p>
+                      )}
+                      {currentQuestion.tcTopicCode && (
+                        <p>
+                          <span className="font-semibold text-slate-800">
+                            TC Topic:{' '}
+                          </span>
+                          {currentQuestion.tcTopicCode}
+                        </p>
+                      )}
+                    </div>
+                  </>
+                )}
               </>
             ) : (
               <>
@@ -309,7 +297,7 @@ export function QuizScreen({
             )}
           </CardContent>
 
-          <CardFooter className="flex justify-between">
+          <CardFooter className="flex flex-wrap justify-between gap-2">
             <Button
               variant="outline"
               disabled={currentQuestionIndex === 0}

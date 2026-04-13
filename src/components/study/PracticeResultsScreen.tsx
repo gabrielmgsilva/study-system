@@ -140,7 +140,7 @@ export function PracticeResultsScreen({
                   job!
                 </p>
               ) : (
-                <div className="space-y-3 max-h-72 overflow-auto pr-1">
+                <div className="space-y-3 max-h-72 overflow-auto overscroll-contain pr-1">
                   {incorrectDetails.map(({ idx, question, answer }) => {
                     const ref =
                       question.references && question.references.length > 0
@@ -186,7 +186,7 @@ export function PracticeResultsScreen({
             <div className="flex flex-col gap-2 w-full md:w-auto">
               <Button
                 className={primaryBtn + ' w-full md:w-auto'}
-                size="sm"
+                size="lg"
                 onClick={onRestartCurrentMode}
               >
                 <Brain className="w-4 h-4 mr-2" />
@@ -195,7 +195,7 @@ export function PracticeResultsScreen({
 
               <Button
                 className={'w-full md:w-auto ' + outlineBtn}
-                size="sm"
+                size="lg"
                 variant="outline"
                 disabled={userAnswers.filter((a) => !a.isCorrect).length === 0}
                 onClick={onPracticeOnlyIncorrect}
@@ -209,7 +209,7 @@ export function PracticeResultsScreen({
                 onClick={onGoHome}
                 variant="outline"
                 className={'w-full sm:w-auto ' + outlineBtn}
-                size="sm"
+                size="lg"
               >
                 <BookOpen className="w-4 h-4 mr-2" />
                 Back to module home

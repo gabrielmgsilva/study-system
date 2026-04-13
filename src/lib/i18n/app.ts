@@ -59,6 +59,8 @@ type AppDictionary = {
     loadingModules: string;
     noCertifications: string;
     addCertification: string;
+    menu: string;
+    language: string;
   };
   dashboard: {
     eyebrow: string;
@@ -210,22 +212,23 @@ type AppDictionary = {
     title: string;
     description: string;
     refresh: string;
-    entitlements: string;
-    roadmap: string;
     note: string;
-    basicTitle: string;
-    standardTitle: string;
-    premiumTitle: string;
-    basicDesc: string;
-    standardDesc: string;
-    premiumDesc: string;
-    basicCopy: string;
-    basicHint: string;
-    standardCopy: string;
-    standardHint: string;
-    premiumCopy: string;
-    premiumHint: string;
-    roadmapItems: string[];
+    subscriptionLabel: string;
+    currentPlan: string;
+    manageBilling: string;
+    viewPricing: string;
+    renewsOn: string;
+    expiresOn: string;
+    noSubscription: string;
+    subscribeNow: string;
+    statusActive: string;
+    statusTrialing: string;
+    statusCanceled: string;
+    statusPastDue: string;
+    enrolledLicenses: string;
+    ofMax: string;
+    billingPortalError: string;
+    noBillingAccount: string;
   };
   admin: {
     navTitle: string;
@@ -299,6 +302,8 @@ const en: AppDictionary = {
     loadingModules: 'Loading available modules...',
     noCertifications: 'No active certifications found for this account yet.',
     addCertification: 'Add certification',
+    menu: 'Menu',
+    language: 'Language',
   },
   dashboard: {
     eyebrow: 'Dashboard',
@@ -458,30 +463,25 @@ const en: AppDictionary = {
   },
   account: {
     title: 'My Account',
-    description: 'This page is the long-term home for billing, plans and usage limits.',
+    description: 'Manage your subscription, billing and enrolled licenses.',
     refresh: 'Refresh',
-    entitlements: 'Licenses enrolled',
-    roadmap: 'Roadmap',
-    note:
-      'Your subscription determines access to study modes and limits per license.',
-    basicTitle: 'BASIC',
-    standardTitle: 'STANDARD',
-    premiumTitle: 'PREMIUM',
-    basicDesc: 'Explore & Start',
-    standardDesc: 'Serious Study',
-    premiumDesc: 'Exam & Career',
-    basicCopy: 'Daily limits (Flashcards / Practice cooldown / Tests weekly).',
-    basicHint: 'Coming soon: plan enforcement.',
-    standardCopy: 'Practice unlimited, higher flashcard limit, tests 2–3/week.',
-    standardHint: 'Coming soon: checkout + license selection.',
-    premiumCopy: 'Unlimited tests + Logbook included.',
-    premiumHint: 'Coming soon: Logbook add-on & priority modules.',
-    roadmapItems: [
-      'Billing + plans per licence (M / E / S / Balloons) + REGS as global.',
-      'Usage limits: daily flashcards, practice cooldown, tests per week.',
-      'Logbook as add-on OR included in PREMIUM.',
-      'Admin tools to grant entitlements for testing.',
-    ],
+    note: 'Your subscription determines access to study modes and limits per license.',
+    subscriptionLabel: 'Subscription',
+    currentPlan: 'Current plan',
+    manageBilling: 'Manage Billing',
+    viewPricing: 'View Pricing',
+    renewsOn: 'Renews on',
+    expiresOn: 'Expires on',
+    noSubscription: 'No active subscription.',
+    subscribeNow: 'Subscribe Now',
+    statusActive: 'Active',
+    statusTrialing: 'Trial',
+    statusCanceled: 'Canceled',
+    statusPastDue: 'Past Due',
+    enrolledLicenses: 'Enrolled Licenses',
+    ofMax: 'of',
+    billingPortalError: 'Unable to open billing portal. Please try again.',
+    noBillingAccount: 'No billing account linked yet. Complete a checkout to enable billing management.',
   },
   admin: {
     navTitle: 'Admin Console',
@@ -559,6 +559,8 @@ const pt: AppDictionary = {
     loadingModules: 'Carregando módulos disponíveis...',
     noCertifications: 'Nenhuma certificação ativa foi encontrada para esta conta.',
     addCertification: 'Adicionar certificação',
+    menu: 'Menu',
+    language: 'Idioma',
   },
   dashboard: {
     eyebrow: 'Painel',
@@ -718,30 +720,25 @@ const pt: AppDictionary = {
   },
   account: {
     title: 'Minha conta',
-    description: 'Esta página é a base de longo prazo para cobrança, planos e limites de uso.',
+    description: 'Gerencie sua assinatura, cobrança e licenças matriculadas.',
     refresh: 'Atualizar',
-    entitlements: 'Licenças matriculadas',
-    roadmap: 'Roadmap',
-    note:
-      'Sua assinatura determina o acesso aos modos de estudo e limites por licença.',
-    basicTitle: 'BASIC',
-    standardTitle: 'STANDARD',
-    premiumTitle: 'PREMIUM',
-    basicDesc: 'Explorar e começar',
-    standardDesc: 'Estudo sério',
-    premiumDesc: 'Prova e carreira',
-    basicCopy: 'Limites diários (flashcards / intervalo da prática / testes semanais).',
-    basicHint: 'Em breve: regras de plano em produção.',
-    standardCopy: 'Prática ilimitada, limite maior de flashcards e testes 2 a 3 vezes por semana.',
-    standardHint: 'Em breve: checkout e seleção de licença.',
-    premiumCopy: 'Testes ilimitados + logbook incluído.',
-    premiumHint: 'Em breve: add-on de logbook e módulos prioritários.',
-    roadmapItems: [
-      'Cobrança + planos por licença (M / E / S / Balloons) + REGS como global.',
-      'Limites de uso: flashcards diários, intervalo da prática e testes por semana.',
-      'Logbook como add-on OU incluído no PREMIUM.',
-      'Ferramentas de admin para conceder permissões em testes.',
-    ],
+    note: 'Sua assinatura determina o acesso aos modos de estudo e limites por licença.',
+    subscriptionLabel: 'Assinatura',
+    currentPlan: 'Plano atual',
+    manageBilling: 'Gerenciar cobrança',
+    viewPricing: 'Ver planos',
+    renewsOn: 'Renova em',
+    expiresOn: 'Expira em',
+    noSubscription: 'Nenhuma assinatura ativa.',
+    subscribeNow: 'Assinar agora',
+    statusActive: 'Ativo',
+    statusTrialing: 'Trial',
+    statusCanceled: 'Cancelado',
+    statusPastDue: 'Pagamento pendente',
+    enrolledLicenses: 'Licenças matriculadas',
+    ofMax: 'de',
+    billingPortalError: 'Não foi possível abrir o portal de cobrança. Tente novamente.',
+    noBillingAccount: 'Nenhuma conta de cobrança vinculada. Finalize um checkout para habilitar o gerenciamento.',
   },
   admin: {
     navTitle: 'Console Administrativo',

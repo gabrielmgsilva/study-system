@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireAuth, isAuthError } from '@/lib/guards';
 
 export async function POST(req: Request) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
+
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
 
@@ -10,6 +14,12 @@ export async function POST(req: Request) {
 
   if (!Number.isInteger(logbookId) || logbookId <= 0 || !Number.isInteger(slotNumber) || slotNumber < 1 || slotNumber > 15) {
     return NextResponse.json({ error: 'Missing/invalid logbookId or slotNumber' }, { status: 400 });
+  }
+
+  const logbook = await prisma.logbook.findFirst({ where: { id: logbookId }, select: { userId: true } });
+  if (!logbook) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (logbook.userId !== null && logbook.userId !== auth.userId) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
   const data = {

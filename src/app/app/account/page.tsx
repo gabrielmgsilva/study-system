@@ -1,25 +1,120 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { CreditCard, ShieldCheck, RefreshCw } from 'lucide-react';
+import {
+  AlertTriangle,
+  CheckCircle2,
+  CreditCard,
+  ExternalLink,
+  RefreshCw,
+  ShieldCheck,
+  XCircle,
+} from 'lucide-react';
 
 import { getAppDictionary, getAppLocaleFromPathname } from '@/lib/i18n/app';
 import { ROUTES } from '@/lib/routes';
 import { getStudentState, type StudentState } from '@/lib/entitlementsClient';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const LICENSE_LABELS: Record<string, string> = {
+  m: 'Mechanical (M)',
+  e: 'Avionics (E)',
+  s: 'Structures (S)',
+  balloons: 'Balloons',
+  regs: 'REGS',
+};
+
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
+
+function SubscriptionStatusBadge({
+  status,
+  labels,
+}: {
+  status: string | null;
+  labels: Record<string, string>;
+}) {
+  if (!status) return null;
+
+  const map: Record<string, { label: string; className: string }> = {
+    active: {
+      label: labels.active,
+      className: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    },
+    trialing: {
+      label: labels.trialing,
+      className: 'bg-[#eef3ff] text-[#2d4bb3] border-[#c9d4f4]',
+    },
+    canceled: {
+      label: labels.canceled,
+      className: 'bg-slate-50 text-slate-600 border-slate-200',
+    },
+    past_due: {
+      label: labels.pastDue,
+      className: 'bg-amber-50 text-amber-700 border-amber-200',
+    },
+  };
+
+  const config = map[status] ?? {
+    label: status,
+    className: 'bg-slate-50 text-slate-600 border-slate-200',
+  };
+
+  return (
+    <Badge variant="outline" className={`text-xs font-semibold ${config.className}`}>
+      {config.label}
+    </Badge>
+  );
+}
+
+function StatusIcon({ active, status }: { active: boolean; status: string | null }) {
+  if (active) return <CheckCircle2 className="h-5 w-5 text-emerald-500" />;
+  if (status === 'past_due') return <AlertTriangle className="h-5 w-5 text-amber-500" />;
+  return <XCircle className="h-5 w-5 text-slate-400" />;
+}
+
+function formatDate(iso: string | null | undefined): string {
+  if (!iso) return '–';
+  return new Date(iso).toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
 
 export default function MyAccountPage() {
   const pathname = usePathname();
   const locale = getAppLocaleFromPathname(pathname);
-  const dictionary = getAppDictionary(locale);
+  const d = getAppDictionary(locale);
+  const a = d.account;
+
   const [ready, setReady] = useState(false);
   const [student, setStudent] = useState<StudentState | null>(null);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [portalError, setPortalError] = useState<string | null>(null);
 
   async function refresh() {
+    setReady(false);
     const s = await getStudentState({ force: true });
     setStudent(s);
     setReady(true);
@@ -30,23 +125,60 @@ export default function MyAccountPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  async function handleManageBilling() {
+    setPortalLoading(true);
+    setPortalError(null);
+    try {
+      const res = await fetch('/api/me/billing-portal', { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.url) {
+        setPortalError(
+          res.status === 400 ? a.noBillingAccount : (data.message ?? a.billingPortalError),
+        );
+        return;
+      }
+      window.location.href = data.url;
+    } catch {
+      setPortalError(a.billingPortalError);
+    } finally {
+      setPortalLoading(false);
+    }
+  }
+
+  const sub = student?.subscription ?? null;
+  const plan = student?.plan ?? null;
   const enrolledCount = student?.enrollmentSummary?.count ?? 0;
+  const maxLicenses = student?.enrollmentSummary?.max ?? 0;
+  const enrolledLicenses = Object.keys(student?.licenseEntitlements ?? {});
+
+  const isActive = sub?.active === true;
+  const isPastDue = sub?.status === 'past_due';
+  const isCanceled = sub?.status === 'canceled';
+  const hasSubscription = !!sub?.status && sub.status !== 'none';
+
+  const statusLabels = {
+    active: a.statusActive,
+    trialing: a.statusTrialing,
+    canceled: a.statusCanceled,
+    pastDue: a.statusPastDue,
+  };
+
+  const dateLabel = isActive
+    ? a.renewsOn
+    : isCanceled
+    ? a.expiresOn
+    : a.expiresOn;
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-col gap-3 border-b border-slate-200 pb-5 md:flex-row md:items-end md:justify-between">
-        <div className="space-y-2">
+        <div className="space-y-1">
           <div className="text-xs font-medium uppercase tracking-[0.08em] text-slate-400">
-            {dictionary.shell.profile}
+            {d.shell.profile}
           </div>
-          <div>
-            <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
-              {dictionary.account.title}
-            </h1>
-            <p className="mt-1 max-w-2xl text-sm text-slate-500">
-              {dictionary.account.description}
-            </p>
-          </div>
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-900">{a.title}</h1>
+          <p className="mt-1 max-w-2xl text-sm text-slate-500">{a.description}</p>
         </div>
 
         <Button
@@ -56,81 +188,148 @@ export default function MyAccountPage() {
           className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
           disabled={!ready}
         >
-          <RefreshCw className="h-4 w-4 mr-2" />
-          {dictionary.account.refresh}
+          <RefreshCw className="mr-2 h-4 w-4" />
+          {a.refresh}
         </Button>
       </div>
 
+      {/* Subscription card */}
       <Card className="rounded-[30px] border-slate-200 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
-        <div>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-slate-900">
-              <CreditCard className="h-5 w-5 text-[#2d4bb3]" />
-              My Account
-            </CardTitle>
-            <CardDescription className="text-slate-500">
-              This page is the long-term home for billing, plans and usage limits.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <Badge className="border-slate-200 bg-slate-50 text-slate-700" variant="outline">
-                {dictionary.account.entitlements}: <span className="ml-1 font-semibold">{ready ? enrolledCount : '…'}</span>
-              </Badge>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-slate-900">
+            <CreditCard className="h-5 w-5 text-[#2d4bb3]" />
+            {a.subscriptionLabel}
+          </CardTitle>
+        </CardHeader>
+
+        <CardContent className="space-y-5">
+          {!ready ? (
+            <div className="space-y-3">
+              <div className="h-5 w-40 animate-pulse rounded bg-slate-100" />
+              <div className="h-4 w-56 animate-pulse rounded bg-slate-100" />
             </div>
-
-            <div className="grid gap-4 md:grid-cols-3">
-              <Card className="rounded-[26px] border-slate-200 bg-slate-50">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base text-slate-900">{dictionary.account.basicTitle}</CardTitle>
-                  <CardDescription className="text-slate-500">{dictionary.account.basicDesc}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-2 text-sm text-slate-500">
-                  <p>{dictionary.account.basicCopy}</p>
-                  <p className="text-xs text-slate-400">{dictionary.account.basicHint}</p>
-                </CardContent>
-              </Card>
-
-              <Card className="rounded-[26px] border-slate-200 bg-slate-50">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base text-slate-900">{dictionary.account.standardTitle}</CardTitle>
-                  <CardDescription className="text-slate-500">{dictionary.account.standardDesc}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-2 text-sm text-slate-500">
-                  <p>{dictionary.account.standardCopy}</p>
-                  <p className="text-xs text-slate-400">{dictionary.account.standardHint}</p>
-                </CardContent>
-              </Card>
-
-              <Card className="rounded-[26px] border-slate-200 bg-slate-50">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base text-slate-900">{dictionary.account.premiumTitle}</CardTitle>
-                  <CardDescription className="text-slate-500">{dictionary.account.premiumDesc}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-2 text-sm text-slate-500">
-                  <p>{dictionary.account.premiumCopy}</p>
-                  <p className="text-xs text-slate-400">{dictionary.account.premiumHint}</p>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <div className="flex items-center gap-2 font-medium text-slate-900">
-                <ShieldCheck className="h-4 w-4 text-[#2d4bb3]" />
-                {dictionary.account.roadmap}
+          ) : !hasSubscription ? (
+            /* No subscription */
+            <div className="flex flex-col items-start gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="flex items-center gap-2 text-slate-600">
+                <XCircle className="h-5 w-5 text-slate-400" />
+                <span className="font-medium">{a.noSubscription}</span>
               </div>
-              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-500">
-                {dictionary.account.roadmapItems.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
+              <Button asChild className="bg-[#2d4bb3] text-white hover:bg-[#243d99]">
+                <Link href={ROUTES.pricing}>{a.subscribeNow}</Link>
+              </Button>
             </div>
+          ) : (
+            /* Active / trialing / past_due / canceled */
+            <div
+              className={[
+                'rounded-2xl border p-4',
+                isPastDue
+                  ? 'border-amber-200 bg-amber-50'
+                  : isCanceled
+                  ? 'border-slate-200 bg-slate-50'
+                  : 'border-[#c9d4f4] bg-[#eef3ff]',
+              ].join(' ')}
+            >
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <StatusIcon active={isActive} status={sub?.status ?? null} />
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {plan?.name && (
+                        <span className="font-semibold text-slate-900">{plan.name}</span>
+                      )}
+                      <SubscriptionStatusBadge
+                        status={sub?.status ?? null}
+                        labels={statusLabels}
+                      />
+                    </div>
+                    {sub?.expiresAt && (
+                      <p className="mt-1 text-xs text-slate-500">
+                        {dateLabel}:{' '}
+                        <span className="font-medium text-slate-700">
+                          {formatDate(sub.expiresAt)}
+                        </span>
+                      </p>
+                    )}
+                  </div>
+                </div>
 
-            <div className="text-xs text-slate-400">
-              {dictionary.account.note}
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    onClick={handleManageBilling}
+                    disabled={portalLoading}
+                    size="sm"
+                    variant="outline"
+                    className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  >
+                    {portalLoading ? (
+                      <RefreshCw className="mr-2 h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <ExternalLink className="mr-2 h-3.5 w-3.5" />
+                    )}
+                    {a.manageBilling}
+                  </Button>
+
+                  {(isCanceled || !isActive) && (
+                    <Button
+                      asChild
+                      size="sm"
+                      className="bg-[#2d4bb3] text-white hover:bg-[#243d99]"
+                    >
+                      <Link href={ROUTES.pricing}>{a.viewPricing}</Link>
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {portalError && (
+                <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  {portalError}
+                </p>
+              )}
             </div>
-          </CardContent>
-        </div>
+          )}
+
+          <p className="text-xs text-slate-400">{a.note}</p>
+        </CardContent>
+      </Card>
+
+      {/* Enrolled licenses card */}
+      <Card className="rounded-[30px] border-slate-200 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-slate-900">
+            <ShieldCheck className="h-5 w-5 text-[#2d4bb3]" />
+            {a.enrolledLicenses}
+          </CardTitle>
+          {maxLicenses > 0 && (
+            <CardDescription className="text-slate-500">
+              {enrolledCount} {a.ofMax} {maxLicenses}
+            </CardDescription>
+          )}
+        </CardHeader>
+
+        <CardContent>
+          {!ready ? (
+            <div className="space-y-2">
+              <div className="h-4 w-32 animate-pulse rounded bg-slate-100" />
+              <div className="h-4 w-28 animate-pulse rounded bg-slate-100" />
+            </div>
+          ) : enrolledLicenses.length === 0 ? (
+            <p className="text-sm text-slate-500">–</p>
+          ) : (
+            <ul className="space-y-2">
+              {enrolledLicenses.map((licenseId) => (
+                <li key={licenseId} className="flex items-center gap-2 text-sm">
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
+                  <span className="text-slate-800">
+                    {LICENSE_LABELS[licenseId] ?? licenseId.toUpperCase()}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
       </Card>
     </div>
   );

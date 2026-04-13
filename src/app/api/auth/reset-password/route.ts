@@ -2,8 +2,15 @@ import { NextResponse } from 'next/server';
 
 import { prisma } from '@/lib/prisma';
 import { hashPassword } from '@/lib/auth';
+import { rateLimit, getClientIp } from '@/lib/rateLimit';
 
 export async function POST(req: Request) {
+  const ip = getClientIp(req);
+  const rl = rateLimit(`reset-password:${ip}`, 10, 15 * 60 * 1000);
+  if (!rl.allowed) {
+    return NextResponse.json({ message: 'Too many requests. Please try again later.' }, { status: 429 });
+  }
+
   const { token, newPassword } = await req.json().catch(() => ({}));
   const t = String(token || '').trim();
   const p = String(newPassword || '');

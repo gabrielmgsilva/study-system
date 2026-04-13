@@ -87,16 +87,15 @@ export function StudyHomeScreen({
               </p>
             ) : (
               <>
-                <div className="flex justify-between items-center gap-4">
+                <div className="flex flex-wrap justify-between items-center gap-4">
                   <p className="text-xs text-slate-500">
                     Click to toggle each section. You can combine multiple
                     sections in one session.
                   </p>
                   <Button
                     variant="outline"
-                    size="sm"
                     onClick={onSelectAllSections}
-                    className={outlineBtn}
+                    className={outlineBtn + ' min-h-[44px]'}
                   >
                     Select all
                   </Button>
@@ -274,8 +273,8 @@ export function StudyHomeScreen({
           </CardContent>
         </GlassCard>
 
-        <div className="flex justify-between items-center gap-3 text-xs text-slate-600">
-          <Button asChild variant="outline" size="sm" className={outlineBtn}>
+        <div className="flex flex-wrap justify-between items-center gap-3 text-xs text-slate-600">
+          <Button asChild variant="outline" className={outlineBtn + ' min-h-[44px]'}>
             <Link href={backHref ?? ROUTES.appHub} className="flex items-center">
               <ArrowLeft className="mr-2 h-4 w-4" />
               {dg.back}

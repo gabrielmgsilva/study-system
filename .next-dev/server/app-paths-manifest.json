@@ -1,13 +1,7 @@
 {
-  "/api/admin/licenses/[licenseId]/route": "app/api/admin/licenses/[licenseId]/route.js",
-  "/api/admin/content/metadata/route": "app/api/admin/content/metadata/route.js",
-  "/api/admin/content/route": "app/api/admin/content/route.js",
-  "/api/admin/content/[questionId]/route": "app/api/admin/content/[questionId]/route.js",
-  "/api/auth/logout/route": "app/api/auth/logout/route.js",
-  "/[locale]/page": "app/[locale]/page.js",
-  "/admin/users/page": "app/admin/users/page.js",
-  "/admin/coupons/page": "app/admin/coupons/page.js",
-  "/admin/content/page": "app/admin/content/page.js",
-  "/admin/content/[licenseId]/page": "app/admin/content/[licenseId]/page.js",
-  "/admin/content/[licenseId]/topic/[topicId]/page": "app/admin/content/[licenseId]/topic/[topicId]/page.js"
+  "/app/onboarding/page": "app/app/onboarding/page.js",
+  "/app/student/page": "app/app/student/page.js",
+  "/app/m/page": "app/app/m/page.js",
+  "/app/hub/page": "app/app/hub/page.js",
+  "/app/e/rating-avionics/page": "app/app/e/rating-avionics/page.js"
 }

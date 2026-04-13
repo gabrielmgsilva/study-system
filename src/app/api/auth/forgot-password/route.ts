@@ -3,12 +3,19 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { prisma } from '@/lib/prisma';
 import { Resend } from 'resend';
+import { rateLimit, getClientIp } from '@/lib/rateLimit';
 
 function randomToken() {
   return crypto.randomBytes(32).toString('hex');
 }
 
 export async function POST(req: Request) {
+  const ip = getClientIp(req);
+  const rl = rateLimit(`forgot-password:${ip}`, 5, 15 * 60 * 1000);
+  if (!rl.allowed) {
+    return NextResponse.json({ message: 'Too many requests. Please try again later.' }, { status: 429 });
+  }
+
   const { email } = await req.json().catch(() => ({}));
   const normalizedEmail = String(email || '').trim().toLowerCase();
 

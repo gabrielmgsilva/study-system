@@ -142,7 +142,7 @@ export function TestResultsScreen({
 
             {hasTopicBreakdown && (
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold text-slate-900">
                       Study focus
@@ -151,8 +151,7 @@ export function TestResultsScreen({
                   </div>
                   <Button
                     variant="outline"
-                    size="sm"
-                    className={outlineBtn}
+                    className={outlineBtn + ' min-h-[44px]'}
                     onClick={handleCopyFocus}
                   >
                     Copy
@@ -170,7 +169,7 @@ export function TestResultsScreen({
                   This helps you see which TC topics need more study.
                 </p>
 
-                <div className="space-y-2 max-h-80 overflow-auto pr-1">
+                <div className="space-y-2 max-h-80 overflow-auto overscroll-contain pr-1">
                   {topicRows.map((r) => (
                     <div
                       key={r.topicCode}

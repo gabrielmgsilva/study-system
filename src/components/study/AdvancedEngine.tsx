@@ -130,6 +130,8 @@ function AdvancedEngine({
     Record<QuestionId, boolean>
   >({});
 
+  const [showFlashcardAnswer, setShowFlashcardAnswer] = useState(false);
+
   // ----------------------------------------------------
   // Helpers sections
   // ----------------------------------------------------
@@ -250,6 +252,7 @@ function AdvancedEngine({
       setShowFeedback(false);
       setIsCorrect(false);
       setLockedQuestions({});
+      setShowFlashcardAnswer(false);
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Unable to start study mode.');
     }
@@ -331,6 +334,7 @@ function AdvancedEngine({
 
     setCurrentQuestionIndex((prev) => prev + 1);
     setSelectedAnswer('');
+    setShowFlashcardAnswer(false);
     if (studyMode === 'practice') {
       setShowFeedback(false);
     }
@@ -340,6 +344,7 @@ function AdvancedEngine({
     if (currentQuestionIndex === 0) return;
     setCurrentQuestionIndex((prev) => prev - 1);
     setSelectedAnswer('');
+    setShowFlashcardAnswer(false);
     if (studyMode === 'practice') {
       setShowFeedback(false);
     }
@@ -385,6 +390,7 @@ function AdvancedEngine({
       setShowFeedback(false);
       setUserAnswers([]);
       setLockedQuestions({});
+      setShowFlashcardAnswer(false);
       setScreenMode('quiz');
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Unable to restart study mode.');
@@ -588,11 +594,13 @@ function AdvancedEngine({
         progress={progress}
         timeLeft={timeLeft}
         isTimerRunning={isTimerRunning}
+        showFlashcardAnswer={showFlashcardAnswer}
         dictionary={dictionary}
         onAnswerSelect={handleAnswerSelect}
         onNextQuestion={handleNextQuestion}
         onPreviousQuestion={handlePreviousQuestion}
         onGoHome={handleGoHome}
+        onRevealFlashcardAnswer={() => setShowFlashcardAnswer(true)}
       />
     );
   }

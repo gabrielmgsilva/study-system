@@ -17,91 +17,92 @@
       "static/css/app/[locale]/page.css",
       "static/chunks/app/[locale]/page.js"
     ],
-    "/[locale]/auth/login/page": [
+    "/[locale]/auth/register/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/css/app/[locale]/auth/login/page.css",
-      "static/chunks/app/[locale]/auth/login/page.js"
+      "static/css/app/[locale]/auth/register/page.css",
+      "static/chunks/app/[locale]/auth/register/page.js"
     ],
-    "/api/auth/login/route": [
+    "/api/plans/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/auth/login/route.js"
+      "static/chunks/app/api/plans/route.js"
     ],
-    "/admin/layout": [
+    "/api/auth/register/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/admin/layout.js"
+      "static/chunks/app/api/auth/register/route.js"
     ],
-    "/admin/users/page": [
+    "/app/layout": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/admin/users/page.js"
+      "static/chunks/app/app/layout.js"
     ],
-    "/api/admin/users/route": [
+    "/app/onboarding/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/admin/users/route.js"
+      "static/css/app/app/onboarding/page.css",
+      "static/chunks/app/app/onboarding/page.js"
+    ],
+    "/api/me/student/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/me/student/route.js"
     ],
     "/api/auth/verify/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/auth/verify/route.js"
     ],
-    "/admin/coupons/page": [
+    "/api/me/onboarding/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/admin/coupons/page.js"
+      "static/chunks/app/api/me/onboarding/route.js"
     ],
-    "/api/admin/coupons/route": [
+    "/app/m/layout": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/admin/coupons/route.js"
+      "static/chunks/app/app/m/layout.js"
     ],
-    "/admin/content/page": [
+    "/app/m/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/admin/content/page.js"
+      "static/chunks/app/app/m/page.js"
     ],
-    "/api/admin/licenses/route": [
+    "/app/hub/layout": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/admin/licenses/route.js"
+      "static/chunks/app/app/hub/layout.js"
     ],
-    "/admin/content/[licenseId]/page": [
+    "/app/hub/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/admin/content/[licenseId]/page.js"
+      "static/chunks/app/app/hub/page.js"
     ],
-    "/api/admin/licenses/[licenseId]/route": [
+    "/app/e/layout": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/admin/licenses/[licenseId]/route.js"
+      "static/chunks/app/app/e/layout.js"
     ],
-    "/admin/content/[licenseId]/topic/[topicId]/page": [
+    "/app/e/rating-avionics/layout": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/admin/content/[licenseId]/topic/[topicId]/page.js"
+      "static/chunks/app/app/e/rating-avionics/layout.js"
     ],
-    "/api/admin/content/metadata/route": [
+    "/app/e/rating-avionics/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/admin/content/metadata/route.js"
+      "static/chunks/app/app/e/rating-avionics/page.js"
     ],
-    "/api/admin/content/route": [
+    "/api/study/session/start/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/admin/content/route.js"
+      "static/chunks/app/api/study/session/start/route.js"
     ],
-    "/api/admin/content/[questionId]/route": [
+    "/app/student/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/admin/content/[questionId]/route.js"
-    ],
-    "/api/auth/logout/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/auth/logout/route.js"
+      "static/chunks/app/app/student/page.js"
     ]
   }
 }

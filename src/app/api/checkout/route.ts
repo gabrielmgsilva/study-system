@@ -3,12 +3,18 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { stripe } from '@/lib/stripe';
 import { requireAuth, isAuthError } from '@/lib/guards';
+import { rateLimit } from '@/lib/rateLimit';
 
 const VALID_INTERVALS = new Set(['month', 'year']);
 
 export async function POST(req: Request) {
   const auth = await requireAuth();
   if (isAuthError(auth)) return auth;
+
+  const rl = rateLimit(`checkout:${auth.userId}`, 10, 60 * 60 * 1000);
+  if (!rl.allowed) {
+    return NextResponse.json({ message: 'Too many requests. Please try again later.' }, { status: 429 });
+  }
 
   const body = await req.json().catch(() => ({}));
   const { planId, interval, couponCode } = body as {

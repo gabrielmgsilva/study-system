@@ -3,8 +3,18 @@ import crypto from 'crypto';
 import { prisma } from '@/lib/prisma';
 import { getResendClient } from '@/lib/resend';
 import { hashToken } from '@/lib/token';
+import { requireAuth, isAuthError } from '@/lib/guards';
+import { rateLimit } from '@/lib/rateLimit';
 
 export async function POST(req: Request) {
+  const auth = await requireAuth();
+  if (isAuthError(auth)) return auth;
+
+  const rl = rateLimit(`send-verify:${auth.userId}`, 10, 60 * 60 * 1000);
+  if (!rl.allowed) {
+    return NextResponse.json({ message: 'Too many requests. Please try again later.' }, { status: 429 });
+  }
+
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
 
@@ -13,8 +23,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Missing signatoryId' }, { status: 400 });
   }
 
-  const signatory = await prisma.signatory.findFirst({ where: { id: signatoryId, deletedAt: null } });
+  const signatory = await prisma.signatory.findFirst({
+    where: { id: signatoryId, deletedAt: null },
+    include: { logbook: { select: { userId: true } } },
+  });
   if (!signatory) return NextResponse.json({ error: 'Signatory not found' }, { status: 404 });
+  if (signatory.logbook.userId !== null && signatory.logbook.userId !== auth.userId) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   const email = (signatory.email || '').trim();
   if (!email) return NextResponse.json({ error: 'Signatory email missing' }, { status: 400 });

@@ -14,7 +14,8 @@ export async function POST(req: Request) {
 
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!webhookSecret) {
-    return NextResponse.json({ message: 'Webhook secret not configured.' }, { status: 500 });
+    console.error('[stripe/webhook] STRIPE_WEBHOOK_SECRET is not set');
+    return NextResponse.json({ message: 'Bad request.' }, { status: 400 });
   }
 
   let event: Stripe.Event;
@@ -106,16 +107,51 @@ async function handleCheckoutCompleted(event: Stripe.Event) {
   });
   if (!user) return;
 
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      planId,
-      subscriptionStatus: subscription.status,
-      subscriptionExpiresAt: new Date(subscription.current_period_end * 1000),
-    },
-  });
+  // Coupon used on this subscription (if any)
+  const stripeDiscountCouponId = subscription.discount?.coupon?.id ?? null;
 
-  await logEvent(userId, event);
+  await prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id: userId },
+      data: {
+        planId,
+        subscriptionStatus: subscription.status,
+        subscriptionExpiresAt: new Date(subscription.current_period_end * 1000),
+      },
+    });
+
+    // Atomically increment coupon redemption counter when payment is confirmed.
+    // The checkout-time validation is a UX fast-path; this is the authoritative
+    // enforcement point. We only increment if still within the limit to avoid
+    // over-counting when two checkouts race through the loose pre-check.
+    if (stripeDiscountCouponId) {
+      const coupon = await tx.coupon.findFirst({
+        where: { stripeId: stripeDiscountCouponId, isActive: true, deletedAt: null },
+        select: { id: true, timesRedeemed: true, maxRedemptions: true },
+      });
+      if (coupon) {
+        const withinLimit =
+          coupon.maxRedemptions === null ||
+          coupon.timesRedeemed < coupon.maxRedemptions;
+        if (withinLimit) {
+          await tx.coupon.update({
+            where: { id: coupon.id },
+            data: { timesRedeemed: { increment: 1 } },
+          });
+        }
+      }
+    }
+
+    await tx.subscriptionEvent.create({
+      data: {
+        userId,
+        stripeEventId: event.id,
+        eventType: event.type,
+        payload: event.data.object as object,
+        processedAt: new Date(),
+      },
+    });
+  });
 }
 
 async function handleSubscriptionUpdated(event: Stripe.Event) {

@@ -2,8 +2,15 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { hashPassword, needsRehash, verifyPassword } from '@/lib/auth';
 import { setAuthCookie, signJWT } from '@/lib/jwt';
+import { rateLimit, getClientIp } from '@/lib/rateLimit';
 
 export async function POST(req: Request) {
+  const ip = getClientIp(req);
+  const rl = rateLimit(`login:${ip}`, 10, 15 * 60 * 1000);
+  if (!rl.allowed) {
+    return NextResponse.json({ message: 'Too many requests. Please try again later.' }, { status: 429 });
+  }
+
   const body = await req.json().catch(() => ({} as any));
 
   const normalizedEmail = String(body?.email ?? '').trim().toLowerCase();

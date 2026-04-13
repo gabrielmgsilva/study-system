@@ -419,18 +419,26 @@ export default function StudentPage() {
                       </div>
 
                       {owned && (
-                        <div className="mt-1 text-xs text-slate-400">
-                          {dictionary.study.flashcards}:{' '}
-                          <span className="text-slate-600">
-                            {formatAccessStatus(exp.flashcards, studentDictionary)} ({formatLimit(exp.caps?.flashcards.limit, exp.caps?.flashcards.unit, studentDictionary)})
-                          </span>{' '}
-                          • {studentDictionary.practice}:{' '}
-                          <span className="text-slate-600">{formatAccessStatus(exp.practice, studentDictionary)} ({formatLimit(exp.caps?.practice.limit, exp.caps?.practice.unit, studentDictionary)})</span>{' '}
-                          • {studentDictionary.test}:{' '}
-                          <span className="text-slate-600">{formatAccessStatus(exp.test, studentDictionary)} ({formatLimit(exp.caps?.test.limit, exp.caps?.test.unit, studentDictionary)})</span> •
-                          {studentDictionary.logbook}:{' '}
-                          <span className="text-slate-600">
-                            {exp.logbook ? studentDictionary.yes : studentDictionary.no}
+                        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-400">
+                          <span>
+                            {dictionary.study.flashcards}:{' '}
+                            <span className="text-slate-600">
+                              {formatAccessStatus(exp.flashcards, studentDictionary)} ({formatLimit(exp.caps?.flashcards.limit, exp.caps?.flashcards.unit, studentDictionary)})
+                            </span>
+                          </span>
+                          <span>
+                            {studentDictionary.practice}:{' '}
+                            <span className="text-slate-600">{formatAccessStatus(exp.practice, studentDictionary)} ({formatLimit(exp.caps?.practice.limit, exp.caps?.practice.unit, studentDictionary)})</span>
+                          </span>
+                          <span>
+                            {studentDictionary.test}:{' '}
+                            <span className="text-slate-600">{formatAccessStatus(exp.test, studentDictionary)} ({formatLimit(exp.caps?.test.limit, exp.caps?.test.unit, studentDictionary)})</span>
+                          </span>
+                          <span>
+                            {studentDictionary.logbook}:{' '}
+                            <span className="text-slate-600">
+                              {exp.logbook ? studentDictionary.yes : studentDictionary.no}
+                            </span>
                           </span>
                         </div>
                       )}

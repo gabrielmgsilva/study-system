@@ -9,6 +9,7 @@ import {
   ChevronDown,
   Home,
   LogOut,
+  Menu,
   Plane,
   Radio,
   ScrollText,
@@ -47,6 +48,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
 
 type LoggedAppShellProps = {
   locale: LandingLocale;
@@ -135,6 +142,7 @@ export default function LoggedAppShell({ locale, user, children }: LoggedAppShel
   const [student, setStudent] = useState<StudentState | null>(null);
   const [loadingStudent, setLoadingStudent] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -153,6 +161,10 @@ export default function LoggedAppShell({ locale, user, children }: LoggedAppShel
       alive = false;
     };
   }, []);
+
+  useEffect(() => {
+    setDrawerOpen(false);
+  }, [pathname]);
 
   async function handleLogout() {
     if (loggingOut) return;
@@ -283,11 +295,20 @@ export default function LoggedAppShell({ locale, user, children }: LoggedAppShel
 
             <button
               type="button"
-              className="relative hidden h-9 w-9 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 md:inline-flex"
+              className="relative inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
               aria-label={dictionary.shell.notifications}
             >
               <Bell className="h-4 w-4" />
               <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-[#ff8a1f]" />
+            </button>
+
+            <button
+              type="button"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 lg:hidden"
+              aria-label={dictionary.shell.menu}
+              onClick={() => setDrawerOpen(true)}
+            >
+              <Menu className="h-5 w-5" />
             </button>
 
             <DropdownMenu>
@@ -324,6 +345,29 @@ export default function LoggedAppShell({ locale, user, children }: LoggedAppShel
                     {dictionary.shell.profile}
                   </Link>
                 </DropdownMenuItem>
+                {/* Language switcher — visible only below lg in the dropdown */}
+                <div className="px-2 py-1.5 lg:hidden">
+                  <div className="flex items-center gap-2">
+                    {localeOptions.map((option) => {
+                      const isActive = option === locale;
+                      return (
+                        <Link
+                          key={option}
+                          href={localizePathname(pathname, option, searchSuffix ? `?${searchSuffix}` : '')}
+                          className={[
+                            'rounded-full px-2.5 py-1 text-xs font-semibold transition',
+                            isActive
+                              ? 'bg-[#102a54] text-white shadow-sm'
+                              : 'text-slate-600 hover:bg-slate-100 hover:text-[#102a54]',
+                          ].join(' ')}
+                        >
+                          {option.toUpperCase()}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+                <DropdownMenuSeparator className="bg-slate-200 lg:hidden" />
                 <DropdownMenuItem
                   className="text-red-600 focus:bg-red-50 focus:text-red-700"
                   onSelect={(event) => {
@@ -340,8 +384,154 @@ export default function LoggedAppShell({ locale, user, children }: LoggedAppShel
         </div>
       </header>
 
+      {/* ── Mobile drawer ── */}
+      <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
+        <SheetContent side="left" className="w-[280px] overflow-y-auto bg-white p-0">
+          <SheetHeader className="border-b border-slate-200 px-5 py-4">
+            <SheetTitle className="text-sm font-semibold text-slate-900">
+              {dictionary.shell.menu}
+            </SheetTitle>
+          </SheetHeader>
+
+          {/* Navigation links */}
+          <nav className="space-y-1 px-3 py-4">
+            {topNavItems.map((item) => {
+              const isActive = item.key === activeTopNav;
+              const Icon =
+                item.key === 'dashboard'
+                  ? Home
+                  : item.key === 'studyModule'
+                    ? BookOpen
+                    : User;
+              const label =
+                item.key === 'dashboard'
+                  ? dictionary.shell.dashboard
+                  : item.key === 'studyModule'
+                    ? dictionary.shell.studyModule
+                    : dictionary.shell.profile;
+
+              return (
+                <Link
+                  key={item.key}
+                  href={localizeAppHref(item.href, locale)}
+                  className={[
+                    'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition',
+                    isActive
+                      ? 'bg-[#2d4bb3] text-white shadow-[0_12px_24px_rgba(45,75,179,0.18)]'
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
+                  ].join(' ')}
+                >
+                  <Icon className="h-4 w-4" />
+                  {label}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* Language switcher */}
+          <div className="border-t border-slate-200 px-5 py-4">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+              {dictionary.shell.language}
+            </div>
+            <div className="mt-2 flex items-center gap-2">
+              {localeOptions.map((option) => {
+                const isActive = option === locale;
+                return (
+                  <Link
+                    key={option}
+                    href={localizePathname(pathname, option, searchSuffix ? `?${searchSuffix}` : '')}
+                    className={[
+                      'rounded-full px-3 py-1.5 text-xs font-semibold transition',
+                      isActive
+                        ? 'bg-[#102a54] text-white shadow-sm'
+                        : 'text-slate-600 hover:bg-slate-100 hover:text-[#102a54]',
+                    ].join(' ')}
+                  >
+                    {option.toUpperCase()}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Certifications (sidebar content in drawer) */}
+          <div className="border-t border-slate-200 px-5 py-4">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+              {dictionary.shell.certifications}
+            </div>
+            <div className="mt-3 space-y-3">
+              {loadingStudent ? (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-500">
+                  {dictionary.shell.loadingModules}
+                </div>
+              ) : visibleLicenses.length === 0 ? (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-500">
+                  <p>{dictionary.shell.noCertifications}</p>
+                  <Link
+                    href={localizeAppHref(ROUTES.student, locale)}
+                    className="mt-3 inline-flex rounded-lg bg-[#2d4bb3] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#243d99]"
+                  >
+                    {dictionary.shell.addCertification}
+                  </Link>
+                </div>
+              ) : (
+                visibleLicenses.map((license) => {
+                  const LicenseIcon = iconForLicense(license.licenseId);
+                  const isActiveLicense =
+                    activeStudyPath?.licenseId === license.licenseId ||
+                    (!activeStudyPath && fallbackStudy.license.licenseId === license.licenseId);
+
+                  return (
+                    <div
+                      key={license.licenseId}
+                      className={[
+                        'rounded-2xl border px-3 py-3',
+                        isActiveLicense
+                          ? 'border-[#d8e0fb] bg-[#f6f8ff]'
+                          : 'border-slate-200 bg-white',
+                      ].join(' ')}
+                    >
+                      <div className="flex items-center gap-2 px-1">
+                        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white shadow-sm ring-1 ring-slate-200">
+                          <LicenseIcon className="h-4 w-4 text-[#2d4bb3]" />
+                        </span>
+                        <span className="text-sm font-semibold text-slate-900">
+                          {license.label}
+                        </span>
+                      </div>
+                      <div className="mt-3 space-y-1.5 pl-9">
+                        {license.modules.map((module) => {
+                          const isActiveModule =
+                            activeStudyPath?.licenseId === license.licenseId &&
+                            activeStudyPath?.moduleId === module.id;
+                          return (
+                            <Link
+                              key={module.id}
+                              href={localizeAppHref(module.sidebarHref, locale)}
+                              className={[
+                                'block rounded-lg px-3 py-2 text-sm transition',
+                                isActiveModule
+                                  ? 'bg-[#2d4bb3] font-medium text-white shadow-[0_10px_18px_rgba(45,75,179,0.16)]'
+                                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
+                              ].join(' ')}
+                            >
+                              {module.label}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
       <div className="grid min-h-[calc(100vh-72px)] lg:grid-cols-[248px_minmax(0,1fr)]">
-        <aside className="border-b border-slate-200 bg-white px-4 py-6 lg:border-b-0 lg:border-r lg:px-5">
+        {/* Desktop sidebar — hidden below lg */}
+        <aside className="hidden border-slate-200 bg-white lg:block lg:border-r lg:px-5 lg:py-6">
           <div className="space-y-4">
             <div>
               <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
@@ -420,10 +610,47 @@ export default function LoggedAppShell({ locale, user, children }: LoggedAppShel
           </div>
         </aside>
 
-        <main className="min-w-0 bg-[#f7f8fc] px-4 py-6 md:px-6 md:py-8 lg:px-8">
+        <main className="min-w-0 bg-[#f7f8fc] px-4 pb-20 pt-6 md:px-6 md:pt-8 lg:px-8 lg:pb-8">
           {children}
         </main>
       </div>
+
+      {/* ── Mobile bottom tab bar ── */}
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] lg:hidden">
+        <div className="flex items-stretch justify-around">
+          {topNavItems.map((item) => {
+            const isActive = item.key === activeTopNav;
+            const Icon =
+              item.key === 'dashboard'
+                ? Home
+                : item.key === 'studyModule'
+                  ? BookOpen
+                  : User;
+            const label =
+              item.key === 'dashboard'
+                ? dictionary.shell.dashboard
+                : item.key === 'studyModule'
+                  ? dictionary.shell.studyModule
+                  : dictionary.shell.profile;
+
+            return (
+              <Link
+                key={item.key}
+                href={localizeAppHref(item.href, locale)}
+                className={[
+                  'flex min-h-[56px] flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium transition',
+                  isActive
+                    ? 'text-[#2d4bb3]'
+                    : 'text-slate-400 hover:text-slate-600',
+                ].join(' ')}
+              >
+                <Icon className="h-5 w-5" />
+                {label}
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 }

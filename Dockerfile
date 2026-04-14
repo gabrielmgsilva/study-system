@@ -22,8 +22,10 @@ RUN npx prisma generate
 # Pass them via --build-arg so they are available during `next build`.
 ARG NEXT_PUBLIC_APP_URL
 ARG NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+ARG DATABASE_URL
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 ENV NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=$NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+ENV DATABASE_URL=$DATABASE_URL
 
 # Build Next.js in production mode with standalone output.
 # --mount=type=cache persists .next/cache so incremental compilation works.

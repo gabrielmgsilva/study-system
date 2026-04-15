@@ -17,6 +17,8 @@ import {
   type StudentState,
 } from '@/lib/entitlementsClient';
 
+import { AlertTriangle, ArrowRight, Zap } from 'lucide-react';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -243,6 +245,19 @@ export default function StudentPage() {
   const guidedLicenseId = isGuidedLicenseId(searchParams.get('license')) ? searchParams.get('license') : null;
   const isLogbookOnlyPlan = planSlug === 'logbook-pro';
 
+  // Free / trial state
+  const subStatus = student?.subscription?.status ?? null;
+  const subExpiresAt = student?.subscription?.expiresAt ?? null;
+  const isFreeTier = !student?.plan || subStatus === 'free';
+  const isTrialing = subStatus === 'trialing' && student?.subscription?.active === true;
+  const trialExpired = (student?.subscription as any)?.trialExpired === true;
+
+  const trialDaysLeft = useMemo(() => {
+    if (!isTrialing || !subExpiresAt) return null;
+    const ms = new Date(subExpiresAt).getTime() - Date.now();
+    return Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)));
+  }, [isTrialing, subExpiresAt]);
+
   const guidanceCard = useMemo(() => {
     if (guidedIntent === 'choose-plan') {
       return {
@@ -293,12 +308,58 @@ export default function StudentPage() {
           </div>
         </div>
 
+        {/* Trial / Free tier banner */}
+        {ready && isTrialing && trialDaysLeft !== null && (
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#c9d4f4] bg-[#eef3ff] px-4 py-3">
+            <div className="flex items-center gap-2 text-sm text-[#2d4bb3]">
+              <Zap className="h-4 w-4 shrink-0" />
+              <span>
+                <span className="font-semibold">{trialDaysLeft}</span>{' '}
+                {studentDictionary.trialBannerDays}
+              </span>
+            </div>
+            <Button
+              asChild
+              size="sm"
+              className="shrink-0 bg-[#2d4bb3] text-white hover:bg-[#243d99] text-xs"
+            >
+              <Link href={ROUTES.pricing}>
+                {dictionary.account.upgradeNow} <ArrowRight className="ml-1 h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </div>
+        )}
+
+        {ready && (trialExpired || isFreeTier) && (
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+            <div className="flex items-center gap-2 text-sm text-amber-800">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              <span>
+                {trialExpired
+                  ? studentDictionary.trialExpiredBanner
+                  : studentDictionary.freeTierBanner}
+              </span>
+            </div>
+            <Button
+              asChild
+              size="sm"
+              className="shrink-0 bg-amber-600 text-white hover:bg-amber-700 text-xs"
+            >
+              <Link href={ROUTES.pricing}>
+                {dictionary.account.upgradeNow} <ArrowRight className="ml-1 h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </div>
+        )}
+
         <Card className="rounded-[30px] border-slate-200 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
           <CardContent className="space-y-3 p-4 text-sm text-slate-500">
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-stretch">
               <div className="rounded-2xl bg-slate-50 px-4 py-3">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{studentDictionary.currentPlanLabel}</div>
-                <div className="mt-1 text-sm font-medium text-slate-900">{student?.plan?.name ?? studentDictionary.noPlanSelected}</div>
+                <div className="mt-1 text-sm font-medium text-slate-900">
+                  {student?.plan?.name ?? (isFreeTier ? studentDictionary.freeTierLabel : studentDictionary.noPlanSelected)}
+                </div>
               </div>
               <div className="rounded-2xl bg-slate-50 px-4 py-3">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{studentDictionary.certificationsLabel}</div>
@@ -320,46 +381,23 @@ export default function StudentPage() {
           </CardContent>
         </Card>
 
-        {ready && student?.subscription ? (
+        {/* Subscription card — shown only for active paid plans */}
+        {ready && student?.subscription?.status === 'active' && student.subscription.expiresAt ? (
           <Card className="rounded-[30px] border-slate-200 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
             <CardContent className="p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="space-y-1">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Subscription</div>
                   <div className="flex items-center gap-2">
-                    <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-                      student.subscription.active
-                        ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
-                        : student.subscription.status === 'trialing'
-                          ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-200'
-                          : student.subscription.status === 'past_due'
-                            ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-200'
-                            : 'bg-red-50 text-red-600 ring-1 ring-red-200'
-                    }`}>
-                      {student.subscription.status === 'active' ? 'Active'
-                        : student.subscription.status === 'trialing' ? 'Trial'
-                        : student.subscription.status === 'past_due' ? 'Past Due'
-                        : student.subscription.status === 'canceled' ? 'Canceled'
-                        : 'Inactive'}
+                    <span className="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200">
+                      Active
                     </span>
-                    {student.subscription.expiresAt ? (
-                      <span className="text-xs text-slate-500">
-                        {student.subscription.active ? 'Renews' : 'Expired'}{' '}
-                        {new Date(student.subscription.expiresAt).toLocaleDateString()}
-                      </span>
-                    ) : null}
+                    <span className="text-xs text-slate-500">
+                      Renews {new Date(student.subscription.expiresAt).toLocaleDateString()}
+                    </span>
                   </div>
                 </div>
-
-                <div className="flex gap-2">
-                  {student.subscription.active ? (
-                    <ManageBillingButton />
-                  ) : (
-                    <Button asChild size="sm" className="border border-[#2d4bb3] bg-[#2d4bb3] text-white hover:bg-[#243d99]">
-                      <Link href={ROUTES.pricing}>Upgrade</Link>
-                    </Button>
-                  )}
-                </div>
+                <ManageBillingButton />
               </div>
             </CardContent>
           </Card>
@@ -378,13 +416,17 @@ export default function StudentPage() {
           {LICENSES.map((lic) => {
             const exp = getLicenseExperience(student, lic.id);
             const owned = !!exp;
-            const canEnroll = Boolean(student?.plan) && (lic.id === 'regs' || maxLicenses < 0 || ownedCount < maxLicenses);
+            // Free tier: Regs is already auto-enrolled at registration; block other tracks
+            const hasPaidPlan = Boolean(student?.plan) && !isFreeTier;
+            const canEnroll = lic.id === 'regs'
+              ? hasPaidPlan   // Regs enroll only for paid plans (auto-enrolled on register)
+              : hasPaidPlan && (maxLicenses < 0 || ownedCount < maxLicenses);
             const helperText = lic.id === 'regs'
               ? studentDictionary.enrollRegsHelper
               : isLogbookOnlyPlan
                 ? studentDictionary.enrollLogbookHelper
                 : studentDictionary.enrollDefaultHelper;
-            const disabledReason = !student?.plan
+            const disabledReason = isFreeTier
               ? studentDictionary.planNeededForEnrollment
               : studentDictionary.certificationLimitReached;
 

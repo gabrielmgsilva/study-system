@@ -6,7 +6,10 @@ export function getPublicPlanSectionId(
   plan: Pick<PublicPlan, 'slug' | 'maxLicenses' | 'logbookAccess'>,
 ): PublicPlanSectionId {
   if (plan.slug === 'logbook-pro') return 'logbook';
-  if (plan.slug.startsWith('regs-') || (plan.maxLicenses === 0 && !plan.logbookAccess)) {
+  if (
+    plan.slug.startsWith('regs-') ||
+    (plan.maxLicenses === 0 && !plan.logbookAccess)
+  ) {
     return 'regs';
   }
   return 'licenses';
@@ -19,10 +22,9 @@ export function getPublicPlanDisplayDescription(
   if (plan.slug === 'logbook-pro') {
     return logbookOnlyDescription;
   }
-
   return plan.description;
 }
 
 export function isFeaturedPublicPlan(plan: Pick<PublicPlan, 'slug'>) {
-  return plan.slug === 'regs-exam-ready' || plan.slug === 'exam-ready';
+  return plan.slug === 'pro';
 }

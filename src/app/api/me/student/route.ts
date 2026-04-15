@@ -34,25 +34,41 @@ export async function GET() {
 
   const enrolledCount = Object.keys(licenseEntitlements).filter((licenseId) => licenseId !== 'regs').length;
 
-  const freeTier = !user?.plan && !user?.subscriptionStatus;
+  const now = new Date();
+  const rawStatus = user?.subscriptionStatus ?? null;
+  const expiresAt = user?.subscriptionExpiresAt ?? null;
+
+  // A trial is only active while subscriptionExpiresAt is in the future
+  const trialExpired =
+    rawStatus === 'trialing' && expiresAt != null && expiresAt <= now;
+
+  // Effective plan: null when no plan, no status, or trial expired
+  const effectivePlan =
+    !user?.plan || !rawStatus || trialExpired ? null : user.plan;
+
+  const isFreeTier = !rawStatus || trialExpired;
   const subscriptionActive =
-    freeTier ||
-    ((user?.subscriptionStatus === 'active' || user?.subscriptionStatus === 'trialing') &&
-      user?.subscriptionExpiresAt != null &&
-      user.subscriptionExpiresAt > new Date());
+    isFreeTier ||
+    (rawStatus === 'active') ||
+    (rawStatus === 'trialing' && !trialExpired);
+
+  const displayStatus = isFreeTier
+    ? 'free'
+    : rawStatus;
 
   return NextResponse.json({
     ok: true,
-    plan: user?.plan ?? null,
+    plan: effectivePlan,
     enrollmentSummary: {
       count: enrolledCount,
-      max: user?.plan?.maxLicenses ?? 1, // free tier allows 1 license
+      max: effectivePlan?.maxLicenses ?? 1, // free tier: max 1 non-regs license
     },
     licenseEntitlements,
     subscription: {
-      status: freeTier ? 'free' : (user?.subscriptionStatus ?? null),
-      expiresAt: user?.subscriptionExpiresAt?.toISOString() ?? null,
+      status: displayStatus,
+      expiresAt: expiresAt?.toISOString() ?? null,
       active: subscriptionActive,
+      trialExpired,
     },
   });
 }

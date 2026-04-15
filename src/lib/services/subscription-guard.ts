@@ -25,7 +25,7 @@ type StudentUser = {
 };
 
 /** Statuses that grant full access */
-const ACTIVE_STATUSES = new Set(['active', 'trialing']);
+const ACTIVE_STATUSES = new Set(['active']);
 
 /** Statuses that grant read-only access (dashboard, stats, profile, 1 quick review/day) */
 const READONLY_STATUSES = new Set(['canceled', 'expired']);
@@ -34,14 +34,14 @@ const READONLY_STATUSES = new Set(['canceled', 'expired']);
 const PAST_DUE_GRACE_MS = 3 * 24 * 60 * 60 * 1000;
 
 /**
- * Verify that a student has a valid subscription and has completed onboarding.
- * Returns the user data if access is allowed, or a redirect path otherwise.
+ * Verify that a student has completed onboarding and is allowed into /app.
  *
- * Access rules per Phase 7 spec:
- * - null / "unpaid" → redirect /plans
- * - "trialing" / "active" → full access (check expires_at)
- * - "canceled" / "expired" → read-only (dashboard, stats, profile, 1 quick review/day)
- * - "past_due" → full access for 3-day grace period, then redirect /plans
+ * Access rules (MVP Free-tier model):
+ * - null (no subscription)  → Free tier — allowed with limited access (planId = null)
+ * - "trialing"              → Full Pro access while trial is valid; Free tier after expiry
+ * - "active"                → Full access per plan
+ * - "past_due"              → Full access for 3-day grace period, then Free tier
+ * - "canceled" / "expired"  → Read-only access (dashboard, stats, profile)
  */
 export async function checkStudentAccess(
   userId: number,
@@ -79,11 +79,6 @@ export async function checkStudentAccess(
     return { allowed: false, redirect: '/auth/login' };
   }
 
-  // No subscription at all → choose a plan
-  if (!user.subscriptionStatus) {
-    return { allowed: false, redirect: '/plans' };
-  }
-
   // Onboarding not completed → pick licenses
   if (!user.onboardingCompletedAt) {
     return { allowed: false, redirect: '/onboarding/licenses' };
@@ -95,23 +90,38 @@ export async function checkStudentAccess(
   }
 
   const status = user.subscriptionStatus;
+  const now = new Date();
 
-  // Active / trialing → full access
+  // No subscription → Free tier (allowed, limited by planId = null in studyAccess)
+  if (!status) {
+    return { allowed: true, user: { ...user, planId: null, plan: null }, readOnly: false };
+  }
+
+  // Active → full access per plan
   if (ACTIVE_STATUSES.has(status)) {
     return { allowed: true, user, readOnly: false };
   }
 
-  // Past due → 3-day grace period
+  // Trialing → full access while trial is valid; Free tier after expiry
+  if (status === 'trialing') {
+    const expiresAt = user.subscriptionExpiresAt;
+    if (!expiresAt || now <= expiresAt) {
+      return { allowed: true, user, readOnly: false };
+    }
+    // Trial expired — degrade to Free tier without blocking
+    return { allowed: true, user: { ...user, planId: null, plan: null }, readOnly: false };
+  }
+
+  // Past due → 3-day grace period, then Free tier
   if (status === 'past_due') {
     const expiresAt = user.subscriptionExpiresAt;
     if (expiresAt) {
       const graceEnd = new Date(expiresAt.getTime() + PAST_DUE_GRACE_MS);
-      if (new Date() <= graceEnd) {
+      if (now <= graceEnd) {
         return { allowed: true, user, readOnly: false };
       }
     }
-    // Grace expired → redirect to plans
-    return { allowed: false, redirect: '/plans' };
+    return { allowed: true, user: { ...user, planId: null, plan: null }, readOnly: false };
   }
 
   // Canceled / expired → read-only access
@@ -119,8 +129,8 @@ export async function checkStudentAccess(
     return { allowed: true, user, readOnly: true };
   }
 
-  // Unknown status → redirect to plans
-  return { allowed: false, redirect: '/plans' };
+  // Unknown status → Free tier (fail open, not fail closed)
+  return { allowed: true, user: { ...user, planId: null, plan: null }, readOnly: false };
 }
 
 /**

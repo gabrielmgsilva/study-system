@@ -207,6 +207,11 @@ type AppDictionary = {
     planNeededForEnrollment: string;
     certificationLimitReached: string;
     failedToEnrollLicense: string;
+    freeTierLabel: string;
+    freeTierBanner: string;
+    trialBannerDays: string;
+    trialExpiredBanner: string;
+    upgradeToUnlock: string;
   };
   account: {
     title: string;
@@ -471,9 +476,14 @@ const en: AppDictionary = {
     enrollLogbookHelper:
       'Add this certification to activate its logbook area. Study modes remain blocked on your current plan.',
     enrollDefaultHelper: 'Add this certification track using your current plan.',
-    planNeededForEnrollment: 'Your account still needs an active plan before you can add certifications.',
+    planNeededForEnrollment: 'Upgrade to a paid plan to add certification tracks.',
     certificationLimitReached: 'Your current plan already reached the certification limit.',
     failedToEnrollLicense: 'Failed to add certification',
+    freeTierLabel: 'Free',
+    freeTierBanner: 'You are on the Free tier. Upgrade to unlock certification tracks, practice, and mock tests.',
+    trialBannerDays: 'days left in your Pro trial',
+    trialExpiredBanner: 'Your free trial has ended. Upgrade to a paid plan to continue studying.',
+    upgradeToUnlock: 'Upgrade to unlock',
   },
   account: {
     title: 'My Account',
@@ -742,9 +752,14 @@ const pt: AppDictionary = {
     enrollLogbookHelper:
       'Adicione esta certificação para ativar a área de logbook dela. Os modos de estudo continuam bloqueados no seu plano atual.',
     enrollDefaultHelper: 'Adicione esta trilha de certificação usando o seu plano atual.',
-    planNeededForEnrollment: 'A sua conta ainda precisa de um plano ativo antes que você possa adicionar certificações.',
+    planNeededForEnrollment: 'Faça upgrade para um plano pago para adicionar trilhas de certificação.',
     certificationLimitReached: 'O seu plano atual já atingiu o limite de certificações.',
     failedToEnrollLicense: 'Falha ao adicionar a certificação',
+    freeTierLabel: 'Gratuito',
+    freeTierBanner: 'Você está no plano Gratuito. Faça upgrade para desbloquear trilhas de certificação, prática e simulados.',
+    trialBannerDays: 'dias restantes no seu trial Pro',
+    trialExpiredBanner: 'O seu período de trial encerrou. Faça upgrade para continuar estudando.',
+    upgradeToUnlock: 'Faça upgrade para desbloquear',
   },
   account: {
     title: 'Minha conta',

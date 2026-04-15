@@ -49,17 +49,24 @@ export async function POST(req: Request) {
     return NextResponse.json({ message: 'Email already in use.' }, { status: 409 });
   }
 
-  // Resolve selected plan and trial days
-  let selectedPlanId: number | null = null;
-  let trialDays = 7;
+  // Always start new users on a 7-day Pro trial.
+  // If a specific planId was passed (e.g. from pricing page), honour it instead.
+  const proPlan = await prisma.plan.findFirst({
+    where: { slug: 'pro', isActive: true, deletedAt: null },
+    select: { id: true, trialDays: true },
+  });
+
+  let selectedPlanId: number | null = proPlan?.id ?? null;
+  let trialDays = proPlan?.trialDays ?? 7;
+
   if (parsedPlanId) {
-    const plan = await prisma.plan.findFirst({
+    const requestedPlan = await prisma.plan.findFirst({
       where: { id: parsedPlanId, isActive: true, deletedAt: null },
       select: { id: true, trialDays: true },
     });
-    if (plan) {
-      selectedPlanId = plan.id;
-      trialDays = plan.trialDays;
+    if (requestedPlan) {
+      selectedPlanId = requestedPlan.id;
+      trialDays = requestedPlan.trialDays;
     }
   }
 

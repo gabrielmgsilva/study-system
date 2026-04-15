@@ -92,8 +92,11 @@ function getDisplayPrice(
   if (!Number.isFinite(monthly)) return customPrice;
 
   if (interval === 'year') {
-    const annual = monthly * 12 * 0.85;
-    return formatPrice(annual, customPrice);
+    const annual = plan.priceAnnual ? Number(plan.priceAnnual) : null;
+    if (annual != null && Number.isFinite(annual)) {
+      return formatPrice(annual, customPrice);
+    }
+    return formatPrice(monthly * 12, customPrice);
   }
 
   return formatPrice(monthly, customPrice);

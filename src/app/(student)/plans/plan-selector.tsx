@@ -18,15 +18,17 @@ import { Badge } from '@/components/ui/badge';
 
 type PlanWithFeatured = PublicPlan & { isFeatured: boolean };
 
-const ANNUAL_PRICE_MULTIPLIER = 0.8; // 20% discount
-
-function formatPrice(price: string | null, interval: 'month' | 'year') {
-  if (!price) return null;
-  const num = parseFloat(price);
+function formatPrice(plan: PublicPlan, interval: 'month' | 'year') {
+  if (!plan.price) return null;
+  const monthly = parseFloat(plan.price);
   if (interval === 'year') {
-    return `$${(num * 12 * ANNUAL_PRICE_MULTIPLIER).toFixed(0)}`;
+    const annual = plan.priceAnnual ? Number(plan.priceAnnual) : null;
+    if (annual != null && Number.isFinite(annual)) {
+      return `$${annual.toFixed(0)}`;
+    }
+    return `$${(monthly * 12).toFixed(0)}`;
   }
-  return `$${num.toFixed(0)}`;
+  return `$${monthly.toFixed(0)}`;
 }
 
 function formatFeatures(plan: PublicPlan): string[] {
@@ -152,7 +154,7 @@ export function PlanSelector({ plans }: { plans: PlanWithFeatured[] }) {
           {plans.map((plan) => {
             const hasPrice =
               interval === 'year' ? plan.hasAnnualPrice : plan.hasMonthlyPrice;
-            const price = formatPrice(plan.price, interval);
+            const price = formatPrice(plan, interval);
             const features = formatFeatures(plan);
             const isLoading = loadingPlanId === plan.id;
 

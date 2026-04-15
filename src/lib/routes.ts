@@ -72,7 +72,7 @@ export const ROUTES = {
   appHub: '/app/hub',
   student: '/app/student',
   account: '/app/account',
-  adminHome: '/admin/users',
+  adminHome: '/admin',
   adminUsers: '/admin/users',
   adminModules: '/admin/modules',
   adminPlans: '/admin/plans',

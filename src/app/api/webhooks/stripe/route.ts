@@ -115,6 +115,7 @@ async function handleCheckoutCompleted(event: Stripe.Event) {
       where: { id: userId },
       data: {
         planId,
+        stripeSubscriptionId: subscription.id,
         subscriptionStatus: subscription.status,
         subscriptionExpiresAt: new Date(subscription.current_period_end * 1000),
       },
@@ -170,10 +171,12 @@ async function handleSubscriptionUpdated(event: Stripe.Event) {
     : priceItem?.price?.product?.id;
 
   const updateData: {
+    stripeSubscriptionId: string;
     subscriptionStatus: string;
     subscriptionExpiresAt: Date;
     planId?: number;
   } = {
+    stripeSubscriptionId: subscription.id,
     subscriptionStatus: subscription.status,
     subscriptionExpiresAt: new Date(subscription.current_period_end * 1000),
   };

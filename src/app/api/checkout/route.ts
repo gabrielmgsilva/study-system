@@ -30,6 +30,23 @@ export async function POST(req: Request) {
     );
   }
 
+  // Block checkout if user already has an active or trialing subscription
+  const existingUser = await prisma.user.findFirst({
+    where: { id: auth.userId, deletedAt: null },
+    select: { subscriptionStatus: true, stripeSubscriptionId: true },
+  });
+
+  const alreadySubscribed =
+    existingUser?.subscriptionStatus === 'active' ||
+    existingUser?.subscriptionStatus === 'trialing';
+
+  if (alreadySubscribed) {
+    return NextResponse.json(
+      { message: 'You already have an active subscription. Use the upgrade flow to change your plan.', code: 'ALREADY_SUBSCRIBED' },
+      { status: 409 },
+    );
+  }
+
   const plan = await prisma.plan.findFirst({
     where: { id: planId, isActive: true, deletedAt: null },
     select: {

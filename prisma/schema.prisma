@@ -69,6 +69,7 @@ model User {
   role                   UserRole  @default(user) @map("role")
   lastPasswordChangeAt   DateTime? @map("last_password_change_at")
   stripeCustomerId       String?   @unique @map("stripe_customer_id")
+  stripeSubscriptionId   String?   @unique @map("stripe_subscription_id")
   subscriptionStatus     String?   @map("subscription_status")
   subscriptionExpiresAt  DateTime? @map("subscription_expires_at")
   createdAt              DateTime  @default(now()) @map("created_at")

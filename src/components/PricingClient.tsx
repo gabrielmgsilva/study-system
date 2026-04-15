@@ -57,6 +57,22 @@ export function SubscribeButton({
         return;
       }
 
+      // User already has an active subscription — use the upgrade endpoint instead
+      if (res.status === 409 && data.code === 'ALREADY_SUBSCRIBED') {
+        const upgradeRes = await fetch('/api/me/subscription/upgrade', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ planId: plan.id, interval }),
+        });
+        const upgradeData = await upgradeRes.json().catch(() => ({}));
+        if (upgradeRes.ok) {
+          router.push('/app/account');
+          return;
+        }
+        alert(upgradeData.message || 'Unable to change plan.');
+        return;
+      }
+
       if (data.url) {
         window.location.href = data.url;
         return;

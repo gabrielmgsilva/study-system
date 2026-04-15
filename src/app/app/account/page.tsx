@@ -2,14 +2,16 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import {
   AlertTriangle,
   CheckCircle2,
   CreditCard,
   ExternalLink,
+  KeyRound,
   RefreshCw,
   ShieldCheck,
+  Trash2,
   XCircle,
 } from 'lucide-react';
 
@@ -19,6 +21,8 @@ import { getStudentState, type StudentState } from '@/lib/entitlementsClient';
 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Card,
   CardContent,
@@ -26,6 +30,17 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -104,10 +119,12 @@ function formatDate(iso: string | null | undefined): string {
 
 export default function MyAccountPage() {
   const pathname = usePathname();
+  const router = useRouter();
   const locale = getAppLocaleFromPathname(pathname);
   const d = getAppDictionary(locale);
   const a = d.account;
 
+  // ── Subscription state ────────────────────────────────────────────────────
   const [ready, setReady] = useState(false);
   const [student, setStudent] = useState<StudentState | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
@@ -145,6 +162,67 @@ export default function MyAccountPage() {
     }
   }
 
+  // ── Password change state ─────────────────────────────────────────────────
+  const [pwdForm, setPwdForm] = useState({ current: '', next: '', confirm: '' });
+  const [pwdLoading, setPwdLoading] = useState(false);
+  const [pwdMessage, setPwdMessage] = useState<{ ok: boolean; text: string } | null>(null);
+
+  async function handleChangePassword(e: React.FormEvent) {
+    e.preventDefault();
+    setPwdMessage(null);
+    if (pwdForm.next !== pwdForm.confirm) {
+      setPwdMessage({ ok: false, text: a.passwordMismatch });
+      return;
+    }
+    setPwdLoading(true);
+    try {
+      const res = await fetch('/api/me/password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword: pwdForm.current, newPassword: pwdForm.next }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setPwdMessage({ ok: false, text: data.message ?? 'Error' });
+      } else {
+        setPwdMessage({ ok: true, text: a.passwordChanged });
+        setPwdForm({ current: '', next: '', confirm: '' });
+      }
+    } catch {
+      setPwdMessage({ ok: false, text: 'Error' });
+    } finally {
+      setPwdLoading(false);
+    }
+  }
+
+  // ── Account deletion state ────────────────────────────────────────────────
+  const [deleteConfirm, setDeleteConfirm] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  async function handleDeleteAccount() {
+    setDeleteLoading(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch('/api/me/account', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: deleteConfirm }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setDeleteError(data.message ?? a.deleteAccountError);
+        return;
+      }
+      router.push('/');
+    } catch {
+      setDeleteError(a.deleteAccountError);
+    } finally {
+      setDeleteLoading(false);
+    }
+  }
+
+  // ── Derived subscription values ───────────────────────────────────────────
   const sub = student?.subscription ?? null;
   const plan = student?.plan ?? null;
   const enrolledCount = student?.enrollmentSummary?.count ?? 0;
@@ -152,6 +230,7 @@ export default function MyAccountPage() {
   const enrolledLicenses = Object.keys(student?.licenseEntitlements ?? {});
 
   const isActive = sub?.active === true;
+  const isTrialing = sub?.status === 'trialing';
   const isPastDue = sub?.status === 'past_due';
   const isCanceled = sub?.status === 'canceled';
   const hasSubscription = !!sub?.status && sub.status !== 'none';
@@ -163,11 +242,7 @@ export default function MyAccountPage() {
     pastDue: a.statusPastDue,
   };
 
-  const dateLabel = isActive
-    ? a.renewsOn
-    : isCanceled
-    ? a.expiresOn
-    : a.expiresOn;
+  const dateLabel = isActive ? a.renewsOn : a.expiresOn;
 
   return (
     <div className="space-y-6">
@@ -209,7 +284,6 @@ export default function MyAccountPage() {
               <div className="h-4 w-56 animate-pulse rounded bg-slate-100" />
             </div>
           ) : !hasSubscription ? (
-            /* No subscription */
             <div className="flex flex-col items-start gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <div className="flex items-center gap-2 text-slate-600">
                 <XCircle className="h-5 w-5 text-slate-400" />
@@ -220,7 +294,6 @@ export default function MyAccountPage() {
               </Button>
             </div>
           ) : (
-            /* Active / trialing / past_due / canceled */
             <div
               className={[
                 'rounded-2xl border p-4',
@@ -256,6 +329,17 @@ export default function MyAccountPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-2">
+                  {/* Upgrade during trial */}
+                  {isTrialing && (
+                    <Button
+                      asChild
+                      size="sm"
+                      className="bg-[#2d4bb3] text-white hover:bg-[#243d99]"
+                    >
+                      <Link href={ROUTES.pricing}>{a.upgradeNow}</Link>
+                    </Button>
+                  )}
+
                   <Button
                     onClick={handleManageBilling}
                     disabled={portalLoading}
@@ -271,7 +355,7 @@ export default function MyAccountPage() {
                     {a.manageBilling}
                   </Button>
 
-                  {(isCanceled || !isActive) && (
+                  {(isCanceled || isPastDue) && (
                     <Button
                       asChild
                       size="sm"
@@ -329,6 +413,134 @@ export default function MyAccountPage() {
               ))}
             </ul>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Security — change password */}
+      <Card className="rounded-[30px] border-slate-200 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-slate-900">
+            <KeyRound className="h-5 w-5 text-[#2d4bb3]" />
+            {a.securityLabel}
+          </CardTitle>
+        </CardHeader>
+
+        <CardContent>
+          <form onSubmit={handleChangePassword} className="space-y-4 max-w-sm">
+            <div className="space-y-1.5">
+              <Label htmlFor="current-password" className="text-sm text-slate-700">
+                {a.currentPassword}
+              </Label>
+              <Input
+                id="current-password"
+                type="password"
+                autoComplete="current-password"
+                value={pwdForm.current}
+                onChange={(e) => setPwdForm((p) => ({ ...p, current: e.target.value }))}
+                required
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="new-password" className="text-sm text-slate-700">
+                {a.newPassword}
+              </Label>
+              <Input
+                id="new-password"
+                type="password"
+                autoComplete="new-password"
+                value={pwdForm.next}
+                onChange={(e) => setPwdForm((p) => ({ ...p, next: e.target.value }))}
+                required
+                minLength={8}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="confirm-password" className="text-sm text-slate-700">
+                {a.confirmPassword}
+              </Label>
+              <Input
+                id="confirm-password"
+                type="password"
+                autoComplete="new-password"
+                value={pwdForm.confirm}
+                onChange={(e) => setPwdForm((p) => ({ ...p, confirm: e.target.value }))}
+                required
+                minLength={8}
+              />
+            </div>
+
+            {pwdMessage && (
+              <p className={`text-xs ${pwdMessage.ok ? 'text-emerald-600' : 'text-red-600'}`}>
+                {pwdMessage.text}
+              </p>
+            )}
+
+            <Button
+              type="submit"
+              disabled={pwdLoading}
+              className="bg-[#2d4bb3] text-white hover:bg-[#243d99]"
+            >
+              {pwdLoading ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {a.changePassword}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* Danger zone — delete account */}
+      <Card className="rounded-[30px] border-red-200 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.08)]">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-red-600">
+            <Trash2 className="h-5 w-5" />
+            {a.dangerZoneLabel}
+          </CardTitle>
+        </CardHeader>
+
+        <CardContent>
+          <p className="mb-4 text-sm text-slate-600">{a.deleteAccountWarning}</p>
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300">
+                <Trash2 className="mr-2 h-4 w-4" />
+                {a.deleteAccount}
+              </Button>
+            </AlertDialogTrigger>
+
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{a.deleteAccount}</AlertDialogTitle>
+                <AlertDialogDescription>{a.deleteAccountWarning}</AlertDialogDescription>
+              </AlertDialogHeader>
+
+              <Input
+                value={deleteConfirm}
+                onChange={(e) => setDeleteConfirm(e.target.value)}
+                placeholder={a.deleteAccountConfirmPlaceholder}
+                className="my-2"
+              />
+
+              {deleteError && (
+                <p className="text-xs text-red-600">{deleteError}</p>
+              )}
+
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => { setDeleteConfirm(''); setDeleteError(null); }}>
+                  Cancel
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDeleteAccount}
+                  disabled={deleteConfirm !== 'DELETE' || deleteLoading}
+                  className="bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                >
+                  {deleteLoading ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  {a.deleteAccountConfirmButton}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </CardContent>
       </Card>
     </div>

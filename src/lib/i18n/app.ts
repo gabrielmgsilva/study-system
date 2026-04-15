@@ -217,6 +217,7 @@ type AppDictionary = {
     currentPlan: string;
     manageBilling: string;
     viewPricing: string;
+    upgradeNow: string;
     renewsOn: string;
     expiresOn: string;
     noSubscription: string;
@@ -229,6 +230,19 @@ type AppDictionary = {
     ofMax: string;
     billingPortalError: string;
     noBillingAccount: string;
+    securityLabel: string;
+    currentPassword: string;
+    newPassword: string;
+    confirmPassword: string;
+    changePassword: string;
+    passwordChanged: string;
+    passwordMismatch: string;
+    dangerZoneLabel: string;
+    deleteAccount: string;
+    deleteAccountWarning: string;
+    deleteAccountConfirmPlaceholder: string;
+    deleteAccountConfirmButton: string;
+    deleteAccountError: string;
   };
   admin: {
     navTitle: string;
@@ -470,6 +484,7 @@ const en: AppDictionary = {
     currentPlan: 'Current plan',
     manageBilling: 'Manage Billing',
     viewPricing: 'View Pricing',
+    upgradeNow: 'Upgrade Now',
     renewsOn: 'Renews on',
     expiresOn: 'Expires on',
     noSubscription: 'No active subscription.',
@@ -482,6 +497,19 @@ const en: AppDictionary = {
     ofMax: 'of',
     billingPortalError: 'Unable to open billing portal. Please try again.',
     noBillingAccount: 'No billing account linked yet. Complete a checkout to enable billing management.',
+    securityLabel: 'Security',
+    currentPassword: 'Current password',
+    newPassword: 'New password',
+    confirmPassword: 'Confirm new password',
+    changePassword: 'Change Password',
+    passwordChanged: 'Password changed successfully.',
+    passwordMismatch: 'New passwords do not match.',
+    dangerZoneLabel: 'Danger Zone',
+    deleteAccount: 'Delete Account',
+    deleteAccountWarning: 'This action is permanent and cannot be undone. Type DELETE to confirm.',
+    deleteAccountConfirmPlaceholder: 'Type DELETE to confirm',
+    deleteAccountConfirmButton: 'Permanently Delete Account',
+    deleteAccountError: 'Failed to delete account. Please try again.',
   },
   admin: {
     navTitle: 'Admin Console',
@@ -727,6 +755,7 @@ const pt: AppDictionary = {
     currentPlan: 'Plano atual',
     manageBilling: 'Gerenciar cobrança',
     viewPricing: 'Ver planos',
+    upgradeNow: 'Assinar agora',
     renewsOn: 'Renova em',
     expiresOn: 'Expira em',
     noSubscription: 'Nenhuma assinatura ativa.',
@@ -739,6 +768,19 @@ const pt: AppDictionary = {
     ofMax: 'de',
     billingPortalError: 'Não foi possível abrir o portal de cobrança. Tente novamente.',
     noBillingAccount: 'Nenhuma conta de cobrança vinculada. Finalize um checkout para habilitar o gerenciamento.',
+    securityLabel: 'Segurança',
+    currentPassword: 'Senha atual',
+    newPassword: 'Nova senha',
+    confirmPassword: 'Confirmar nova senha',
+    changePassword: 'Alterar senha',
+    passwordChanged: 'Senha alterada com sucesso.',
+    passwordMismatch: 'As novas senhas não coincidem.',
+    dangerZoneLabel: 'Zona de perigo',
+    deleteAccount: 'Excluir conta',
+    deleteAccountWarning: 'Esta ação é permanente e não pode ser desfeita. Digite DELETE para confirmar.',
+    deleteAccountConfirmPlaceholder: 'Digite DELETE para confirmar',
+    deleteAccountConfirmButton: 'Excluir conta permanentemente',
+    deleteAccountError: 'Falha ao excluir a conta. Tente novamente.',
   },
   admin: {
     navTitle: 'Console Administrativo',

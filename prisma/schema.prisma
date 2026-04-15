@@ -407,6 +407,7 @@ model Plan {
   name                   String    @map("name")
   description            String?   @map("description")
   price                  Decimal?  @db.Decimal(10, 2) @map("price")
+  priceAnnual            Decimal?  @db.Decimal(10, 2) @map("price_annual")
   maxLicenses            Int       @default(0) @map("max_licenses")
   flashcardsLimit        Int       @default(0) @map("flashcards_limit")
   flashcardsUnit         LimitUnit @default(day) @map("flashcards_unit")

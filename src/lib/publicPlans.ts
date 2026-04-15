@@ -8,6 +8,7 @@ export type PublicPlan = {
   name: string;
   description: string | null;
   price: string | null;
+  priceAnnual: string | null;
   maxLicenses: number;
   flashcardsLimit: number;
   flashcardsUnit: LimitUnit;
@@ -35,6 +36,7 @@ export async function getPublicPlans(): Promise<PublicPlan[]> {
       name: true,
       description: true,
       price: true,
+      priceAnnual: true,
       maxLicenses: true,
       flashcardsLimit: true,
       flashcardsUnit: true,
@@ -53,6 +55,7 @@ export async function getPublicPlans(): Promise<PublicPlan[]> {
   return plans.map((plan) => ({
     ...plan,
     price: plan.price?.toString() ?? null,
+    priceAnnual: plan.priceAnnual?.toString() ?? null,
     hasMonthlyPrice: !!plan.stripePriceMonthly,
     hasAnnualPrice: !!plan.stripePriceAnnual,
     stripePriceMonthly: undefined,

@@ -5,23 +5,32 @@ import type { PublicPlan } from '@/lib/publicPlans';
 
 type Props = {
   plan: PublicPlan;
-  annualPricePerMonth: Record<string, string>;
-  annualSavings: Record<string, string>;
 };
 
-export function PriceDisplayClient({ plan, annualPricePerMonth, annualSavings }: Props) {
+export function PriceDisplayClient({ plan }: Props) {
   const { interval } = useBillingInterval();
 
   const isAnnual = interval === 'year';
-  const annualPerMonth = annualPricePerMonth[plan.slug];
-  const monthlyAmount = plan.price ? Number(plan.price).toFixed(2) : null;
-  const displayAmount = isAnnual && annualPerMonth ? annualPerMonth : monthlyAmount;
-  const savings = isAnnual ? annualSavings[plan.slug] : null;
+  const monthly = plan.price ? Number(plan.price) : null;
+  const annual = plan.priceAnnual ? Number(plan.priceAnnual) : null;
+
+  // Per-month display when billed annually
+  const annualPerMonth = annual !== null ? annual / 12 : null;
+
+  // Savings percentage vs paying monthly for 12 months
+  const savingsPct =
+    monthly !== null && annual !== null
+      ? Math.round(((monthly * 12 - annual) / (monthly * 12)) * 100)
+      : null;
+
+  const displayAmount = isAnnual && annualPerMonth !== null
+    ? annualPerMonth.toFixed(2)
+    : monthly !== null
+      ? monthly.toFixed(2)
+      : null;
 
   if (!displayAmount) {
-    return (
-      <div className="text-white/50 text-sm">Price not configured</div>
-    );
+    return <div className="text-white/50 text-sm">Price not configured</div>;
   }
 
   return (
@@ -32,10 +41,10 @@ export function PriceDisplayClient({ plan, annualPricePerMonth, annualSavings }:
       </div>
       {isAnnual ? (
         <p className="text-xs text-white/55">
-          Billed ${(Number(displayAmount) * 12).toFixed(2)}/year
-          {savings && (
+          Billed ${annual !== null ? annual.toFixed(2) : (Number(displayAmount) * 12).toFixed(2)}/year
+          {savingsPct !== null && savingsPct > 0 && (
             <span className="ml-2 rounded-full bg-emerald-500/20 px-1.5 py-0.5 text-emerald-400 font-medium">
-              {savings}
+              Save {savingsPct}%
             </span>
           )}
         </p>

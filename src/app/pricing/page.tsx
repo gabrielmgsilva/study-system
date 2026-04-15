@@ -14,19 +14,6 @@ import { PriceDisplayClient } from '@/components/PricingPriceDisplay';
 export const dynamic = 'force-dynamic';
 
 // ---------------------------------------------------------------------------
-// Annual prices per month (display only — actual charge is annual lump sum)
-// ---------------------------------------------------------------------------
-const ANNUAL_PRICE_PER_MONTH: Record<string, string> = {
-  student: '14.99',
-  pro: '22.99',
-};
-
-const ANNUAL_SAVINGS: Record<string, string> = {
-  student: 'Save 25%',
-  pro: 'Save 23%',
-};
-
-// ---------------------------------------------------------------------------
 // Feature comparison matrix
 // ---------------------------------------------------------------------------
 type FeatureRow = {
@@ -133,11 +120,7 @@ function PaidPlanCard({ plan, featured }: { plan: PublicPlan; featured?: boolean
         </div>
 
         {/* Price — reactive to interval toggle */}
-        <PriceDisplayClient
-          plan={plan}
-          annualPricePerMonth={ANNUAL_PRICE_PER_MONTH}
-          annualSavings={ANNUAL_SAVINGS}
-        />
+        <PriceDisplayClient plan={plan} />
 
         <SubscribeButton plan={plan} />
 

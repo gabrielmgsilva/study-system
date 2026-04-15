@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Check } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import type { LandingDictionary } from '@/lib/i18n/landing';
@@ -65,14 +65,19 @@ function formatCertificationLimit(
   return `${maxLicenses} ${maxLicenses === 1 ? singularLabel : pluralLabel}`;
 }
 
-function buildPlanFeatures(plan: PublicPlan, dictionary: LandingDictionary) {
+type PlanFeature = { label: string; included: boolean };
+
+function buildPlanFeatures(plan: PublicPlan, dictionary: LandingDictionary): PlanFeature[] {
   return [
-    `${dictionary.pricing.flashcardsLabel}: ${formatUsageLimit(plan.flashcardsLimit, plan.flashcardsUnit, dictionary.pricing.unlimited, dictionary.pricing.notIncluded, dictionary.pricing.perLabel)}`,
-    `${dictionary.pricing.practiceLabel}: ${formatUsageLimit(plan.practiceLimit, plan.practiceUnit, dictionary.pricing.unlimited, dictionary.pricing.notIncluded, dictionary.pricing.perLabel)}`,
-    `${dictionary.pricing.testsLabel}: ${formatUsageLimit(plan.testsLimit, plan.testsUnit, dictionary.pricing.unlimited, dictionary.pricing.notIncluded, dictionary.pricing.perLabel)}`,
-    plan.maxQuestionsPerSession
-      ? `${dictionary.pricing.sessionCapLabel}: ${plan.maxQuestionsPerSession}`
-      : `${dictionary.pricing.sessionCapLabel}: ${dictionary.pricing.sessionUnlimited}`,
+    { label: `${dictionary.pricing.flashcardsLabel}: ${formatUsageLimit(plan.flashcardsLimit, plan.flashcardsUnit, dictionary.pricing.unlimited, dictionary.pricing.notIncluded, dictionary.pricing.perLabel)}`, included: plan.flashcardsLimit !== 0 },
+    { label: `${dictionary.pricing.practiceLabel}: ${formatUsageLimit(plan.practiceLimit, plan.practiceUnit, dictionary.pricing.unlimited, dictionary.pricing.notIncluded, dictionary.pricing.perLabel)}`, included: plan.practiceLimit !== 0 },
+    { label: `${dictionary.pricing.testsLabel}: ${formatUsageLimit(plan.testsLimit, plan.testsUnit, dictionary.pricing.unlimited, dictionary.pricing.notIncluded, dictionary.pricing.perLabel)}`, included: plan.testsLimit !== 0 },
+    {
+      label: plan.maxQuestionsPerSession
+        ? `${dictionary.pricing.sessionCapLabel}: ${plan.maxQuestionsPerSession}`
+        : `${dictionary.pricing.sessionCapLabel}: ${dictionary.pricing.sessionUnlimited}`,
+      included: true,
+    },
   ];
 }
 
@@ -234,14 +239,22 @@ export default function LandingPricingSection({
 
                           <ul className="mt-8 space-y-4 text-sm">
                             {features.map((feature) => (
-                              <li key={feature} className="flex items-start gap-3">
-                                <Check className={`mt-0.5 h-4 w-4 shrink-0 ${highlighted ? 'text-cyan-300' : 'text-[#39c66d]'}`} />
-                                <span>{feature}</span>
+                              <li key={feature.label} className={`flex items-start gap-3 ${!feature.included ? (highlighted ? 'text-slate-400' : 'text-slate-400') : ''}`}>
+                                {feature.included ? (
+                                  <Check className={`mt-0.5 h-4 w-4 shrink-0 ${highlighted ? 'text-cyan-300' : 'text-[#39c66d]'}`} />
+                                ) : (
+                                  <X className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
+                                )}
+                                <span className={!feature.included ? 'line-through' : ''}>{feature.label}</span>
                               </li>
                             ))}
-                            <li className={`flex items-start gap-3 ${highlighted ? 'text-slate-200' : 'text-slate-500'}`}>
-                              <Check className={`mt-0.5 h-4 w-4 shrink-0 ${highlighted ? 'text-cyan-300' : 'text-[#39c66d]'}`} />
-                              <span>{plan.logbookAccess ? dictionary.pricing.logbookIncluded : dictionary.pricing.logbookUnavailable}</span>
+                            <li className={`flex items-start gap-3 ${!plan.logbookAccess ? (highlighted ? 'text-slate-400' : 'text-slate-400') : ''}`}>
+                              {plan.logbookAccess ? (
+                                <Check className={`mt-0.5 h-4 w-4 shrink-0 ${highlighted ? 'text-cyan-300' : 'text-[#39c66d]'}`} />
+                              ) : (
+                                <X className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
+                              )}
+                              <span className={!plan.logbookAccess ? 'line-through' : ''}>{plan.logbookAccess ? dictionary.pricing.logbookIncluded : dictionary.pricing.logbookUnavailable}</span>
                             </li>
                           </ul>
 

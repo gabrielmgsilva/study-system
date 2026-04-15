@@ -34,21 +34,23 @@ export async function GET() {
 
   const enrolledCount = Object.keys(licenseEntitlements).filter((licenseId) => licenseId !== 'regs').length;
 
+  const freeTier = !user?.plan && !user?.subscriptionStatus;
   const subscriptionActive =
-    (user?.subscriptionStatus === 'active' || user?.subscriptionStatus === 'trialing') &&
-    user?.subscriptionExpiresAt != null &&
-    user.subscriptionExpiresAt > new Date();
+    freeTier ||
+    ((user?.subscriptionStatus === 'active' || user?.subscriptionStatus === 'trialing') &&
+      user?.subscriptionExpiresAt != null &&
+      user.subscriptionExpiresAt > new Date());
 
   return NextResponse.json({
     ok: true,
     plan: user?.plan ?? null,
     enrollmentSummary: {
       count: enrolledCount,
-      max: user?.plan?.maxLicenses ?? 0,
+      max: user?.plan?.maxLicenses ?? 1, // free tier allows 1 license
     },
     licenseEntitlements,
     subscription: {
-      status: user?.subscriptionStatus ?? null,
+      status: freeTier ? 'free' : (user?.subscriptionStatus ?? null),
       expiresAt: user?.subscriptionExpiresAt?.toISOString() ?? null,
       active: subscriptionActive,
     },

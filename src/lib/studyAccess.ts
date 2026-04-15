@@ -2,6 +2,35 @@ import type { LimitUnit, Prisma } from '@prisma/client';
 
 import { experienceForPlan, planCaps, type AccessStatus, type LicensePlanCaps, type PlanRecord } from '@/lib/planEntitlements';
 
+// ─── Free tier defaults ───
+// Users without a plan (planId = null) get these synthetic limits.
+const FREE_TIER_PLAN: PlanRecord = {
+  id: 0,
+  slug: 'free',
+  name: 'Free',
+  description: 'Free tier with limited study access.',
+  maxLicenses: 1,
+  flashcardsLimit: 3,    // 3 sessions/day
+  flashcardsUnit: 'day' as LimitUnit,
+  practiceLimit: 0,      // blocked
+  practiceUnit: 'day' as LimitUnit,
+  testsLimit: 0,         // blocked
+  testsUnit: 'week' as LimitUnit,
+  maxQuestionsPerSession: null,
+  logbookAccess: false,
+  isActive: true,
+};
+
+// Regs license is always free with unlimited access
+const FREE_TIER_REGS_PLAN: PlanRecord = {
+  ...FREE_TIER_PLAN,
+  flashcardsLimit: -1,   // unlimited
+  practiceLimit: -1,     // unlimited
+  testsLimit: -1,        // unlimited
+};
+
+const REGS_LICENSE_ID = 'regs';
+
 export type StudyStartMode = 'flashcard' | 'practice' | 'test';
 
 export type SerializablePlanCaps = {
@@ -163,13 +192,17 @@ export async function getLicenseEntitlementSnapshots(db: DbClient, userId: numbe
     },
   });
 
-  if (!user?.plan) {
-    return {} as Record<string, LicenseEntitlementSnapshot>;
-  }
+  const isFreeTier = !user?.plan;
+  const effectivePlan = (licenseId: string): PlanRecord =>
+    isFreeTier
+      ? (normalizeLicenseId(licenseId) === REGS_LICENSE_ID ? FREE_TIER_REGS_PLAN : FREE_TIER_PLAN)
+      : user!.plan!;
 
-  const flashcardsStart = rangeStart(user.plan.flashcardsUnit, now);
-  const practiceStart = rangeStart(user.plan.practiceUnit, now);
-  const testsStart = rangeStart(user.plan.testsUnit, now);
+  // For free tier, use fixed units; for paid plans, use plan config
+  const basePlan = isFreeTier ? FREE_TIER_PLAN : user!.plan!;
+  const flashcardsStart = rangeStart(basePlan.flashcardsUnit, now);
+  const practiceStart = rangeStart(basePlan.practiceUnit, now);
+  const testsStart = rangeStart(basePlan.testsUnit, now);
 
   const [entitlements, flashcardsRows, practiceRows, testRows] = await Promise.all([
     db.licenseEntitlement.findMany({
@@ -220,7 +253,7 @@ export async function getLicenseEntitlementSnapshots(db: DbClient, userId: numbe
 
   for (const row of entitlements) {
     const licenseId = normalizeLicenseId(row.licenseId);
-    snapshots[licenseId] = buildSnapshot(row, user.plan, {
+    snapshots[licenseId] = buildSnapshot(row, effectivePlan(licenseId), {
       flashcardsUsed: flashcardsMap[licenseId] ?? 0,
       practiceUsed: practiceMap[licenseId] ?? 0,
       testsUsed: testMap[licenseId] ?? 0,
@@ -261,9 +294,10 @@ export async function getSingleLicenseEntitlementSnapshot(
     },
   });
 
-  if (!user?.plan) {
-    return null;
-  }
+  const isFreeTier = !user?.plan;
+  const plan: PlanRecord = isFreeTier
+    ? (normalizedLicenseId === REGS_LICENSE_ID ? FREE_TIER_REGS_PLAN : FREE_TIER_PLAN)
+    : user!.plan!;
 
   const entitlement = await db.licenseEntitlement.findFirst({
     where: { userId, licenseId: normalizedLicenseId, deletedAt: null, isActive: true },
@@ -278,9 +312,9 @@ export async function getSingleLicenseEntitlementSnapshot(
     return null;
   }
 
-  const flashcardsStart = rangeStart(user.plan.flashcardsUnit, now);
-  const practiceStart = rangeStart(user.plan.practiceUnit, now);
-  const testsStart = rangeStart(user.plan.testsUnit, now);
+  const flashcardsStart = rangeStart(plan.flashcardsUnit, now);
+  const practiceStart = rangeStart(plan.practiceUnit, now);
+  const testsStart = rangeStart(plan.testsUnit, now);
 
   const [flashcardsCount, practiceCount, testCount] = await Promise.all([
     db.studySession.count({
@@ -312,7 +346,7 @@ export async function getSingleLicenseEntitlementSnapshot(
     }),
   ]);
 
-  return buildSnapshot(entitlement, user.plan, {
+  return buildSnapshot(entitlement, plan, {
     flashcardsUsed: flashcardsCount,
     practiceUsed: practiceCount,
     testsUsed: testCount,

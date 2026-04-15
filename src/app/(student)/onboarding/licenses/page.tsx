@@ -44,12 +44,14 @@ export default async function OnboardingLicensesPage() {
     }),
   ]);
 
-  if (!dbUser || !dbUser.subscriptionStatus) {
-    redirect('/plans');
+  if (!dbUser) {
+    redirect('/auth/login');
   }
 
-  const isTrial = dbUser.subscriptionStatus === 'trialing';
-  const maxLicenses = isTrial ? 1 : (dbUser.plan?.maxLicenses ?? 1);
+  // Free tier: no subscriptionStatus is allowed — user gets 1 license slot.
+  // Trial: use the plan's actual maxLicenses (not hardcoded 1).
+  const isFreeTier = !dbUser.subscriptionStatus;
+  const maxLicenses = dbUser.plan?.maxLicenses ?? 1;
   const currentLicenseIds = dbUser.licenseEntitlements.map(
     (e: { licenseId: string }) => e.licenseId,
   );
@@ -59,8 +61,9 @@ export default async function OnboardingLicensesPage() {
       <LicensePicker
         licenses={licenses}
         maxLicenses={maxLicenses}
-        isTrial={isTrial}
-        planName={dbUser.plan?.name ?? 'Your Plan'}
+        isTrial={dbUser.subscriptionStatus === 'trialing'}
+        isFreeTier={isFreeTier}
+        planName={isFreeTier ? 'Free' : (dbUser.plan?.name ?? 'Your Plan')}
         currentLicenseIds={currentLicenseIds}
       />
     </main>

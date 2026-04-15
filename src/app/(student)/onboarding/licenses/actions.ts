@@ -28,12 +28,13 @@ export async function saveLicenseSelection(licenseIds: string[]) {
     },
   });
 
-  if (!user || !user.subscriptionStatus) {
-    return { error: 'No active subscription found.' };
+  if (!user) {
+    return { error: 'User not found.' };
   }
 
-  const isTrial = user.subscriptionStatus === 'trialing';
-  const maxLicenses = isTrial ? 1 : (user.plan?.maxLicenses ?? 1);
+  // Free tier (no subscriptionStatus) is allowed with 1 license slot.
+  // Trialing or active: use the plan's actual maxLicenses.
+  const maxLicenses = user.plan?.maxLicenses ?? 1;
 
   if (licenseIds.length > maxLicenses) {
     return {

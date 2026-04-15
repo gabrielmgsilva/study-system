@@ -9,7 +9,10 @@ function normalizeLicenseId(value: unknown) {
   return String(value ?? '').trim().toLowerCase();
 }
 
-async function getUserPlan(userId: number) {
+// Free tier: synthetic plan limits for users with planId = null
+const FREE_TIER_MAX_LICENSES = 1;
+
+async function getUserEnrollmentContext(userId: number) {
   return prisma.user.findFirst({
     where: { id: userId, deletedAt: null },
     select: {
@@ -39,14 +42,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: 'Invalid licenseId' }, { status: 400 });
   }
 
-  const user = await getUserPlan(session.userId);
-  if (!user?.plan) {
-    return NextResponse.json({ ok: false, error: 'A plan is required before enrollment.' }, { status: 403 });
-  }
+  const user = await getUserEnrollmentContext(session.userId);
 
-  if (!user.plan.isActive) {
+  // Free tier: no plan — allow up to FREE_TIER_MAX_LICENSES non-regs certifications.
+  // Paid tier: plan must exist and be active.
+  const isFreeTier = !user?.plan;
+
+  if (!isFreeTier && !user?.plan?.isActive) {
     return NextResponse.json({ ok: false, error: 'Your current plan is inactive.' }, { status: 403 });
   }
+
+  const maxLicenses = isFreeTier ? FREE_TIER_MAX_LICENSES : user!.plan!.maxLicenses;
 
   const activeEnrollment = await prisma.licenseEntitlement.findFirst({
     where: {
@@ -58,7 +64,7 @@ export async function POST(req: Request) {
     select: { id: true },
   });
 
-  if (!activeEnrollment && licenseId !== 'regs' && user.plan.maxLicenses > 0) {
+  if (!activeEnrollment && licenseId !== 'regs' && maxLicenses > 0) {
     const currentCount = await prisma.licenseEntitlement.count({
       where: {
         userId: session.userId,
@@ -68,9 +74,14 @@ export async function POST(req: Request) {
       },
     });
 
-    if (currentCount >= user.plan.maxLicenses) {
+    if (currentCount >= maxLicenses) {
       return NextResponse.json(
-        { ok: false, error: 'Your plan has reached the maximum number of certifications.' },
+        {
+          ok: false,
+          error: isFreeTier
+            ? 'Free accounts can enroll in 1 certification. Upgrade to add more.'
+            : 'Your plan has reached the maximum number of certifications.',
+        },
         { status: 403 },
       );
     }
@@ -95,7 +106,7 @@ export async function POST(req: Request) {
     },
   });
 
-  return NextResponse.json({ ok: true, enrollment, plan: user.plan });
+  return NextResponse.json({ ok: true, enrollment, plan: user?.plan ?? null });
 }
 
 export async function DELETE(req: Request) {

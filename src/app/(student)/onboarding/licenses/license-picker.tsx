@@ -22,6 +22,7 @@ interface LicensePickerProps {
   licenses: License[];
   maxLicenses: number;
   isTrial: boolean;
+  isFreeTier?: boolean;
   planName: string;
   currentLicenseIds: string[];
 }
@@ -80,6 +81,7 @@ export function LicensePicker({
   licenses,
   maxLicenses,
   isTrial,
+  isFreeTier = false,
   planName,
   currentLicenseIds,
 }: LicensePickerProps) {
@@ -139,18 +141,35 @@ export function LicensePicker({
           </Badge>
         </div>
 
+        {/* Free tier info */}
+        {isFreeTier && (
+          <Card className="mb-4 border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/50">
+            <CardContent className="flex items-start gap-3 py-3">
+              <Info className="mt-0.5 size-5 shrink-0 text-amber-600 dark:text-amber-400" />
+              <div className="text-sm">
+                <p className="font-medium text-amber-900 dark:text-amber-100">
+                  Free account
+                </p>
+                <p className="text-amber-700 dark:text-amber-300">
+                  You can select 1 certification to explore with limited flashcard access.
+                  Upgrade to a paid plan to unlock practice, tests, and more certifications.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Trial info */}
-        {isTrial && (
+        {isTrial && !isFreeTier && (
           <Card className="mb-4 border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/50">
             <CardContent className="flex items-start gap-3 py-3">
               <Info className="mt-0.5 size-5 shrink-0 text-blue-600 dark:text-blue-400" />
               <div className="text-sm">
                 <p className="font-medium text-blue-900 dark:text-blue-100">
-                  Trial account — {planName}
+                  7-day Pro trial — {planName}
                 </p>
                 <p className="text-blue-700 dark:text-blue-300">
-                  During your trial, you can select 1 certification. Upgrade
-                  your plan to access more.
+                  During your trial you can select up to {maxLicenses} certification{maxLicenses !== 1 ? 's' : ''} with full access to all study modes.
                 </p>
               </div>
             </CardContent>
